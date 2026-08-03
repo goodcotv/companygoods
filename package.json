@@ -3,21 +3,29 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently -k -n web1,web2 -c blue,magenta \"npm run dev --prefix ../goodco-web1 -- -p 3000\" \"next dev -p 3003\"",
+    "dev:web2": "next dev -p 3003",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "@sanity/image-url": "^2.1.1",
+    "@sanity/vision": "^6.8.0",
+    "framer-motion": "^12.43.0",
     "next": "16.2.12",
+    "next-sanity": "^13.2.3",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "sanity": "^6.8.0",
+    "styled-components": "^6.4.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^10.0.4",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "tailwindcss": "^4",

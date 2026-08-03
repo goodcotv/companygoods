@@ -1,26 +1,507 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #000000;
+  --foreground: #ffffff;
+  --brand: #d1d1d1;
+  --muted: #9a9a9a;
+  --frame: #e8e8e8;
+  --panel: rgba(28, 28, 28, 0.72);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-brand: var(--brand);
+  --color-muted: var(--muted);
+  --color-frame: var(--frame);
+  --color-panel: var(--panel);
+  --font-sans: var(--font-neue-haas), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-heading: var(--font-mint-grotesk), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: var(--font-tekio-grotesk), "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
+  margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-neue-haas), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+  }
+}
+
+::selection {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.45s ease both;
+}
+
+/* Talent page — locked viewport; camera frame hug-wraps the roster */
+.talent-page {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #000;
+  color: var(--foreground);
+}
+
+.talent-media {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.talent-media video,
+.talent-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.talent-media-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.talent-body {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 28rem) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  align-items: start;
+  gap: 1.5rem;
+  flex: 1;
+  min-height: 0;
+  /* Reserve space for in-stage nav chrome */
+  padding: 1.25rem 2rem 3.5rem 2rem;
+}
+
+.talent-left {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  justify-content: flex-start;
+}
+
+.talent-categories {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0.25rem 0.25rem;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 1.35rem;
+}
+
+.talent-categories__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.talent-categories__sep {
+  opacity: 0.55;
+}
+
+.talent-categories__btn {
+  font-weight: 400;
+  opacity: 0.65;
+  transition: opacity 0.2s ease, font-weight 0.2s ease;
+}
+
+.talent-categories__btn:hover {
+  opacity: 1;
+}
+
+.talent-categories__btn.is-active {
+  font-weight: 700;
+  opacity: 1;
+}
+
+/* Camera frame wraps the names; scrolls if the roster exceeds the stage */
+.talent-list-slot {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: fit-content;
+  max-width: min(100%, 32rem);
+  overflow: hidden;
+}
+
+.talent-list-frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: fit-content;
+  max-width: 100%;
+  max-height: 100%;
+  min-height: 0;
+  padding: 0.95rem 1.25rem 1rem 1.1rem;
+  overflow: hidden;
+}
+
+.talent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Invisible longest-name row: holds frame width steady across categories. */
+.talent-list__sizer {
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.talent-list__name {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  text-decoration: none;
+  cursor: pointer;
+  font-family: var(--font-mint-grotesk), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 1.65rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: rgba(255, 255, 255, 0.38);
+  transition: color 0.2s ease;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.talent-list__name:hover,
+.talent-list__name.is-active {
+  color: #fff;
+}
+
+.talent-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  inset: 0;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  padding: 0 2rem;
+  text-align: center;
+}
+
+.talent-stage__season {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-neue-haas), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.talent-stage__season.is-visible {
+  opacity: 1;
+}
+
+.talent-stage__title {
+  margin: 0;
+  font-family: var(--font-neue-haas), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 6.5rem;
+  font-weight: 400;
+  line-height: 0.9;
+  letter-spacing: -0.045em;
+  text-transform: uppercase;
+  color: #3a3a3a;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.talent-stage__title.is-visible {
+  opacity: 1;
+}
+
+.talent-stage__title.has-media {
+  color: rgba(255, 255, 255, 0.88);
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45);
+}
+
+.talent-bio {
+  position: absolute;
+  top: 50%;
+  right: 2rem;
+  transform: translateY(-50%);
+  z-index: 2;
+  max-width: 22rem;
+  max-height: 24rem;
+  padding: 1.35rem 1.5rem;
+  border-radius: 1rem;
+  background: rgba(28, 28, 28, 0.52);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  overflow: hidden;
+}
+
+.talent-bio.is-visible {
+  opacity: 1;
+}
+
+.talent-bio p {
+  margin: 0;
+  max-height: inherit;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font-family: var(--font-neue-haas), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.92);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+/* Talent Detail Page */
+.talent-detail-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 3rem;
+  padding: 3rem;
+  align-items: center;
+  height: 100%;
+}
+
+.talent-detail-image {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.talent-detail-image img,
+.talent-detail-image video {
+  width: 100%;
+  height: auto;
+  max-height: 600px;
+  object-fit: cover;
+  border-radius: 0.5rem;
+}
+
+.talent-detail-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.talent-detail-name {
+  margin: 0;
+  font-family: var(--font-mint-grotesk), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 3.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.talent-detail-season {
+  margin: 0;
+  font-family: var(--font-neue-haas), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.talent-detail-work {
+  margin: 0;
+  font-family: var(--font-neue-haas), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.talent-detail-bio {
+  margin: 0;
+  font-family: var(--font-neue-haas), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.92);
+  max-width: 600px;
+}
+
+/* Talent Projects Section */
+.talent-projects {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.talent-projects-title {
+  margin: 0 0 1.5rem;
+  font-family: var(--font-mint-grotesk), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+}
+
+.talent-projects-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.talent-project-item {
+  margin: 0;
+}
+
+.talent-project-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.talent-project-link:hover,
+.talent-project-link.is-active {
+  transform: translateX(4px);
+  opacity: 0.9;
+}
+
+.talent-project-link.is-active .talent-project-title {
+  color: #fff;
+}
+
+.talent-project-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.talent-project-title {
+  margin: 0;
+  font-family: var(--font-neue-haas), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.talent-project-client {
+  margin: 0;
+  font-family: var(--font-neue-haas), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.talent-project-desc {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-neue-haas), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.75);
+  max-width: 500px;
 }

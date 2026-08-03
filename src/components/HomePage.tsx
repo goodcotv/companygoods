@@ -1,0 +1,200 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { AnimatePresence } from "framer-motion";
+import { projects as fallbackProjects } from "@/data/projects";
+import type {
+  Project as LocalProject,
+  ScrollSubtitleSpan,
+} from "@/data/projects";
+import type { ViewMode } from "./BottomChrome";
+import { ListView } from "./ListView";
+import { ScrollView } from "./ScrollView";
+import type {
+  HomepageData,
+  PortableTextBlock,
+  Project as SanityProject,
+} from "@/sanity/types";
+
+function parseView(value: string | null): ViewMode {
+  return value === "list" ? "list" : "scroll";
+}
+
+/**
+ * Flattens Sanity Portable Text blocks into plain text, joined by newlines.
+ */
+function portableTextToPlainText(blocks?: SanityProject["description"]): string {
+  if (!blocks || blocks.length === 0) return "";
+  return blocks
+    .filter((block) => block._type === "block")
+    .map((block) => block.children?.map((child) => child.text).join("") || "")
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
+ * Converts Portable Text subtitle blocks into line/span data for the scroll UI.
+ * Each paragraph becomes one line; link annotations become hrefs on spans.
+ */
+function portableTextToScrollSubtitles(
+  blocks?: PortableTextBlock[],
+): ScrollSubtitleSpan[][] | undefined {
+  if (!blocks || blocks.length === 0) return undefined;
+
+  const lines = blocks
+    .filter((block) => block._type === "block")
+    .map((block) => {
+      const markDefs = block.markDefs || [];
+      return (block.children || [])
+        .filter((child) => child.text)
+        .map((child) => {
+          const linkKey = child.marks?.find((mark) =>
+            markDefs.some((def) => def._key === mark && def._type === "link"),
+          );
+          const link = linkKey
+            ? markDefs.find((def) => def._key === linkKey && def._type === "link")
+            : undefined;
+          return {
+            text: child.text,
+            ...(link?.href ? { href: link.href } : {}),
+          } satisfies ScrollSubtitleSpan;
+        });
+    })
+    .filter((line) => line.length > 0);
+
+  return lines.length > 0 ? lines : undefined;
+}
+
+/**
+ * Transform Sanity project data to match the local Project type
+ */
+function transformSanityProject(project: SanityProject): LocalProject {
+  // Map discipline strings from Sanity to uppercase format
+  const disciplineMap: Record<string, LocalProject["disciplines"][number]> = {
+    edit: "EDIT",
+    color: "COLOR",
+    sound: "SOUND",
+    vfx: "VFX",
+  };
+
+  // Extract disciplines from credits
+  const disciplines = Array.from(
+    new Set(
+      project.postCredits?.map((c) => disciplineMap[c.discipline]).filter(Boolean) || [],
+    ),
+  ) as LocalProject["disciplines"];
+
+  // Extract roles from credits (fallback when no custom scroll subtitles)
+  const roles = project.postCredits?.map((c) => c.role) || [];
+
+  // Find a lead credit (usually one with role containing "LEAD")
+  const leadCredit = project.postCredits?.find((c) =>
+    c.role.toUpperCase().includes("LEAD"),
+  );
+  const lead = leadCredit?.worker
+    ? { label: "LEAD", name: leadCredit.worker.name }
+    : undefined;
+
+  // Map category title to uppercase format
+  const categoryMap: Record<string, LocalProject["category"]> = {
+    COMMERCIAL: "COMMERCIAL",
+    Commercial: "COMMERCIAL",
+    "IMMERSIVE AND LIVE": "IMMERSIVE & LIVE",
+    "Immersive & Live": "IMMERSIVE & LIVE",
+    "Immersive and Live": "IMMERSIVE & LIVE",
+    MUSIC: "MUSIC",
+    Music: "MUSIC",
+    BEAUTY: "BEAUTY",
+    Beauty: "BEAUTY",
+  };
+
+  // Fall back to the rich project write-up when there's no dedicated POST description
+  const description =
+    project.postWorkDescription || portableTextToPlainText(project.description);
+
+  return {
+    id: project._id,
+    client: project.client || "",
+    title: project.title,
+    category: categoryMap[project.postCategoryTitle || ""] || "COMMERCIAL",
+    disciplines,
+    roles,
+    lead,
+    scrollSubtitles: portableTextToScrollSubtitles(project.postScrollSubtitles),
+    description,
+    image: project.videoUrl || project.imageUrl || "/projects/hero-placeholder.jpg",
+    imageAlt: `${project.title} project`,
+  };
+}
+
+interface HomePageProps {
+  data: HomepageData;
+  onNavigate?: (section: "work" | "talent" | "info") => void;
+  externalView?: ViewMode;
+  onExternalViewChange?: (view: ViewMode) => void;
+}
+
+export function HomePage({ data, onNavigate, externalView, onExternalViewChange }: HomePageProps) {
+  const searchParams = useSearchParams();
+  const [internalView, setInternalView] = useState<ViewMode>(() =>
+    parseView(searchParams.get("view")),
+  );
+  
+  // Use external view if provided (when rendered in AppShell), otherwise use internal
+  const view = externalView ?? internalView;
+  const setView = onExternalViewChange ?? setInternalView;
+
+  // Get intro video URL from Sanity settings
+  const introVideoUrl = data?.settings?.introVideoUrl;
+
+  // Use allProjects for list view, featuredProjects for scroll view
+  const sanityProjects = view === "list" 
+    ? data?.allProjects 
+    : data?.settings?.featuredProjects;
+  
+  const projects: LocalProject[] =
+    sanityProjects?.map(transformSanityProject) || fallbackProjects;
+
+  useEffect(() => {
+    if (!externalView) {
+      setInternalView(parseView(searchParams.get("view")));
+    }
+  }, [searchParams, externalView]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [view]);
+
+  function handleViewChange(next: ViewMode) {
+    setView(next);
+    // Only update URL if we're not using external management
+    if (!onExternalViewChange) {
+      const url = next === "list" ? "/?view=list" : "/";
+      window.history.replaceState(null, "", url);
+    }
+  }
+
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      {view === "scroll" ? (
+        <ScrollView
+          key="scroll"
+          projects={projects}
+          view={view}
+          onViewChange={handleViewChange}
+          introVideoUrl={introVideoUrl}
+          onNavigate={onNavigate}
+        />
+      ) : (
+        <ListView 
+          key="list"
+          projects={projects} 
+          view={view} 
+          onViewChange={handleViewChange}
+          onNavigate={onNavigate}
+        />
+      )}
+    </AnimatePresence>
+  );
+}
