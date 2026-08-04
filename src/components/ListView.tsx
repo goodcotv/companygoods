@@ -47,6 +47,7 @@ export function ListView({ projects, view, onViewChange, onNavigate }: ListViewP
   });
   const [activeId, setActiveId] = useState(projects[0]?.id);
   const [descVisible, setDescVisible] = useState(true);
+  const [specialtyExpanded, setSpecialtyExpanded] = useState(false);
   
   // Update URL when filters change
   useEffect(() => {
@@ -187,32 +188,44 @@ export function ListView({ projects, view, onViewChange, onNavigate }: ListViewP
           </nav>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            {DISCIPLINES.map((d) => {
-              const on = discipline === d;
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => selectDiscipline(d)}
-                  aria-pressed={on}
-                  className={`rounded-md px-3 py-1.5 text-[11px] tracking-[0.12em] uppercase transition-colors ${
-                    on
-                      ? "bg-white/25 text-foreground"
-                      : "bg-white/10 text-white/90 hover:bg-white/18"
-                  }`}
-                >
-                  {d}
-                </button>
-              );
-            })}
             <button
               type="button"
-              onClick={clearFilters}
-              aria-label="Clear filters"
-              className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-[13px] text-white/90 transition-colors hover:bg-white/18"
+              onClick={() => setSpecialtyExpanded(!specialtyExpanded)}
+              className="rounded-md bg-white/10 px-3 py-1.5 text-[11px] tracking-[0.12em] uppercase text-white/90 transition-colors hover:bg-white/18"
             >
-              ×
+              SPECIALTY <span className="ml-1">{specialtyExpanded ? '−' : '+'}</span>
             </button>
+            
+            {specialtyExpanded && (
+              <>
+                {DISCIPLINES.map((d) => {
+                  const on = discipline === d;
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => selectDiscipline(d)}
+                      aria-pressed={on}
+                      className={`rounded-md px-3 py-1.5 text-[11px] tracking-[0.12em] uppercase transition-colors ${
+                        on
+                          ? "bg-white/25 text-foreground"
+                          : "bg-white/10 text-white/90 hover:bg-white/18"
+                      }`}
+                    >
+                      {d}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  aria-label="Clear filters"
+                  className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-[13px] text-white/90 transition-colors hover:bg-white/18"
+                >
+                  ×
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -236,11 +249,11 @@ export function ListView({ projects, view, onViewChange, onNavigate }: ListViewP
                             : "text-white/35 hover:text-foreground"
                         }`}
                       >
-                        <span className="block font-heading text-[1.4rem] font-extrabold leading-none tracking-[-0.02em]">
-                          {project.client}
+                        <span className="block font-heading text-[21pt] font-extrabold leading-none tracking-[-0.02em]">
+                          {project.title}
                         </span>
                         <span className="mt-1.5 block font-sans text-[11px] tracking-[0.14em] uppercase">
-                          {project.title}
+                          {project.client}
                         </span>
                       </button>
                     </li>

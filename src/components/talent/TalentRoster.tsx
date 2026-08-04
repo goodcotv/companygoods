@@ -191,7 +191,7 @@ export default function TalentRoster({ workers = [], onNavigate }: TalentRosterP
           </>
         )}
 
-        <div className="px-8 pt-4">
+        <div className="relative z-10 px-8 pt-4">
           <BrandHeader
             variant="display"
             widthClass="w-[30rem] max-w-full"

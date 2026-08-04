@@ -86,8 +86,9 @@ export function BrandHeader({
                     width: `${(width / contentW) * 100}%`,
                     height: "auto",
                     maxWidth: "none",
+                    mixBlendMode: "screen" as const,
                   }
-                : undefined
+                : { mixBlendMode: "screen" as const }
             }
             className={`h-auto w-full ${muted ? "opacity-[0.42]" : ""}`}
           />

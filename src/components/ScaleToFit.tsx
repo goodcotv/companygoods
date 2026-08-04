@@ -26,7 +26,7 @@ type ScaleToFitProps = {
 /** Default site-frame corner radius to match the letterboxed reference. */
 const DEFAULT_RADIUS = 36;
 /** Match Figma: modest black bezel — enough to float the stage, not shrink it. */
-const DEFAULT_MARGIN = 0.055;
+const DEFAULT_MARGIN = 0.01;
 
 function computeScale(
   width: number,
