@@ -23,8 +23,8 @@ type ScaleToFitProps = {
   className?: string;
 };
 
-/** Default site-frame corner radius to match the letterboxed reference. */
-const DEFAULT_RADIUS = 36;
+/** Default site-frame corner radius (0 = sharp corners, edge-to-edge stage). */
+const DEFAULT_RADIUS = 0;
 /** Match Figma: modest black bezel — enough to float the stage, not shrink it. */
 const DEFAULT_MARGIN = 0.01;
 

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { BottomChrome } from "@/components/BottomChrome";
 import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
 import { STAGE_HEIGHT, STAGE_WIDTH } from "@/lib/stage";
 import { BrandHeader } from "./BrandHeader";
@@ -34,17 +33,13 @@ const MANAGEMENT = [
   },
 ];
 
-type InfoShellProps = {
-  onNavigate?: (section: "work" | "talent" | "info") => void;
-};
-
 function parseSubRoute(value: string | null): InfoSubRoute {
   if (value === "contact") return "contact";
   if (value === "management") return "management";
   return "about";
 }
 
-export function InfoShell({ onNavigate }: InfoShellProps) {
+export function InfoShell() {
   const searchParams = useSearchParams();
   const [activeSubRoute, setActiveSubRoute] = useState<InfoSubRoute>(() =>
     parseSubRoute(searchParams.get("sub")),

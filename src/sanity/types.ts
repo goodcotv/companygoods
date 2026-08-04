@@ -75,6 +75,33 @@ export interface ScrollSubtitleSpan {
   href?: string;
 }
 
+type MediaSectionBase = {
+  withMargins?: boolean;
+  caption?: PortableTextBlock[];
+  captionPosition?: "bottom-left" | "bottom-center" | "bottom-right" | "center";
+};
+
+export type SingleMediaSection = MediaSectionBase & {
+  layout?: "single";
+  mediaType?: "image" | "video" | "videoUrl";
+  imageUrl?: string;
+  videoUrl?: string;
+};
+
+export type ImageRowMediaSection = MediaSectionBase & {
+  layout: "imageRow";
+  columnCount: 2 | 3;
+  imageUrls: string[];
+};
+
+export type MediaSection = SingleMediaSection | ImageRowMediaSection;
+
+export function isImageRowSection(
+  section: MediaSection,
+): section is ImageRowMediaSection {
+  return section.layout === "imageRow";
+}
+
 export interface Project {
   _id: string;
   title: string;
@@ -88,6 +115,7 @@ export interface Project {
   sortOrder?: number;
   videoUrl?: string;
   imageUrl?: string;
+  posterImageUrl?: string;
   postWorkDescription?: string;
   postWorkerDescription?: string;
   /** Rich project write-up (Portable Text). Used as a fallback when postWorkDescription is empty. */
@@ -95,6 +123,8 @@ export interface Project {
   /** Custom Latest Projects scroll lines (Portable Text with optional links). */
   postScrollSubtitles?: PortableTextBlock[];
   postCredits?: PostCredit[];
+  /** Full-viewport media blocks below the hero (main project media, not post-only). */
+  mediaSections?: MediaSection[];
 }
 
 export interface PostCategory {

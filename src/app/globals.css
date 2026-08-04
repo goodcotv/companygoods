@@ -25,13 +25,13 @@
   box-sizing: border-box;
 }
 
-html,
-body {
+html {
   height: 100%;
 }
 
 body {
   margin: 0;
+  min-height: 100%;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-neue-haas), "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -58,6 +58,12 @@ body {
 ::selection {
   background: rgba(255, 255, 255, 0.2);
   color: #fff;
+}
+
+/* Hide native cursor while custom cursor ([ scroll ] / loading) is shown */
+[data-custom-cursor],
+[data-custom-cursor] * {
+  cursor: none !important;
 }
 
 @keyframes fade-up {
@@ -121,7 +127,13 @@ body {
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: rgba(0, 0, 0, 0.35);
+  background: linear-gradient(
+    to right,
+    #000 0%,
+    rgba(0, 0, 0, 0.85) 22%,
+    rgba(0, 0, 0, 0.35) 42%,
+    transparent 58%
+  );
   pointer-events: none;
 }
 
@@ -131,12 +143,12 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 28rem) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
-  align-items: start;
+  align-items: stretch;
   gap: 1.5rem;
   flex: 1;
   min-height: 0;
-  /* Reserve space for in-stage nav chrome */
-  padding: 1.25rem 2rem 3.5rem 2rem;
+  /* Reserve space for in-stage nav chrome — matches STAGE_NAV_CLEARANCE */
+  padding: 1.25rem 2rem 2.875rem 2rem;
 }
 
 .talent-left {
@@ -190,16 +202,22 @@ body {
   opacity: 1;
 }
 
-/* Camera frame wraps the names; scrolls if the roster exceeds the stage */
+/* Camera frame hug-wraps short lists; fills remaining height when scrollable */
 .talent-list-slot {
   position: relative;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-height: 0;
   width: fit-content;
   max-width: min(100%, 32rem);
+  max-height: 100%;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.talent-list-slot.is-scrollable {
+  flex: 1 1 auto;
+  height: 100%;
 }
 
 .talent-list-frame {
@@ -222,10 +240,42 @@ body {
   flex-direction: column;
   gap: 0.85rem;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   overscroll-behavior: contain;
   flex: 1;
   min-height: 0;
+}
+
+.talent-list.is-scrollable {
+  overflow-y: auto;
+}
+
+/* Talent detail project list — same scroll frame behavior as roster names */
+.talent-detail-projects {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  flex: 1;
+  min-height: 0;
+}
+
+.talent-detail-projects.is-scrollable {
+  overflow-y: auto;
+}
+
+/* Hide scrollbar for scrollable lists — chevron / [ scroll ] cursor is enough */
+[data-scrollable-list]::-webkit-scrollbar {
+  display: none;
+}
+
+[data-scrollable-list] {
+  scrollbar-width: none;
 }
 
 /* Invisible longest-name row: holds frame width steady across categories. */
@@ -243,7 +293,8 @@ body {
 
 .talent-list__name {
   display: block;
-  width: 100%;
+  width: fit-content;
+  max-width: 100%;
   padding: 0;
   margin: 0;
   border: 0;
@@ -508,4 +559,197 @@ body {
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.75);
   max-width: 500px;
+}
+
+/*
+ * Soft edge fades via mask on the scrollable list.
+ * Text dissolves into the media behind — no opaque black bars over the photo.
+ */
+.scroll-indicator-wrapper.can-scroll-up > [data-scrollable-list],
+.scroll-indicator-wrapper.can-scroll-up > .talent-list {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 2.5rem, #000 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 2.5rem, #000 100%);
+}
+
+.scroll-indicator-wrapper.can-scroll-down > [data-scrollable-list],
+.scroll-indicator-wrapper.can-scroll-down > .talent-list {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 calc(100% - 2.5rem),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 calc(100% - 2.5rem),
+    transparent 100%
+  );
+}
+
+.scroll-indicator-wrapper.can-scroll-up.can-scroll-down > [data-scrollable-list],
+.scroll-indicator-wrapper.can-scroll-up.can-scroll-down > .talent-list {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 2.5rem,
+    #000 calc(100% - 2.5rem),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 2.5rem,
+    #000 calc(100% - 2.5rem),
+    transparent 100%
+  );
+}
+
+/* Talent frame has extra pad — slightly taller dissolve */
+.talent-list-frame.scroll-indicator-wrapper.can-scroll-up > .talent-list {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 2.75rem, #000 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 2.75rem, #000 100%);
+}
+
+.talent-list-frame.scroll-indicator-wrapper.can-scroll-down > .talent-list {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 calc(100% - 2.75rem),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 calc(100% - 2.75rem),
+    transparent 100%
+  );
+}
+
+.talent-list-frame.scroll-indicator-wrapper.can-scroll-up.can-scroll-down > .talent-list {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 2.75rem,
+    #000 calc(100% - 2.75rem),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 2.75rem,
+    #000 calc(100% - 2.75rem),
+    transparent 100%
+  );
+}
+
+/* Scroll indicators for lists that overflow */
+.scroll-indicator-wrapper {
+  position: relative;
+}
+
+.scroll-indicator {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+}
+
+.scroll-indicator.visible {
+  opacity: 1;
+}
+
+.scroll-indicator.top {
+  top: 0.5rem;
+}
+
+.scroll-indicator.bottom {
+  bottom: 0.5rem;
+}
+
+.scroll-indicator svg {
+  color: rgba(255, 255, 255, 0.5);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  animation: scroll-pulse 2s ease-in-out infinite;
+}
+
+@keyframes scroll-pulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(2px);
+  }
+}
+
+.scroll-indicator.top svg {
+  transform: rotate(180deg);
+}
+
+.scroll-indicator.top svg {
+  animation: scroll-pulse-up 2s ease-in-out infinite;
+}
+
+@keyframes scroll-pulse-up {
+  0%, 100% {
+    opacity: 0.5;
+    transform: rotate(180deg) translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(180deg) translateY(2px);
+  }
+}
+
+/* Project page video scrubber */
+.video-seek-input {
+  appearance: none;
+  background: transparent;
+}
+
+.video-seek-input::-webkit-slider-runnable-track {
+  height: 1px;
+  background: transparent;
+}
+
+.video-seek-input::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -5.5px;
+  border-radius: 0;
+  background: white;
+}
+
+.video-seek-input::-moz-range-track {
+  height: 1px;
+  background: transparent;
+}
+
+.video-seek-input::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 0;
+  background: white;
+}
+
+/* Let fixed theater players escape section overflow clipping */
+:root[data-video-theater] [data-project-section] {
+  overflow: visible !important;
+}
+
+/* Theater: hide page chrome (description, back, etc.) */
+:root[data-video-theater] [data-project-player-chrome] {
+  visibility: hidden;
+  pointer-events: none;
 }

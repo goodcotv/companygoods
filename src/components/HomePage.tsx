@@ -114,7 +114,7 @@ function transformSanityProject(project: SanityProject): LocalProject {
     project.postWorkDescription || portableTextToPlainText(project.description);
 
   return {
-    id: project._id,
+    id: project.slug, // Use slug as id for URL routing
     client: project.client || "",
     title: project.title,
     category: categoryMap[project.postCategoryTitle || ""] || "COMMERCIAL",
@@ -130,29 +130,27 @@ function transformSanityProject(project: SanityProject): LocalProject {
 
 interface HomePageProps {
   data: HomepageData;
-  onNavigate?: (section: "work" | "talent" | "info") => void;
+  /** Controlled by AppShell / BottomChrome when present. */
   externalView?: ViewMode;
-  onExternalViewChange?: (view: ViewMode) => void;
 }
 
-export function HomePage({ data, onNavigate, externalView, onExternalViewChange }: HomePageProps) {
+export function HomePage({ data, externalView }: HomePageProps) {
   const searchParams = useSearchParams();
   const [internalView, setInternalView] = useState<ViewMode>(() =>
     parseView(searchParams.get("view")),
   );
-  
+
   // Use external view if provided (when rendered in AppShell), otherwise use internal
   const view = externalView ?? internalView;
-  const setView = onExternalViewChange ?? setInternalView;
 
   // Get intro video URL from Sanity settings
   const introVideoUrl = data?.settings?.introVideoUrl;
 
   // Use allProjects for list view, featuredProjects for scroll view
-  const sanityProjects = view === "list" 
-    ? data?.allProjects 
+  const sanityProjects = view === "list"
+    ? data?.allProjects
     : data?.settings?.featuredProjects;
-  
+
   const projects: LocalProject[] =
     sanityProjects?.map(transformSanityProject) || fallbackProjects;
 
@@ -166,34 +164,16 @@ export function HomePage({ data, onNavigate, externalView, onExternalViewChange 
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [view]);
 
-  function handleViewChange(next: ViewMode) {
-    setView(next);
-    // Only update URL if we're not using external management
-    if (!onExternalViewChange) {
-      const url = next === "list" ? "/?view=list" : "/";
-      window.history.replaceState(null, "", url);
-    }
-  }
-
   return (
     <AnimatePresence mode="popLayout" initial={false}>
       {view === "scroll" ? (
         <ScrollView
           key="scroll"
           projects={projects}
-          view={view}
-          onViewChange={handleViewChange}
           introVideoUrl={introVideoUrl}
-          onNavigate={onNavigate}
         />
       ) : (
-        <ListView 
-          key="list"
-          projects={projects} 
-          view={view} 
-          onViewChange={handleViewChange}
-          onNavigate={onNavigate}
-        />
+        <ListView key="list" projects={projects} />
       )}
     </AnimatePresence>
   );

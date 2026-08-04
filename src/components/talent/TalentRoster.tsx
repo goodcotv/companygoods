@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { BottomChrome } from "@/components/BottomChrome";
 import { BrandHeader } from "@/components/BrandHeader";
 import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
-import { ScaleToFit } from "@/components/ScaleToFit";
 import { CATEGORIES, type TalentCategory } from "@/data/talent";
+import { isListOverflowing } from "@/lib/cursor-hover";
 import { STAGE_HEIGHT, STAGE_WIDTH } from "@/lib/stage";
 import type { PostDiscipline, PostWorker } from "@/sanity/types";
 
@@ -23,7 +22,6 @@ const VALID_CATEGORIES = new Set<string>(CATEGORIES.map((item) => item.id));
 
 type TalentRosterProps = {
   workers: PostWorker[];
-  onNavigate?: (section: "work" | "talent" | "info") => void;
 };
 
 function parseCategory(value: string | null): TalentCategory {
@@ -60,7 +58,7 @@ function workersForCategory(
     });
 }
 
-export default function TalentRoster({ workers = [], onNavigate }: TalentRosterProps) {
+export default function TalentRoster({ workers = [] }: TalentRosterProps) {
   const searchParams = useSearchParams();
   const [category, setCategory] = useState<TalentCategory>(() =>
     parseCategory(searchParams.get("role")),
@@ -74,6 +72,10 @@ export default function TalentRoster({ workers = [], onNavigate }: TalentRosterP
   );
   const [bioVisible, setBioVisible] = useState(true);
   const [titleVisible, setTitleVisible] = useState(true);
+  const scrollRef = useRef<HTMLUListElement>(null);
+  const [canScroll, setCanScroll] = useState(false);
+  const [showTopIndicator, setShowTopIndicator] = useState(false);
+  const [showBottomIndicator, setShowBottomIndicator] = useState(false);
 
   const widthAnchor = workers.reduce(
     (longest, person) =>
@@ -89,12 +91,6 @@ export default function TalentRoster({ workers = [], onNavigate }: TalentRosterP
   useEffect(() => {
     const html = document.documentElement;
     const { body } = document;
-    const prev = {
-      htmlOverflow: html.style.overflow,
-      bodyOverflow: body.style.overflow,
-      htmlOverscroll: html.style.overscrollBehavior,
-      bodyOverscroll: body.style.overscrollBehavior,
-    };
 
     html.style.overflow = "hidden";
     body.style.overflow = "hidden";
@@ -102,10 +98,11 @@ export default function TalentRoster({ workers = [], onNavigate }: TalentRosterP
     body.style.overscrollBehavior = "none";
 
     return () => {
-      html.style.overflow = prev.htmlOverflow;
-      body.style.overflow = prev.bodyOverflow;
-      html.style.overscrollBehavior = prev.htmlOverscroll;
-      body.style.overscrollBehavior = prev.bodyOverscroll;
+      // Always clear — restoring prior inline values can leave overflow locked on /work/[slug].
+      html.style.overflow = "";
+      body.style.overflow = "";
+      html.style.overscrollBehavior = "";
+      body.style.overscrollBehavior = "";
     };
   }, []);
 
@@ -154,6 +151,47 @@ export default function TalentRoster({ workers = [], onNavigate }: TalentRosterP
       setTitleVisible(true);
     }, 180);
   }
+
+  // Scroll + cursor only when content overflows the frame
+  useLayoutEffect(() => {
+    const scrollEl = scrollRef.current;
+    if (!scrollEl) return;
+
+    function checkScroll() {
+      if (!scrollEl) return;
+
+      const { scrollTop } = scrollEl;
+      const overflow = scrollEl.scrollHeight - scrollEl.clientHeight;
+      const nextCanScroll = isListOverflowing(scrollEl);
+      const threshold = 8;
+
+      setCanScroll(nextCanScroll);
+      setShowTopIndicator(nextCanScroll && scrollTop > threshold);
+      setShowBottomIndicator(nextCanScroll && scrollTop < overflow - threshold);
+
+      if (!nextCanScroll && scrollTop !== 0) {
+        scrollEl.scrollTop = 0;
+      }
+    }
+
+    checkScroll();
+    void document.fonts?.ready.then(checkScroll);
+
+    scrollEl.addEventListener("scroll", checkScroll, { passive: true });
+    window.addEventListener("resize", checkScroll);
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(checkScroll)
+        : null;
+    resizeObserver?.observe(scrollEl);
+
+    return () => {
+      scrollEl.removeEventListener("scroll", checkScroll);
+      window.removeEventListener("resize", checkScroll);
+      resizeObserver?.disconnect();
+    };
+  }, [roster]);
 
   return (
     <motion.div
@@ -224,13 +262,45 @@ export default function TalentRoster({ workers = [], onNavigate }: TalentRosterP
               ))}
             </nav>
 
-            <div className="talent-list-slot">
+            <div
+              className={[
+                "talent-list-slot",
+                canScroll ? "is-scrollable" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
               <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
-              <div className="talent-list-frame">
+              <div
+                className={[
+                  "talent-list-frame scroll-indicator-wrapper",
+                  showTopIndicator ? "can-scroll-up" : "",
+                  showBottomIndicator ? "can-scroll-down" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
                 <span className="talent-list__sizer" aria-hidden="true">
                   {widthAnchor}
                 </span>
-                <ul className="talent-list">
+                
+                {/* Top scroll indicator */}
+                <div className={`scroll-indicator top ${showTopIndicator ? 'visible' : ''}`}>
+                  <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+                    <path d="M2 8L8 2L14 8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+
+                <ul
+                  ref={scrollRef}
+                  {...(canScroll ? { "data-scrollable-list": true } : {})}
+                  className={[
+                    "talent-list",
+                    canScroll ? "is-scrollable" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
                   {roster.map((person) => {
                     const isActive = person._id === selected?._id;
                     return (
@@ -250,6 +320,13 @@ export default function TalentRoster({ workers = [], onNavigate }: TalentRosterP
                     );
                   })}
                 </ul>
+
+                {/* Bottom scroll indicator */}
+                <div className={`scroll-indicator bottom ${showBottomIndicator ? 'visible' : ''}`}>
+                  <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+                    <path d="M2 2L8 8L14 2" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
               </div>
             </div>
           </div>

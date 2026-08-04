@@ -68,37 +68,6 @@ export const homepageQuery = `{
 }`;
 
 /**
- * Work Page Query
- * Fetches all projects with post production work
- */
-export const workPageQuery = `*[_type == "project" && hasPostProduction == true] | order(coalesce(postSortOrder, 999999) asc, _createdAt desc) {
-  _id,
-  title,
-  client,
-  "slug": slug.current,
-  "postCategoryTitle": postCategory->title,
-  "postCategorySlug": postCategory->slug.current,
-  postSortOrder,
-  "videoUrl": coalesce(
-    video.asset->url,
-    videoUrl
-  ),
-  "imageUrl": heroImage.asset->url,
-  postWorkDescription,
-  description,
-  postCredits[] {
-    discipline,
-    role,
-    order,
-    "worker": worker-> {
-      name,
-      "slug": slug.current,
-      "categoryTitle": category->title
-    }
-  }
-}`;
-
-/**
  * First project media for a worker filtered by discipline (used in roster hover).
  */
 const featuredProjectByDiscipline = (discipline: string) => `*[

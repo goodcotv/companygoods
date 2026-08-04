@@ -1,25 +1,20 @@
-"use client";
-
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import type { Project, ScrollSubtitleSpan } from "@/data/projects";
-import { STAGE_HEIGHT, STAGE_WIDTH } from "@/lib/stage";
-import { BottomChrome, type ViewMode } from "./BottomChrome";
+import {
+  DISPLAY_LOGO_WIDTH,
+  STAGE_HEIGHT,
+  STAGE_NAV_CLEARANCE,
+  STAGE_WIDTH,
+} from "@/lib/stage";
 import { BrandHeader } from "./BrandHeader";
 import { MediaViewport } from "./MediaViewport";
-import { ScaleToFit } from "./ScaleToFit";
 
 type ScrollViewProps = {
   projects: Project[];
-  view: ViewMode;
-  onViewChange: (view: ViewMode) => void;
   introVideoUrl?: string;
-  onNavigate?: (section: "work" | "talent" | "info") => void;
 };
-
-/** Camera frame height inside the stage (16:9). */
-const MEDIA_HEIGHT = 340;
 
 /** Sentinel index for the site intro / main video (from Post Site Settings). */
 const INTRO_INDEX = -1;
@@ -30,7 +25,7 @@ const TOUCH_THRESHOLD = 36;
 
 function LatestLabel() {
   return (
-    <div className="flex items-center gap-2.5 text-[12px] tracking-[0.14em] text-foreground uppercase">
+    <div className="flex items-center gap-2.5 text-[12px] tracking-[0.14em] text-foreground uppercase whitespace-nowrap">
       <span className="inline-flex flex-col gap-[1px]" aria-hidden>
         <svg width="8" height="5" viewBox="0 0 8 5" fill="none">
           <path d="M1 4L4 1L7 4" stroke="currentColor" strokeWidth="1.2" />
@@ -83,9 +78,9 @@ function ProjectCredits({ project }: { project: Project }) {
   const customLines = project.scrollSubtitles;
 
   return (
-    <div className="mt-4 max-w-sm animate-fade-up">
+    <div className="mt-4 animate-fade-up">
       <h2 className="font-display text-[1.85rem] font-medium leading-[1.15] tracking-[-0.02em] text-foreground">
-        {project.client} — {project.title}
+        {project.title} — {project.client}
       </h2>
       <div className="mt-3 space-y-0.5 font-sans text-[12px] leading-snug tracking-[0.06em] text-foreground uppercase">
         {customLines && customLines.length > 0 ? (
@@ -114,10 +109,7 @@ function ProjectCredits({ project }: { project: Project }) {
 
 export function ScrollView({
   projects,
-  view,
-  onViewChange,
   introVideoUrl,
-  onNavigate,
 }: ScrollViewProps) {
   const [activeIndex, setActiveIndex] = useState(INTRO_INDEX);
   const indexRef = useRef(INTRO_INDEX);
@@ -135,12 +127,6 @@ export function ScrollView({
   useEffect(() => {
     const html = document.documentElement;
     const { body } = document;
-    const prev = {
-      htmlOverflow: html.style.overflow,
-      bodyOverflow: body.style.overflow,
-      htmlOverscroll: html.style.overscrollBehavior,
-      bodyOverscroll: body.style.overscrollBehavior,
-    };
 
     html.style.overflow = "hidden";
     body.style.overflow = "hidden";
@@ -148,10 +134,11 @@ export function ScrollView({
     body.style.overscrollBehavior = "none";
 
     return () => {
-      html.style.overflow = prev.htmlOverflow;
-      body.style.overflow = prev.bodyOverflow;
-      html.style.overscrollBehavior = prev.htmlOverscroll;
-      body.style.overscrollBehavior = prev.bodyOverscroll;
+      // Always clear — restoring prior inline values can leave overflow locked on /work/[slug].
+      html.style.overflow = "";
+      body.style.overflow = "";
+      html.style.overscrollBehavior = "";
+      body.style.overscrollBehavior = "";
     };
   }, []);
 
@@ -234,8 +221,14 @@ export function ScrollView({
 
   return (
     <motion.div
-      className="flex flex-col bg-background px-8 pb-8 pt-4 text-foreground"
-      style={{ width: STAGE_WIDTH, height: STAGE_HEIGHT }}
+      data-scroll-cursor
+      className="flex flex-col bg-background px-8 pt-2 text-foreground"
+      style={{
+        width: STAGE_WIDTH,
+        height: STAGE_HEIGHT,
+        // Camera bottom sits on the nav's top edge
+        paddingBottom: STAGE_NAV_CLEARANCE,
+      }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -244,76 +237,73 @@ export function ScrollView({
         ease: "easeInOut",
       }}
     >
-      {/* Logo letterforms share the same left edge as the camera */}
-      <BrandHeader variant="display" />
+      {/* Wordmark: C/G share the camera's left edge */}
+      <div className="shrink-0" style={{ width: DISPLAY_LOGO_WIDTH }}>
+        <BrandHeader variant="display" widthClass="w-full" />
+      </div>
 
-        {/*
-          Media + sidebar share one row so the navbar sits on the camera's
-          baseline (Figma: nav bottom = video bottom).
-          Wrapped in flex-1 container to match info page max-bottom constraint.
-        */}
-        <div className="mt-5 min-h-0 flex-1">
-        <div className="flex min-h-0 items-stretch gap-12">
+      {/*
+        Fills remaining height above the nav. Camera is 16:9 at full row
+        height so its bottom edge = top of BottomChrome.
+        Latest Projects + credits share the sidebar's left edge.
+      */}
+      <div className="mt-3 flex min-h-0 flex-1 items-end gap-8">
+        <div
+          className="relative h-full shrink-0"
+          style={{ aspectRatio: "16 / 9" }}
+        >
           <div
-            className="relative shrink-0"
-            style={{
-              height: MEDIA_HEIGHT,
-              width: (MEDIA_HEIGHT * 16) / 9,
-            }}
+            className={`absolute inset-0 transition-opacity duration-500 ${
+              isIntro ? "opacity-100" : "pointer-events-none opacity-0"
+            }`}
+            aria-hidden={!isIntro}
           >
-            <div
-              className={`absolute inset-0 transition-opacity duration-500 ${
-                isIntro ? "opacity-100" : "pointer-events-none opacity-0"
-              }`}
-              aria-hidden={!isIntro}
-            >
-              <MediaViewport
-                title="Intro Video"
-                className="h-full w-full"
-                src={introVideoUrl}
-                type="video"
-                cornersLayoutId="page-corners"
-              />
-            </div>
-
-            {projects.map((project, i) => {
-              const mediaSrc = project.image;
-              const mediaType =
-                project.image?.includes(".mp4") ||
-                project.image?.includes("video")
-                  ? "video"
-                  : "image";
-              const on = !isIntro && i === activeIndex;
-
-              return (
-                <div
-                  key={project.id}
-                  className={`absolute inset-0 transition-opacity duration-500 ${
-                    on ? "opacity-100" : "pointer-events-none opacity-0"
-                  }`}
-                  aria-hidden={!on}
-                >
-                  <MediaViewport
-                    title={project.title}
-                    className="h-full w-full"
-                    src={mediaSrc}
-                    type={mediaType}
-                    cornersLayoutId="page-corners"
-                  />
-                </div>
-              );
-            })}
+            <MediaViewport
+              title="Intro Video"
+              className="h-full w-full"
+              src={introVideoUrl}
+              type="video"
+              cornersLayoutId="page-corners"
+            />
           </div>
 
-          <div
-            className="flex min-w-0 flex-1 flex-col"
-            style={{ height: MEDIA_HEIGHT }}
-          >
-            <LatestLabel />
-            {!isIntro && active ? <ProjectCredits project={active} /> : null}
-          </div>
+          {projects.map((project, i) => {
+            const mediaSrc = project.image;
+            const mediaType =
+              project.image?.includes(".mp4") ||
+              project.image?.includes("video")
+                ? "video"
+                : "image";
+            const on = !isIntro && i === activeIndex;
+
+            return (
+              <Link
+                key={project.id}
+                href={`/work/${project.id}`}
+                className={`absolute inset-0 transition-opacity duration-500 ${
+                  on ? "opacity-100" : "pointer-events-none opacity-0"
+                }`}
+                aria-hidden={!on}
+              >
+                <MediaViewport
+                  title={project.title}
+                  className="h-full w-full"
+                  src={mediaSrc}
+                  type={mediaType}
+                  cornersLayoutId="page-corners"
+                />
+              </Link>
+            );
+          })}
         </div>
+
+        <div className="flex min-w-0 flex-1 flex-col items-start self-start">
+          <LatestLabel />
+          {!isIntro && active ? (
+            <ProjectCredits key={active.id} project={active} />
+          ) : null}
         </div>
-      </motion.div>
+      </div>
+    </motion.div>
   );
 }

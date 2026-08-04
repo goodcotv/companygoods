@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   CATEGORIES,
@@ -10,20 +11,16 @@ import {
   type Discipline,
   type Project,
 } from "@/data/projects";
-import { STAGE_HEIGHT, STAGE_WIDTH } from "@/lib/stage";
+import { STAGE_HEIGHT, STAGE_NAV_CLEARANCE, STAGE_WIDTH } from "@/lib/stage";
+import { isListOverflowing } from "@/lib/cursor-hover";
 import { BrandHeader } from "./BrandHeader";
 import { AnimatedCornerBrackets } from "./AnimatedCornerBrackets";
-import { ScaleToFit } from "./ScaleToFit";
-import { BottomChrome, type ViewMode } from "./BottomChrome";
 
 type ListViewProps = {
   projects: Project[];
-  view: ViewMode;
-  onViewChange: (view: ViewMode) => void;
-  onNavigate?: (section: "work" | "talent" | "info") => void;
 };
 
-export function ListView({ projects, view, onViewChange, onNavigate }: ListViewProps) {
+export function ListView({ projects }: ListViewProps) {
   const searchParams = useSearchParams();
   
   // Map URL slugs back to category names
@@ -48,6 +45,10 @@ export function ListView({ projects, view, onViewChange, onNavigate }: ListViewP
   const [activeId, setActiveId] = useState(projects[0]?.id);
   const [descVisible, setDescVisible] = useState(true);
   const [specialtyExpanded, setSpecialtyExpanded] = useState(false);
+  const scrollRef = useRef<HTMLUListElement>(null);
+  const [canScroll, setCanScroll] = useState(false);
+  const [showTopIndicator, setShowTopIndicator] = useState(false);
+  const [showBottomIndicator, setShowBottomIndicator] = useState(false);
   
   // Update URL when filters change
   useEffect(() => {
@@ -109,6 +110,47 @@ export function ListView({ projects, view, onViewChange, onNavigate }: ListViewP
     if (next) selectProject(next.id);
   }
 
+  // Scroll + cursor only when content overflows the frame
+  useLayoutEffect(() => {
+    const scrollEl = scrollRef.current;
+    if (!scrollEl) return;
+
+    function checkScroll() {
+      if (!scrollEl) return;
+
+      const { scrollTop } = scrollEl;
+      const overflow = scrollEl.scrollHeight - scrollEl.clientHeight;
+      const nextCanScroll = isListOverflowing(scrollEl);
+      const threshold = 8;
+
+      setCanScroll(nextCanScroll);
+      setShowTopIndicator(nextCanScroll && scrollTop > threshold);
+      setShowBottomIndicator(nextCanScroll && scrollTop < overflow - threshold);
+
+      if (!nextCanScroll && scrollTop !== 0) {
+        scrollEl.scrollTop = 0;
+      }
+    }
+
+    checkScroll();
+    void document.fonts?.ready.then(checkScroll);
+
+    scrollEl.addEventListener("scroll", checkScroll, { passive: true });
+    window.addEventListener("resize", checkScroll);
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(checkScroll)
+        : null;
+    resizeObserver?.observe(scrollEl);
+
+    return () => {
+      scrollEl.removeEventListener("scroll", checkScroll);
+      window.removeEventListener("resize", checkScroll);
+      resizeObserver?.disconnect();
+    };
+  }, [filtered]);
+
   // Check if active project has a video (URL ends with mp4, webm, etc.)
   const activeMediaUrl = active?.image;
   const isVideo = activeMediaUrl && /\.(mp4|webm|mov)$/i.test(activeMediaUrl);
@@ -150,12 +192,15 @@ export function ListView({ projects, view, onViewChange, onNavigate }: ListViewP
                 />
               )}
             </div>
-            {/* Minimal scrim for text readability */}
-            <div className="absolute inset-0 bg-black/15" style={{ zIndex: 1 }} />
+            {/* Left-side gradient for text legibility */}
+            <div className="talent-media-scrim" aria-hidden="true" />
           </>
         )}
         
-        <div className="relative flex h-full flex-col px-8 pb-24 pt-8" style={{ zIndex: 10 }}>
+        <div
+          className="relative flex h-full flex-col px-8 pt-8"
+          style={{ zIndex: 10, paddingBottom: STAGE_NAV_CLEARANCE }}
+        >
           <div className="shrink-0">
             <BrandHeader />
 
@@ -188,13 +233,15 @@ export function ListView({ projects, view, onViewChange, onNavigate }: ListViewP
           </nav>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSpecialtyExpanded(!specialtyExpanded)}
-              className="rounded-md bg-white/10 px-3 py-1.5 text-[11px] tracking-[0.12em] uppercase text-white/90 transition-colors hover:bg-white/18"
-            >
-              SPECIALTY <span className="ml-1">{specialtyExpanded ? '−' : '+'}</span>
-            </button>
+            {!specialtyExpanded && (
+              <button
+                type="button"
+                onClick={() => setSpecialtyExpanded(true)}
+                className="rounded-md bg-white/10 px-3 py-1.5 text-[11px] tracking-[0.12em] uppercase text-white/90 transition-colors hover:bg-white/18"
+              >
+                SPECIALTY <span className="ml-1">+</span>
+              </button>
+            )}
             
             {specialtyExpanded && (
               <>
@@ -218,8 +265,8 @@ export function ListView({ projects, view, onViewChange, onNavigate }: ListViewP
                 })}
                 <button
                   type="button"
-                  onClick={clearFilters}
-                  aria-label="Clear filters"
+                  onClick={() => setSpecialtyExpanded(false)}
+                  aria-label="Close specialty filters"
                   className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-[13px] text-white/90 transition-colors hover:bg-white/18"
                 >
                   ×
@@ -229,21 +276,45 @@ export function ListView({ projects, view, onViewChange, onNavigate }: ListViewP
           </div>
         </div>
 
-        <div className="relative mt-10 min-h-0 flex-1">
+        <div className="relative mt-6 min-h-0 flex-1">
           <div className="absolute inset-0 flex">
-            <div className="relative flex w-[28rem] flex-col">
+            <div
+              className={[
+                "relative flex w-[28rem] min-h-0 flex-col scroll-indicator-wrapper",
+                canScroll ? "h-full" : "h-fit max-h-full",
+                showTopIndicator ? "can-scroll-up" : "",
+                showBottomIndicator ? "can-scroll-down" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
               <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
-              <ul className="min-h-0 flex-1 space-y-3.5 overflow-y-auto overscroll-contain py-5 pl-4 pr-4">
+              
+              {/* Top scroll indicator */}
+              <div className={`scroll-indicator top ${showTopIndicator ? 'visible' : ''}`}>
+                <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+                  <path d="M2 8L8 2L14 8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+
+              <ul
+                ref={scrollRef}
+                {...(canScroll ? { "data-scrollable-list": true } : {})}
+                className={[
+                  "min-h-0 flex-1 space-y-3.5 overscroll-contain py-5 pl-4 pr-4",
+                  canScroll ? "overflow-y-auto" : "overflow-y-hidden",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
                 {filtered.map((project) => {
                   const isActive = project.id === active?.id;
                   return (
                     <li key={project.id}>
-                      <button
-                        type="button"
-                        onClick={() => selectProject(project.id)}
+                      <Link
+                        href={`/work/${project.id}`}
                         onMouseEnter={() => selectProject(project.id)}
-                        aria-pressed={isActive}
-                        className={`group w-full text-left transition-colors ${
+                        className={`group block w-fit max-w-full text-left transition-colors ${
                           isActive
                             ? "text-foreground"
                             : "text-white/35 hover:text-foreground"
@@ -255,7 +326,7 @@ export function ListView({ projects, view, onViewChange, onNavigate }: ListViewP
                         <span className="mt-1.5 block font-sans text-[11px] tracking-[0.14em] uppercase">
                           {project.client}
                         </span>
-                      </button>
+                      </Link>
                     </li>
                   );
                 })}
@@ -263,6 +334,13 @@ export function ListView({ projects, view, onViewChange, onNavigate }: ListViewP
                   <li className="text-sm text-muted">No projects match.</li>
                 ) : null}
               </ul>
+
+              {/* Bottom scroll indicator */}
+              <div className={`scroll-indicator bottom ${showBottomIndicator ? 'visible' : ''}`}>
+                <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+                  <path d="M2 2L8 8L14 2" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
             </div>
           </div>
         </div>

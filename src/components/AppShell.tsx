@@ -9,7 +9,7 @@ import { BottomChrome } from "./BottomChrome";
 import { HomePage } from "./HomePage";
 import TalentRoster from "./talent/TalentRoster";
 import { InfoShell } from "./info/InfoShell";
-import { STAGE_HEIGHT, STAGE_WIDTH } from "@/lib/stage";
+import { STAGE_HEIGHT, STAGE_NAV_PADDING, STAGE_WIDTH } from "@/lib/stage";
 import type { HomepageData, PostWorker } from "@/sanity/types";
 
 export type Section = "work" | "talent" | "info";
@@ -105,26 +105,25 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
           {/* Content sections with page transitions */}
           <AnimatePresence mode="popLayout" initial={false}>
             {section === "work" && (
-              <HomePage 
+              <HomePage
                 key="work"
-                data={homepageData} 
-                onNavigate={handleNavigate}
+                data={homepageData}
                 externalView={workView}
-                onExternalViewChange={handleWorkViewChange}
               />
             )}
-            
+
             {section === "talent" && (
-              <TalentRoster key="talent" workers={talentWorkers} onNavigate={handleNavigate} />
+              <TalentRoster key="talent" workers={talentWorkers} />
             )}
-            
-            {section === "info" && (
-              <InfoShell key="info" onNavigate={handleNavigate} />
-            )}
+
+            {section === "info" && <InfoShell key="info" />}
           </AnimatePresence>
 
-          {/* Persistent bottom navigation - never unmounts */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex items-end justify-end px-8 pb-7">
+          {/* Persistent bottom navigation — top aligns with scroll camera bottom */}
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex items-end justify-end px-8"
+            style={{ paddingBottom: STAGE_NAV_PADDING }}
+          >
             <BottomChrome
               position="inline"
               activeSection={section}

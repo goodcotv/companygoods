@@ -39,7 +39,7 @@ export function BottomChrome({
   const typeClass =
     position === "inline"
       ? "text-[13px] tracking-[0.12em]"
-      : "text-[12px] tracking-[0.1em]";
+      : "text-[12px] tracking-[0.14em]";
 
   function navClass(section: Section) {
     return `${currentSection === section ? active : muted} transition-colors hover:text-foreground`;

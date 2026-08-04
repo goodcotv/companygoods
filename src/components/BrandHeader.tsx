@@ -8,28 +8,28 @@ type BrandHeaderProps = {
   muted?: boolean;
   /** Override the default width utility for the mark. */
   widthClass?: string;
-  /** Skip intrinsic PNG crop (avoids clipping when the mark is sized smaller). */
+  /** Skip intrinsic viewBox crop (avoids clipping when the mark is sized smaller). */
   uncropped?: boolean;
   className?: string;
 };
 
 const SIZES = {
   work: {
-    src: "/brand/logo-small.png",
-    width: 951,
-    height: 272,
+    src: "/brand/logo-small.svg",
+    width: 699,
+    height: 277,
     widthClass: "w-[min(100%,17.5rem)] md:w-[19rem]",
-    /** Intrinsic transparent/black padding in the PNG (px at source size). */
+    /** Intrinsic padding in the SVG viewBox (px at source size). */
     crop: null as null | { left: number; top: number; right: number; bottom: number },
   },
   display: {
-    src: "/brand/logo-big.png",
-    width: 1024,
-    height: 406,
-    // Figma-scale wordmark — letterforms align with the camera below
-    widthClass: "w-[54rem] max-w-full",
-    // Measured content bbox so "C"/"G" flush with stage content edge
-    crop: { left: 50, top: 40, right: 31, bottom: 70 },
+    src: "/brand/logo-big.svg",
+    width: 699,
+    height: 277,
+    // Keep in sync with DISPLAY_LOGO_WIDTH in src/lib/stage.ts
+    widthClass: "w-[900px] max-w-full",
+    // Measured content bbox so "C"/"G" flush with camera left edge
+    crop: { left: 34, top: 41, right: 21, bottom: 55 },
   },
 } as const;
 
@@ -47,7 +47,7 @@ export function BrandHeader({
   /**
    * Crop via a fixed aspect-ratio window + absolutely positioned image.
    * Do NOT use %-margins for vertical crop: CSS % margins are relative to
-   * width, which collapses COMPANY/GOODS when the mark is narrower than ~54rem.
+   * width, which collapses COMPANY/GOODS when the mark is much narrower than the display size.
    */
   const contentW = activeCrop
     ? width - activeCrop.left - activeCrop.right
@@ -77,6 +77,9 @@ export function BrandHeader({
             width={width}
             height={height}
             priority
+            // Next's optimizer re-encodes to lossy WebP (no alpha), which
+            // turns the transparent mark into an opaque black plate.
+            unoptimized
             style={
               activeCrop
                 ? {
@@ -86,9 +89,8 @@ export function BrandHeader({
                     width: `${(width / contentW) * 100}%`,
                     height: "auto",
                     maxWidth: "none",
-                    mixBlendMode: "screen" as const,
                   }
-                : { mixBlendMode: "screen" as const }
+                : undefined
             }
             className={`h-auto w-full ${muted ? "opacity-[0.42]" : ""}`}
           />

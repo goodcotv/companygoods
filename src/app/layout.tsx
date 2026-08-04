@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { ScrollCursor } from "@/components/ScrollCursor";
 import "./globals.css";
 
 const mintGrotesk = localFont({
@@ -36,7 +37,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`h-full antialiased ${mintGrotesk.variable} ${neueHaas.variable} ${tekioGrotesk.variable}`}>
-      <body className="min-h-full bg-background text-foreground">{children}</body>
+      <body className="min-h-full bg-background text-foreground">
+        <ScrollCursor />
+        {children}
+      </body>
     </html>
   );
 }
