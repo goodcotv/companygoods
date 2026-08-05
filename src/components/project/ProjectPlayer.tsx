@@ -188,8 +188,6 @@ function HeroSection({
           className="pointer-events-auto absolute bottom-[4.75rem] left-4 right-20 z-20 flex max-h-[35dvh] max-w-lg flex-col md:bottom-20 md:left-8 md:right-auto"
         >
           <div className="relative flex min-h-0 flex-col px-5 py-4">
-            <CornerBrackets inset={0} geometry={COMPACT_BRACKET} />
-
             <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2">
               {project.title && (
                 <h1 className="font-heading text-[17pt] leading-[1.05] text-white md:text-[21pt]">
@@ -444,6 +442,13 @@ export function ProjectPlayer({ project }: ProjectPlayerProps) {
 
   return (
     <div className="relative min-h-dvh w-full overflow-x-hidden bg-black">
+      <div
+        className="pointer-events-none fixed inset-x-4 bottom-20 top-11 z-20 md:inset-x-8 md:bottom-16 md:top-16"
+        aria-hidden
+      >
+        <CornerBrackets inset={0} />
+      </div>
+
       <button
         type="button"
         data-project-player-chrome

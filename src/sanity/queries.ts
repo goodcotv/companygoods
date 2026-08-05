@@ -69,6 +69,9 @@ export const homepageQuery = `{
 
 /**
  * First project media for a worker filtered by discipline (used in roster hover).
+ *
+ * Inside a `postCredits[...]` filter, `^` is the project, so reaching the worker
+ * this subquery hangs off of takes `^.^`.
  */
 const featuredProjectByDiscipline = (discipline: string) => `*[
   _type == "project"
@@ -76,7 +79,7 @@ const featuredProjectByDiscipline = (discipline: string) => `*[
   && references(^._id)
   && "${discipline}" in postCredits[].discipline
   && ^._id in postCredits[discipline == "${discipline}"].worker._ref
-] | order(coalesce(postCredits[worker._ref == ^._id && discipline == "${discipline}"][0].order, 999999) asc, _createdAt desc) [0] {
+] | order(coalesce(postCredits[worker._ref == ^.^._id && discipline == "${discipline}"][0].order, 999999) asc, _createdAt desc) [0] {
   _id,
   title,
   "videoUrl": coalesce(video.asset->url, videoUrl),
@@ -112,7 +115,10 @@ export const talentRosterQuery = `*[_type == "postWorker"] | order(order asc, na
 
 /**
  * Talent Detail Query
- * Fetches a single post worker with their projects filtered by discipline
+ * Fetches a single post worker with their projects filtered by discipline.
+ *
+ * Projects sort by the worker's own credit `order` (unset sorts last). Inside a
+ * `postCredits[...]` filter, `^` is the project, so the worker takes `^.^`.
  */
 export const talentDetailQuery = `*[_type == "postWorker" && slug.current == $slug][0] {
   _id,
@@ -129,7 +135,7 @@ export const talentDetailQuery = `*[_type == "postWorker" && slug.current == $sl
     && references(^._id)
     && $discipline in postCredits[].discipline
     && ^._id in postCredits[discipline == $discipline].worker._ref
-  ] | order(coalesce(postCredits[worker._ref == ^._id && discipline == $discipline][0].order, 999999) asc, _createdAt desc) {
+  ] | order(coalesce(postCredits[worker._ref == ^.^._id && discipline == $discipline][0].order, 999999) asc, _createdAt desc) {
     _id,
     title,
     client,
@@ -142,7 +148,7 @@ export const talentDetailQuery = `*[_type == "postWorker" && slug.current == $sl
     ),
     "imageUrl": heroImage.asset->url,
     postWorkerDescription,
-    "sortOrder": postCredits[worker._ref == ^._id && discipline == $discipline][0].order
+    "sortOrder": postCredits[worker._ref == ^.^._id && discipline == $discipline][0].order
   }
 }`;
 
