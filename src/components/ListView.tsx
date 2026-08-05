@@ -13,8 +13,10 @@ import {
 } from "@/data/projects";
 import { STAGE_HEIGHT, STAGE_NAV_CLEARANCE, STAGE_WIDTH } from "@/lib/stage";
 import { isListOverflowing } from "@/lib/cursor-hover";
+import { isVideoMediaUrl, isVimeoUrl } from "@/lib/vimeo";
 import { BrandHeader } from "./BrandHeader";
 import { AnimatedCornerBrackets } from "./AnimatedCornerBrackets";
+import { VimeoBackground } from "./VimeoBackground";
 
 type ListViewProps = {
   projects: Project[];
@@ -151,9 +153,9 @@ export function ListView({ projects }: ListViewProps) {
     };
   }, [filtered]);
 
-  // Check if active project has a video (URL ends with mp4, webm, etc.)
   const activeMediaUrl = active?.image;
-  const isVideo = activeMediaUrl && /\.(mp4|webm|mov)$/i.test(activeMediaUrl);
+  const isVideo = isVideoMediaUrl(activeMediaUrl);
+  const isVimeo = Boolean(activeMediaUrl && isVimeoUrl(activeMediaUrl));
 
   return (
     <motion.div
@@ -171,7 +173,14 @@ export function ListView({ projects }: ListViewProps) {
         {active && activeMediaUrl && (
           <>
             <div className="absolute inset-0" style={{ zIndex: 0 }}>
-              {isVideo ? (
+              {isVimeo ? (
+                <VimeoBackground
+                  key={active.id}
+                  src={activeMediaUrl!}
+                  title={active.title}
+                  className="transition-opacity duration-500"
+                />
+              ) : isVideo ? (
                 <video
                   key={active.id}
                   src={activeMediaUrl}

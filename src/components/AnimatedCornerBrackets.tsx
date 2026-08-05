@@ -1,11 +1,19 @@
 "use client";
 
 import { motion } from "framer-motion";
+import {
+  BRACKET_STROKE,
+  FRAME_BRACKET,
+  buildCornerBrackets,
+  cornerPosition,
+  type CornerBracketGeometry,
+} from "@/lib/corner-brackets";
 
 type AnimatedCornerBracketsProps = {
   className?: string;
   inset?: number;
   layoutId?: string;
+  geometry?: CornerBracketGeometry;
 };
 
 /**
@@ -16,35 +24,9 @@ export function AnimatedCornerBrackets({
   className = "",
   inset = 10,
   layoutId = "camera-corners",
+  geometry = FRAME_BRACKET,
 }: AnimatedCornerBracketsProps) {
-  const arm = 22;
-  const cut = 4;
-  const stroke = 1;
-  const pad = stroke / 2;
-  const size = arm + cut + pad;
-
-  const corners = [
-    {
-      key: "tl",
-      style: { top: inset, left: inset },
-      d: `M ${size} ${pad} H ${cut + pad} L ${pad} ${cut + pad} V ${size}`,
-    },
-    {
-      key: "tr",
-      style: { top: inset, right: inset },
-      d: `M ${pad} ${pad} H ${arm} L ${size - pad} ${cut + pad} V ${size}`,
-    },
-    {
-      key: "bl",
-      style: { bottom: inset, left: inset },
-      d: `M ${pad} ${pad} V ${arm} L ${cut + pad} ${size - pad} H ${size}`,
-    },
-    {
-      key: "br",
-      style: { bottom: inset, right: inset },
-      d: `M ${size - pad} ${pad} V ${arm} L ${arm} ${size - pad} H ${pad}`,
-    },
-  ] as const;
+  const { size, corners } = buildCornerBrackets(geometry);
 
   return (
     <motion.div
@@ -58,20 +40,20 @@ export function AnimatedCornerBrackets({
         },
       }}
     >
-      {corners.map(({ key, style, d }) => (
+      {corners.map(({ key, d }) => (
         <svg
           key={key}
           className="absolute overflow-visible"
           width={size}
           height={size}
-          style={style}
+          style={cornerPosition(key, inset)}
           viewBox={`0 0 ${size} ${size}`}
           fill="none"
         >
           <path
             d={d}
             stroke="var(--frame)"
-            strokeWidth={stroke}
+            strokeWidth={BRACKET_STROKE}
             strokeLinecap="square"
             strokeLinejoin="miter"
             vectorEffect="non-scaling-stroke"

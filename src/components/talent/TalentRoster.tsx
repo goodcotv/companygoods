@@ -9,7 +9,9 @@ import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
 import { CATEGORIES, type TalentCategory } from "@/data/talent";
 import { isListOverflowing } from "@/lib/cursor-hover";
 import { STAGE_HEIGHT, STAGE_WIDTH } from "@/lib/stage";
+import { isVimeoUrl } from "@/lib/vimeo";
 import type { PostDiscipline, PostWorker } from "@/sanity/types";
+import { VimeoBackground } from "@/components/VimeoBackground";
 
 const categoryToDiscipline: Record<TalentCategory, PostDiscipline> = {
   editors: "edit",
@@ -208,7 +210,13 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
         {selected && mediaUrl && (
           <>
             <div className="talent-media" aria-hidden="true">
-              {isVideo ? (
+              {isVideo && mediaUrl && isVimeoUrl(mediaUrl) ? (
+                <VimeoBackground
+                  key={`${selected._id}-${discipline}`}
+                  src={mediaUrl}
+                  title={featured?.title ?? selected.name}
+                />
+              ) : isVideo ? (
                 <video
                   key={`${selected._id}-${discipline}`}
                   src={mediaUrl}

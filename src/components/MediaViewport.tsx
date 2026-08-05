@@ -1,4 +1,6 @@
 import { AnimatedCornerBrackets } from "./AnimatedCornerBrackets";
+import { VimeoBackground } from "./VimeoBackground";
+import { isVimeoUrl } from "@/lib/vimeo";
 
 type MediaViewportProps = {
   title: string;
@@ -15,6 +17,8 @@ export function MediaViewport({
   type = "video",
   cornersLayoutId = "media-corners",
 }: MediaViewportProps) {
+  const useVimeo = type === "video" && Boolean(src && isVimeoUrl(src));
+
   return (
     <div
       className={`relative overflow-hidden rounded-[16px] bg-[#6e6e6e] ${className}`}
@@ -22,14 +26,16 @@ export function MediaViewport({
       aria-label={src ? `${title} ${type}` : `${title} placeholder`}
     >
       {src ? (
-        type === "video" ? (
+        useVimeo ? (
+          <VimeoBackground src={src} title={title} className="h-full w-full" />
+        ) : type === "video" ? (
           <video
             src={src}
             autoPlay
             loop
             muted
             playsInline
-            className="h-full w-full scale-[1.01] object-cover"
+            className="pointer-events-none h-full w-full scale-[1.01] object-cover"
           >
             <track kind="captions" />
           </video>
@@ -37,7 +43,7 @@ export function MediaViewport({
           <img
             src={src}
             alt={title}
-            className="h-full w-full scale-[1.01] object-cover"
+            className="pointer-events-none h-full w-full scale-[1.01] object-cover"
           />
         )
       ) : null}

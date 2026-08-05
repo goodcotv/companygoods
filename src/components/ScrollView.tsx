@@ -10,6 +10,7 @@ import {
 } from "@/lib/stage";
 import { BrandHeader } from "./BrandHeader";
 import { MediaViewport } from "./MediaViewport";
+import { isVideoMediaUrl } from "@/lib/vimeo";
 
 type ScrollViewProps = {
   projects: Project[];
@@ -80,7 +81,12 @@ function ProjectCredits({ project }: { project: Project }) {
   return (
     <div className="mt-4 animate-fade-up">
       <h2 className="font-display text-[1.85rem] font-medium leading-[1.15] tracking-[-0.02em] text-foreground">
-        {project.title} — {project.client}
+        <Link
+          href={`/work/${project.id}`}
+          className="transition-opacity hover:opacity-70"
+        >
+          {project.title} — {project.client}
+        </Link>
       </h2>
       <div className="mt-3 space-y-0.5 font-sans text-[12px] leading-snug tracking-[0.06em] text-foreground uppercase">
         {customLines && customLines.length > 0 ? (
@@ -269,21 +275,19 @@ export function ScrollView({
 
           {projects.map((project, i) => {
             const mediaSrc = project.image;
-            const mediaType =
-              project.image?.includes(".mp4") ||
-              project.image?.includes("video")
-                ? "video"
-                : "image";
+            const mediaType = isVideoMediaUrl(mediaSrc) ? "video" : "image";
             const on = !isIntro && i === activeIndex;
 
             return (
               <Link
                 key={project.id}
                 href={`/work/${project.id}`}
+                aria-label={`Open ${project.title}`}
                 className={`absolute inset-0 transition-opacity duration-500 ${
                   on ? "opacity-100" : "pointer-events-none opacity-0"
                 }`}
                 aria-hidden={!on}
+                tabIndex={on ? 0 : -1}
               >
                 <MediaViewport
                   title={project.title}
@@ -292,6 +296,8 @@ export function ScrollView({
                   type={mediaType}
                   cornersLayoutId="page-corners"
                 />
+                {/* Catch clicks above video/iframe so navigation always works */}
+                <span className="absolute inset-0 z-10" aria-hidden />
               </Link>
             );
           })}

@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { CornerBrackets } from "@/components/CornerBrackets";
+import { COMPACT_BRACKET } from "@/lib/corner-brackets";
 import { ControlledVideo } from "@/components/project/ControlledVideo";
+import { isListOverflowing } from "@/lib/cursor-hover";
 import type {
   Discipline,
 } from "@/data/projects";
@@ -82,8 +84,8 @@ function MediaCaption({
       )}`}
     >
       <div className="relative px-5 py-4">
-        <CornerBrackets inset={0} />
-        <p className="whitespace-pre-wrap font-display text-[11pt] font-medium leading-relaxed text-white md:text-[13pt]">
+        <CornerBrackets inset={0} geometry={COMPACT_BRACKET} />
+        <p className="whitespace-pre-wrap font-sans text-[14px] font-normal leading-relaxed text-white/90">
           {caption}
         </p>
       </div>
@@ -102,11 +104,56 @@ function HeroSection({
 }) {
   const poster = project.posterImageUrl ?? project.imageUrl;
   const hasVideo = Boolean(project.videoUrl);
+  const descRef = useRef<HTMLDivElement>(null);
+  const [canScroll, setCanScroll] = useState(false);
+  const [showTopIndicator, setShowTopIndicator] = useState(false);
+  const [showBottomIndicator, setShowBottomIndicator] = useState(false);
   const hasCopy =
     Boolean(project.client) ||
     Boolean(project.title) ||
     disciplines.length > 0 ||
     Boolean(description);
+
+  // Scroll hint only when the description overflows its frame
+  useLayoutEffect(() => {
+    const scrollEl = descRef.current;
+    if (!scrollEl) return;
+
+    function checkScroll() {
+      if (!scrollEl) return;
+
+      const { scrollTop } = scrollEl;
+      const overflow = scrollEl.scrollHeight - scrollEl.clientHeight;
+      const nextCanScroll = isListOverflowing(scrollEl);
+      const threshold = 8;
+
+      setCanScroll(nextCanScroll);
+      setShowTopIndicator(nextCanScroll && scrollTop > threshold);
+      setShowBottomIndicator(nextCanScroll && scrollTop < overflow - threshold);
+
+      if (!nextCanScroll && scrollTop !== 0) {
+        scrollEl.scrollTop = 0;
+      }
+    }
+
+    checkScroll();
+    void document.fonts?.ready.then(checkScroll);
+
+    scrollEl.addEventListener("scroll", checkScroll, { passive: true });
+    window.addEventListener("resize", checkScroll);
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(checkScroll)
+        : null;
+    resizeObserver?.observe(scrollEl);
+
+    return () => {
+      scrollEl.removeEventListener("scroll", checkScroll);
+      window.removeEventListener("resize", checkScroll);
+      resizeObserver?.disconnect();
+    };
+  }, [description]);
 
   return (
     <section
@@ -138,15 +185,15 @@ function HeroSection({
       {hasCopy && (
         <div
           data-project-player-chrome
-          className="pointer-events-auto absolute bottom-[4.75rem] left-4 right-20 z-20 max-w-lg md:bottom-20 md:left-8 md:right-auto"
+          className="pointer-events-auto absolute bottom-[4.75rem] left-4 right-20 z-20 flex max-h-[35dvh] max-w-lg flex-col md:bottom-20 md:left-8 md:right-auto"
         >
-          <div className="relative px-5 py-4">
-            <CornerBrackets inset={0} />
+          <div className="relative flex min-h-0 flex-col px-5 py-4">
+            <CornerBrackets inset={0} geometry={COMPACT_BRACKET} />
 
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              {project.client && (
-                <h1 className="font-heading text-[17pt] font-extrabold leading-[1.05] tracking-[-0.02em] text-white md:text-[21pt]">
-                  {project.client}
+            <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2">
+              {project.title && (
+                <h1 className="font-heading text-[17pt] leading-[1.05] text-white md:text-[21pt]">
+                  {project.title}
                 </h1>
               )}
               {disciplines.length > 0 && (
@@ -154,7 +201,7 @@ function HeroSection({
                   {disciplines.map((discipline) => (
                     <span
                       key={discipline}
-                      className="rounded-md bg-white/10 px-3 py-1.5 font-sans text-[11px] tracking-[0.12em] uppercase text-white/90"
+                      className="rounded-md border border-white/10 bg-[#4a4a4a]/65 px-3 py-1.5 font-sans text-[11px] tracking-[0.12em] uppercase text-white/90 backdrop-blur-md"
                     >
                       {discipline}
                     </span>
@@ -163,21 +210,59 @@ function HeroSection({
               )}
             </div>
 
-            <p className="mt-2 font-heading text-[11pt] font-extrabold uppercase leading-none tracking-[0.04em] text-white md:text-[13pt]">
-              {project.title}
-            </p>
+            {project.client && (
+              <p className="mt-1 shrink-0 font-display text-[11pt] font-medium uppercase leading-none text-white/90 md:text-[13pt]">
+                {project.client}
+              </p>
+            )}
 
             {description && (
               <div
-                className="mt-3 max-h-[22dvh] overflow-y-auto pr-1 md:max-h-[40vh]"
-                style={{
-                  scrollbarWidth: "thin",
-                  scrollbarColor: "rgba(255, 255, 255, 0.3) transparent",
-                }}
+                className={[
+                  "scroll-indicator-wrapper relative mt-3 flex min-h-0 flex-1 flex-col",
+                  showTopIndicator ? "can-scroll-up" : "",
+                  showBottomIndicator ? "can-scroll-down" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
               >
-                <p className="whitespace-pre-wrap font-display text-[11pt] font-medium leading-relaxed text-white md:text-[13pt]">
-                  {description}
-                </p>
+                <div
+                  className={`scroll-indicator top ${showTopIndicator ? "visible" : ""}`}
+                >
+                  <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+                    <path
+                      d="M2 8L8 2L14 8"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+
+                <div
+                  ref={descRef}
+                  {...(canScroll ? { "data-scrollable-list": true } : {})}
+                  className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
+                >
+                  <p className="whitespace-pre-wrap font-sans text-[14px] font-normal leading-relaxed text-white/90">
+                    {description}
+                  </p>
+                </div>
+
+                <div
+                  className={`scroll-indicator bottom ${showBottomIndicator ? "visible" : ""}`}
+                >
+                  <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+                    <path
+                      d="M2 2L8 8L14 2"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
               </div>
             )}
           </div>

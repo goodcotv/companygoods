@@ -117,15 +117,31 @@ body {
 }
 
 .talent-media video,
-.talent-media img {
+.talent-media img,
+.talent-media iframe {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
+/* Sizes the media wrapper only — the scrim stretches from its own insets. */
+.talent-media > div:not(.talent-media-scrim) {
+  width: 100%;
+  height: 100%;
+}
+
 .talent-media-scrim {
   position: absolute;
-  inset: 0;
+  /*
+   * Overscan the media box. The stage is scaled by a fractional factor, and the
+   * video/iframe composites on its own layer that rounds outward — a scrim sized
+   * exactly to the edge leaves a hairline of uncovered video along the bottom.
+   * The clipping ancestor trims the overscan back to the real edge.
+   */
+  inset: -2px -2px -6px;
+  /* Keep the inset stretch even if an ancestor rule sets a size on child divs. */
+  width: auto;
+  height: auto;
   z-index: 1;
   background: linear-gradient(
     to right,

@@ -1,15 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ControlledVimeo } from "@/components/project/ControlledVimeo";
+import Player from "@vimeo/player";
 import { useVideoTheater } from "@/hooks/useVideoTheater";
-import { parseVimeoUrl } from "@/lib/vimeo";
+import { buildVimeoEmbedSrc, type VimeoVideo } from "@/lib/vimeo";
 
-type ControlledVideoProps = {
-  src: string;
-  poster?: string;
+type ControlledVimeoProps = {
+  video: VimeoVideo;
   className?: string;
-  priority?: boolean;
+  title?: string;
 };
 
 function MuteIcon({ muted }: { muted: boolean }) {
@@ -42,199 +41,207 @@ function FullscreenIcon() {
   );
 }
 
-/** Controlled project-page video with letterboxed theater mode. */
-export function ControlledVideo({
-  src,
-  poster,
+/** Controlled project-page Vimeo player matching ControlledVideo chrome. */
+export function ControlledVimeo({
+  video,
   className = "",
-  priority = false,
-}: ControlledVideoProps) {
-  const vimeo = parseVimeoUrl(src);
-  if (vimeo) {
-    return <ControlledVimeo video={vimeo} className={className} />;
-  }
-
-  return (
-    <ControlledFileVideo
-      src={src}
-      poster={poster}
-      className={className}
-      priority={priority}
-    />
-  );
-}
-
-function ControlledFileVideo({
-  src,
-  poster,
-  className = "",
-  priority = false,
-}: ControlledVideoProps) {
+  title = "Video",
+}: ControlledVimeoProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const playerRef = useRef<Player | null>(null);
   const userPausedRef = useRef(false);
+  const isPlayingRef = useRef(false);
   const isSeekingRef = useRef(false);
   const isTheaterOpenRef = useRef(false);
+  const durationRef = useRef(0);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [showPlayOverlay, setShowPlayOverlay] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [progress, setProgress] = useState(0);
   const [isTheaterOpen, setIsTheaterOpen] = useState(false);
+  const [embedSrc, setEmbedSrc] = useState<string | null>(null);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [playerReady, setPlayerReady] = useState(false);
 
   isTheaterOpenRef.current = isTheaterOpen;
 
   const closeTheater = useCallback(() => setIsTheaterOpen(false), []);
   useVideoTheater(isTheaterOpen, closeTheater);
 
-  const togglePlay = useCallback(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.paused) {
-      userPausedRef.current = false;
-      void video.play();
-      setIsPlaying(true);
-    } else {
-      userPausedRef.current = true;
-      video.pause();
-      setIsPlaying(false);
-    }
-  }, []);
-
-  const toggleMute = useCallback(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    video.muted = !video.muted;
-    setIsMuted(video.muted);
-  }, []);
-
-  const handleSeek = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement> | React.FormEvent<HTMLInputElement>) => {
-      const video = videoRef.current;
-      const total = video?.duration;
-      if (!video || !total || !Number.isFinite(total)) return;
-      const value = Number((e.target as HTMLInputElement).value);
-      video.currentTime = (value / 100) * total;
-      setProgress(value);
-    },
-    [],
-  );
+  useEffect(() => {
+    setEmbedSrc(
+      buildVimeoEmbedSrc(video, "controlled", window.location.origin),
+    );
+    setIframeLoaded(false);
+    setPlayerReady(false);
+  }, [video.hash, video.id]);
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+    const iframe = iframeRef.current;
+    if (!iframe || !embedSrc || !iframeLoaded) return;
 
-    const onTimeUpdate = () => {
-      if (isSeekingRef.current) return;
-      const total = video.duration;
-      setProgress(total ? (video.currentTime / total) * 100 : 0);
-    };
+    let alive = true;
+    let player: Player;
+
+    try {
+      player = new Player(iframe);
+      playerRef.current = player;
+    } catch {
+      return;
+    }
+
     const onPlay = () => {
+      isPlayingRef.current = true;
       setIsPlaying(true);
       setShowPlayOverlay(false);
     };
+
     const onPause = () => {
+      isPlayingRef.current = false;
       setIsPlaying(false);
       setShowPlayOverlay(true);
     };
 
-    video.addEventListener("timeupdate", onTimeUpdate);
-    video.addEventListener("play", onPlay);
-    video.addEventListener("pause", onPause);
+    const onTimeUpdate = (data: { seconds: number; duration: number }) => {
+      if (isSeekingRef.current) return;
+      if (data.duration > 0) {
+        durationRef.current = data.duration;
+      }
+      const total = data.duration || durationRef.current;
+      setProgress(total ? (data.seconds / total) * 100 : 0);
+    };
 
-    if (!video.paused) {
-      setIsPlaying(true);
-      setShowPlayOverlay(false);
-    }
+    player.on("play", onPlay);
+    player.on("pause", onPause);
+    player.on("timeupdate", onTimeUpdate);
+
+    void player
+      .ready()
+      .then(async () => {
+        if (!alive) return;
+        setPlayerReady(true);
+        const [dur, muted] = await Promise.all([
+          player.getDuration(),
+          player.getMuted(),
+        ]);
+        if (!alive) return;
+        if (dur > 0) durationRef.current = dur;
+        setIsMuted(muted);
+        if (!userPausedRef.current) {
+          void player.play().catch(() => {
+            setIsPlaying(false);
+            setShowPlayOverlay(true);
+          });
+        }
+      })
+      .catch(() => {
+        if (alive) setPlayerReady(true);
+      });
 
     return () => {
-      video.removeEventListener("timeupdate", onTimeUpdate);
-      video.removeEventListener("play", onPlay);
-      video.removeEventListener("pause", onPause);
+      alive = false;
+      player.off("play", onPlay);
+      player.off("pause", onPause);
+      player.off("timeupdate", onTimeUpdate);
+      playerRef.current = null;
+      void player.destroy();
     };
-  }, [src]);
+  }, [embedSrc, iframeLoaded]);
+
+  const togglePlay = useCallback(() => {
+    const player = playerRef.current;
+    if (!player || !playerReady) return;
+    if (isPlaying) {
+      userPausedRef.current = true;
+      void player.pause();
+    } else {
+      userPausedRef.current = false;
+      void player.play();
+    }
+  }, [isPlaying, playerReady]);
+
+  const toggleMute = useCallback(() => {
+    const player = playerRef.current;
+    if (!player || !playerReady) return;
+    const nextMuted = !isMuted;
+    void player
+      .setMuted(nextMuted)
+      .then(() => (nextMuted ? undefined : player.setVolume(1)))
+      .then(() => setIsMuted(nextMuted))
+      .catch(() => {});
+  }, [isMuted, playerReady]);
+
+  const handleSeek = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement> | React.FormEvent<HTMLInputElement>) => {
+      const player = playerRef.current;
+      if (!player || !playerReady) return;
+      const total = durationRef.current;
+      if (!total) return;
+      const value = Number((e.target as HTMLInputElement).value);
+      const seconds = (value / 100) * total;
+      setProgress(value);
+      isSeekingRef.current = true;
+      void player.setCurrentTime(seconds).finally(() => {
+        isSeekingRef.current = false;
+      });
+    },
+    [playerReady],
+  );
 
   // Pause when scrolled out of view (inline only); resume if user didn't pause
   useEffect(() => {
     if (isTheaterOpen) return;
 
-    const video = videoRef.current;
+    const player = playerRef.current;
     const container = containerRef.current;
-    if (!video || !container) return;
+    if (!player || !playerReady || !container) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        // Ignore stale callbacks while theater is open / mid-transition.
         if (isTheaterOpenRef.current) return;
 
         if (entry.isIntersecting) {
-          if (!userPausedRef.current && video.paused) {
-            void video.play().catch(() => setIsPlaying(false));
+          if (!userPausedRef.current && !isPlayingRef.current) {
+            void player.play().catch(() => {});
           }
           return;
         }
-        if (!video.paused) {
-          video.pause();
-        }
+        void player.pause().catch(() => {});
       },
       { threshold: 0.35 },
     );
 
     observer.observe(container);
     return () => observer.disconnect();
-  }, [src, isTheaterOpen]);
+  }, [playerReady, isTheaterOpen, video.id]);
 
-  // Keep the same <video> instance across theater open/close so playback
-  // time and play/pause state aren't reset by a remount.
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+    const player = playerRef.current;
+    if (!player || !playerReady) return;
 
     if (userPausedRef.current) {
-      if (!video.paused) video.pause();
+      void player.pause().catch(() => {});
       setIsPlaying(false);
       setShowPlayOverlay(true);
       return;
     }
 
-    if (video.paused) {
-      void video
-        .play()
-        .then(() => {
-          setIsPlaying(true);
-          setShowPlayOverlay(false);
-        })
-        .catch(() => {
-          setIsPlaying(false);
-          setShowPlayOverlay(true);
-        });
-    } else {
-      setIsPlaying(true);
-      setShowPlayOverlay(false);
-    }
-  }, [isTheaterOpen]);
-
-  useEffect(() => {
-    if (!isPlaying) return;
-    let frame = 0;
-    const tick = () => {
-      if (!isSeekingRef.current) {
-        const video = videoRef.current;
-        if (video) {
-          const total = video.duration;
-          setProgress(total ? (video.currentTime / total) * 100 : 0);
-        }
-      }
-      frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [isPlaying]);
+    void player
+      .play()
+      .then(() => {
+        setIsPlaying(true);
+        setShowPlayOverlay(false);
+      })
+      .catch(() => {
+        setIsPlaying(false);
+        setShowPlayOverlay(true);
+      });
+  }, [isTheaterOpen, playerReady]);
 
   const clampedProgress = Math.min(100, Math.max(0, progress));
 
-  // Always return a fragment so the video shell stays at the same React tree
-  // position when theater toggles (avoids remounting <video>).
   return (
     <>
       {isTheaterOpen ? (
@@ -246,7 +253,7 @@ function ControlledFileVideo({
         className={
           isTheaterOpen
             ? "fixed inset-0 z-[10050] flex h-[100dvh] w-screen items-center justify-center bg-black"
-            : `relative h-full w-full bg-black ${className}`
+            : `relative h-full w-full overflow-hidden bg-black ${className}`
         }
       >
         {isTheaterOpen && (
@@ -263,26 +270,32 @@ function ControlledFileVideo({
           className={
             isTheaterOpen
               ? "relative flex max-h-[calc(100dvh-4.5rem)] max-w-[100vw] items-center justify-center"
-              : "absolute inset-0"
+              : "absolute inset-0 overflow-hidden"
           }
         >
-          <video
-            ref={videoRef}
-            src={src}
-            poster={poster}
-            className={
-              isTheaterOpen
-                ? "mx-auto h-auto max-h-[calc(100dvh-4.5rem)] w-auto max-w-[100vw] object-contain"
-                : "absolute inset-0 h-full w-full object-cover"
-            }
-            autoPlay
-            muted={isMuted}
-            playsInline
-            preload={priority ? "auto" : "metadata"}
-            disablePictureInPicture
-            controlsList="nodownload noplaybackrate"
-            onContextMenu={(e) => e.preventDefault()}
+          {embedSrc ? (
+            <iframe
+              ref={iframeRef}
+              src={embedSrc}
+              title={title}
+              allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+              onLoad={() => setIframeLoaded(true)}
+              className={
+                isTheaterOpen
+                  ? "pointer-events-none mx-auto aspect-video h-auto max-h-[calc(100dvh-4.5rem)] w-full max-w-[100vw] border-0"
+                  : "pointer-events-none absolute left-1/2 top-1/2 h-[56.25vw] min-h-full w-[177.78vh] min-w-full -translate-x-1/2 -translate-y-1/2 border-0"
+              }
+            />
+          ) : null}
+
+          <button
+            type="button"
             onClick={togglePlay}
+            disabled={!playerReady}
+            className="absolute inset-0 z-10"
+            aria-label={isPlaying ? "Pause" : "Play"}
           />
 
           {showPlayOverlay && (

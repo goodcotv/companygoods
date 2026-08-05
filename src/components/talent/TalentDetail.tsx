@@ -10,7 +10,9 @@ import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
 import { ScaleToFit } from "@/components/ScaleToFit";
 import { isListOverflowing } from "@/lib/cursor-hover";
 import { STAGE_HEIGHT, STAGE_NAV_CLEARANCE, STAGE_WIDTH } from "@/lib/stage";
+import { isVimeoUrl } from "@/lib/vimeo";
 import type { Project, TalentDetailData } from "@/sanity/types";
+import { VimeoBackground } from "@/components/VimeoBackground";
 
 type TalentDetailProps = {
   talent: TalentDetailData;
@@ -81,7 +83,17 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
         >
           {/* Full-screen background media */}
           <div className="talent-media">
-            {mediaVideoUrl ? (
+            {mediaVideoUrl && isVimeoUrl(mediaVideoUrl) ? (
+              <VimeoBackground
+                key={activeProject?._id}
+                src={mediaVideoUrl}
+                title={
+                  activeProject
+                    ? `${activeProject.title} video`
+                    : `${talent.name} project video`
+                }
+              />
+            ) : mediaVideoUrl ? (
               <video
                 key={activeProject?._id}
                 src={mediaVideoUrl}
@@ -105,8 +117,10 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
                 priority
               />
             ) : null}
-            <div className="talent-media-scrim" />
           </div>
+          {/* Sibling of the media box, not a child — the media clips its children,
+              which would trim the fade back to the edge it needs to overscan. */}
+          <div className="talent-media-scrim" aria-hidden="true" />
 
           {/* Brand header */}
           <div className="absolute top-0 left-0 z-20 px-8 pt-4">
