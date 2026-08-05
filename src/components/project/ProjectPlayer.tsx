@@ -4,7 +4,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { CornerBrackets } from "@/components/CornerBrackets";
-import { COMPACT_BRACKET } from "@/lib/corner-brackets";
 import { ControlledVideo } from "@/components/project/ControlledVideo";
 import { isListOverflowing } from "@/lib/cursor-hover";
 import type {
@@ -47,8 +46,12 @@ function getDisciplines(project: Project): Discipline[] {
   return DISCIPLINES.filter((d) => found.has(d));
 }
 
-function getCaptionPositionClasses(position = "bottom-left", hasVideoControls = false) {
-  const bottom = hasVideoControls ? "bottom-20" : "bottom-8";
+/**
+ * Bottom captions rest just above the section frame's lower brackets, which
+ * top out 45px above the frame edge (5rem, 4rem at md).
+ */
+function getCaptionPositionClasses(position = "bottom-left") {
+  const bottom = "bottom-[6.2rem] md:bottom-[5.2rem]";
 
   switch (position) {
     case "bottom-center":
@@ -67,24 +70,34 @@ function captionToText(caption?: PortableTextBlock[]): string {
   return portableTextToPlainText(caption);
 }
 
+/**
+ * Viewfinder frame anchored to a single section, so it scrolls with that
+ * section instead of floating over the whole page. Top clears the Back button,
+ * bottom clears the video scrubber.
+ */
+function SectionFrame() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-x-4 bottom-20 top-11 z-10 md:inset-x-8 md:bottom-16 md:top-16"
+      aria-hidden
+    >
+      <CornerBrackets inset={0} />
+    </div>
+  );
+}
+
 function MediaCaption({
   caption,
   position,
-  hasVideoControls = false,
 }: {
   caption: string;
   position?: string;
-  hasVideoControls?: boolean;
 }) {
   return (
     <div
-      className={`absolute z-10 max-w-lg ${getCaptionPositionClasses(
-        position,
-        hasVideoControls,
-      )}`}
+      className={`absolute z-10 max-w-lg ${getCaptionPositionClasses(position)}`}
     >
       <div className="relative px-5 py-4">
-        <CornerBrackets inset={0} geometry={COMPACT_BRACKET} />
         <p className="whitespace-pre-wrap font-sans text-[14px] font-normal leading-relaxed text-white/90">
           {caption}
         </p>
@@ -182,6 +195,8 @@ function HeroSection({
 
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
 
+      <SectionFrame />
+
       {hasCopy && (
         <div
           data-project-player-chrome
@@ -273,11 +288,9 @@ function HeroSection({
 function MediaSectionShell({
   section,
   children,
-  hasVideoControls = false,
 }: {
   section: MediaSection;
   children: React.ReactNode;
-  hasVideoControls?: boolean;
 }) {
   const contained = section.withMargins === true;
   const caption = captionToText(section.caption);
@@ -289,12 +302,9 @@ function MediaSectionShell({
         data-project-section
       >
         <div className="relative w-full max-w-[1600px]">{children}</div>
+        <SectionFrame />
         {caption && (
-          <MediaCaption
-            caption={caption}
-            position={section.captionPosition}
-            hasVideoControls={hasVideoControls}
-          />
+          <MediaCaption caption={caption} position={section.captionPosition} />
         )}
       </section>
     );
@@ -309,13 +319,10 @@ function MediaSectionShell({
         {children}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/10" />
         {caption && (
-          <MediaCaption
-            caption={caption}
-            position={section.captionPosition}
-            hasVideoControls={hasVideoControls}
-          />
+          <MediaCaption caption={caption} position={section.captionPosition} />
         )}
       </div>
+      <SectionFrame />
     </section>
   );
 }
@@ -327,10 +334,9 @@ function SingleMediaSectionComponent({ section }: { section: MediaSection }) {
   const imageSrc = section.imageUrl;
   const videoSrc = section.videoUrl;
   const contained = section.withMargins === true;
-  const hasVideoControls = !isImage && Boolean(videoSrc);
 
   return (
-    <MediaSectionShell section={section} hasVideoControls={hasVideoControls}>
+    <MediaSectionShell section={section}>
       {isImage && imageSrc ? (
         contained ? (
           <Image
@@ -442,13 +448,6 @@ export function ProjectPlayer({ project }: ProjectPlayerProps) {
 
   return (
     <div className="relative min-h-dvh w-full overflow-x-hidden bg-black">
-      <div
-        className="pointer-events-none fixed inset-x-4 bottom-20 top-11 z-20 md:inset-x-8 md:bottom-16 md:top-16"
-        aria-hidden
-      >
-        <CornerBrackets inset={0} />
-      </div>
-
       <button
         type="button"
         data-project-player-chrome
