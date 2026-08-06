@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
-import { AnimatePresence, motion, LayoutGroup } from "framer-motion";
+import { AnimatePresence, LayoutGroup } from "framer-motion";
 import { ScaleToFit } from "./ScaleToFit";
-import { BrandHeader } from "./BrandHeader";
 import { BottomChrome } from "./BottomChrome";
 import { HomePage } from "./HomePage";
 import TalentRoster from "./talent/TalentRoster";
 import { InfoShell } from "./info/InfoShell";
+import { MobileMenu } from "./MobileMenu";
+import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { STAGE_HEIGHT, STAGE_NAV_PADDING, STAGE_WIDTH } from "@/lib/stage";
 import type { HomepageData, PostWorker } from "@/sanity/types";
 
@@ -27,19 +28,33 @@ function parseSection(value: string | null): Section {
 
 export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
   const searchParams = useSearchParams();
+  const isMobile = useMobileBrowseLayout();
   const [section, setSection] = useState<Section>(() =>
     parseSection(searchParams.get("section")),
   );
-  
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Open menu when returning from a talent/project page via MENU
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.sessionStorage.getItem("openMobileMenu") === "1") {
+      window.sessionStorage.removeItem("openMobileMenu");
+      setMenuOpen(true);
+    }
+  }, []);
+
   // Track view state for Work section (scroll/list toggle)
   const [workView, setWorkView] = useState<"scroll" | "list">(() =>
-    searchParams.get("view") === "list" ? "list" : "scroll"
+    searchParams.get("view") === "list" ? "list" : "scroll",
   );
 
   // Sync section state with URL changes
   useEffect(() => {
     setSection(parseSection(searchParams.get("section")));
-    if (searchParams.get("section") === null || searchParams.get("section") === "work") {
+    if (
+      searchParams.get("section") === null ||
+      searchParams.get("section") === "work"
+    ) {
       setWorkView(searchParams.get("view") === "list" ? "list" : "scroll");
     }
   }, [searchParams]);
@@ -49,7 +64,7 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
     if (nextSection === section) return;
 
     const params = new URLSearchParams(window.location.search);
-    
+
     if (nextSection === "work") {
       params.delete("section");
     } else {
@@ -68,20 +83,28 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
     window.history.pushState(null, "", url);
     setSection(nextSection);
   }
-  
+
   // Handle view change for Work section
   function handleWorkViewChange(nextView: "scroll" | "list") {
     setWorkView(nextView);
     const params = new URLSearchParams(window.location.search);
-    
+
     if (nextView === "list") {
       params.set("view", "list");
     } else {
       params.delete("view");
     }
-    
+
     const url = params.toString() ? `/?${params.toString()}` : "/";
     window.history.replaceState(null, "", url);
+  }
+
+  /** Logo / home — Work section, Scroll view, clear filters. */
+  function handleGoHome() {
+    setSection("work");
+    setWorkView("scroll");
+    setMenuOpen(false);
+    window.history.pushState(null, "", "/");
   }
 
   // Handle browser back/forward
@@ -95,46 +118,95 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  return (
-    <LayoutGroup>
+  // Lock document scroll while the mobile browse shell is active
+  useEffect(() => {
+    if (!isMobile) return;
+    const html = document.documentElement;
+    const { body } = document;
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    body.style.overscrollBehavior = "none";
+    return () => {
+      html.style.overflow = "";
+      body.style.overflow = "";
+      html.style.overscrollBehavior = "";
+      body.style.overscrollBehavior = "";
+    };
+  }, [isMobile]);
+
+  const introVideoUrl = homepageData?.settings?.introVideoUrl;
+
+  const sections = (
+    <AnimatePresence mode="popLayout" initial={false}>
+      {section === "work" && (
+        <HomePage key="work" data={homepageData} externalView={workView} />
+      )}
+
+      {section === "talent" && (
+        <TalentRoster key="talent" workers={talentWorkers} />
+      )}
+
+      {section === "info" && <InfoShell key="info" />}
+    </AnimatePresence>
+  );
+
+  const chrome = (
+    <BottomChrome
+      position="inline"
+      activeSection={section}
+      onNavigate={handleNavigate}
+      view={section === "work" ? workView : undefined}
+      onViewChange={section === "work" ? handleWorkViewChange : undefined}
+      onMenuOpen={isMobile ? () => setMenuOpen(true) : undefined}
+      className={
+        isMobile ? "pointer-events-auto w-full" : "pointer-events-auto"
+      }
+    />
+  );
+
+  let shell: ReactNode;
+  if (isMobile) {
+    shell = (
+      <div className="fixed inset-0 z-0 bg-background text-foreground">
+        {/* Full-bleed stage — chrome floats over so media reaches the bottom */}
+        <div className="absolute inset-0 overflow-hidden">{sections}</div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
+          {chrome}
+        </div>
+      </div>
+    );
+  } else {
+    shell = (
       <ScaleToFit width={STAGE_WIDTH} height={STAGE_HEIGHT}>
         <div
           className="relative bg-background text-foreground"
           style={{ width: STAGE_WIDTH, height: STAGE_HEIGHT }}
         >
-          {/* Content sections with page transitions */}
-          <AnimatePresence mode="popLayout" initial={false}>
-            {section === "work" && (
-              <HomePage
-                key="work"
-                data={homepageData}
-                externalView={workView}
-              />
-            )}
-
-            {section === "talent" && (
-              <TalentRoster key="talent" workers={talentWorkers} />
-            )}
-
-            {section === "info" && <InfoShell key="info" />}
-          </AnimatePresence>
-
-          {/* Persistent bottom navigation — top aligns with scroll camera bottom */}
+          {sections}
           <div
             className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex items-end justify-end px-8"
             style={{ paddingBottom: STAGE_NAV_PADDING }}
           >
-            <BottomChrome
-              position="inline"
-              activeSection={section}
-              onNavigate={handleNavigate}
-              view={section === "work" ? workView : undefined}
-              onViewChange={section === "work" ? handleWorkViewChange : undefined}
-              className="pointer-events-auto"
-            />
+            {chrome}
           </div>
         </div>
       </ScaleToFit>
+    );
+  }
+
+  return (
+    <LayoutGroup>
+      {shell}
+
+      <MobileMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onNavigate={handleNavigate}
+        onGoHome={handleGoHome}
+        activeSection={section}
+        mediaUrl={introVideoUrl}
+      />
     </LayoutGroup>
   );
 }

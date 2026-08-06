@@ -14,8 +14,10 @@ import {
 import { STAGE_HEIGHT, STAGE_NAV_CLEARANCE, STAGE_WIDTH } from "@/lib/stage";
 import { isListOverflowing } from "@/lib/cursor-hover";
 import { isVideoMediaUrl, isVimeoUrl } from "@/lib/vimeo";
+import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { BrandHeader } from "./BrandHeader";
 import { AnimatedCornerBrackets } from "./AnimatedCornerBrackets";
+import { MobileBrandBar } from "./MobileBrandBar";
 import { VimeoBackground } from "./VimeoBackground";
 
 type ListViewProps = {
@@ -24,19 +26,20 @@ type ListViewProps = {
 
 export function ListView({ projects }: ListViewProps) {
   const searchParams = useSearchParams();
-  
+  const isMobile = useMobileBrowseLayout();
+
   // Map URL slugs back to category names
   const slugToCategory: Record<string, Category> = {
-    "commercial": "COMMERCIAL",
+    commercial: "COMMERCIAL",
     "immersive-live": "IMMERSIVE & LIVE",
-    "music": "MUSIC",
-    "beauty": "BEAUTY",
+    music: "MUSIC",
+    beauty: "BEAUTY",
   };
-  
+
   // Initialize from URL params
   const [category, setCategory] = useState<Category | null>(() => {
     const param = searchParams.get("category");
-    return param ? (slugToCategory[param] || null) : null;
+    return param ? slugToCategory[param] || null : null;
   });
   const [discipline, setDiscipline] = useState<Discipline | null>(() => {
     const param = searchParams.get("discipline");
@@ -51,22 +54,25 @@ export function ListView({ projects }: ListViewProps) {
   const [canScroll, setCanScroll] = useState(false);
   const [showTopIndicator, setShowTopIndicator] = useState(false);
   const [showBottomIndicator, setShowBottomIndicator] = useState(false);
-  
+
   // Update URL when filters change
   useEffect(() => {
     const params = new URLSearchParams();
     params.set("view", "list");
-    
+
     if (category) {
       // Convert to simple slug (e.g., "IMMERSIVE & LIVE" -> "immersive-live")
-      const slug = category.toLowerCase().replace(/\s+&?\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+      const slug = category
+        .toLowerCase()
+        .replace(/\s+&?\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "");
       params.set("category", slug);
     }
-    
+
     if (discipline) {
       params.set("discipline", discipline.toLowerCase());
     }
-    
+
     const newUrl = `/?${params.toString()}`;
     window.history.replaceState(null, "", newUrl);
   }, [category, discipline]);
@@ -79,8 +85,7 @@ export function ListView({ projects }: ListViewProps) {
     });
   }, [projects, category, discipline]);
 
-  const active =
-    filtered.find((p) => p.id === activeId) ?? filtered[0] ?? null;
+  const active = filtered.find((p) => p.id === activeId) ?? filtered[0] ?? null;
 
   useEffect(() => {
     if (!active) return;
@@ -89,11 +94,6 @@ export function ListView({ projects }: ListViewProps) {
 
   function selectDiscipline(d: Discipline) {
     setDiscipline((prev) => (prev === d ? null : d));
-  }
-
-  function clearFilters() {
-    setCategory(null);
-    setDiscipline(null);
   }
 
   function selectProject(id: string) {
@@ -151,11 +151,227 @@ export function ListView({ projects }: ListViewProps) {
       window.removeEventListener("resize", checkScroll);
       resizeObserver?.disconnect();
     };
-  }, [filtered]);
+  }, [filtered, isMobile]);
 
   const activeMediaUrl = active?.image;
   const isVideo = isVideoMediaUrl(activeMediaUrl);
   const isVimeo = Boolean(activeMediaUrl && isVimeoUrl(activeMediaUrl));
+
+  const backgroundMedia =
+    active && activeMediaUrl ? (
+      <>
+        <div
+          className={`absolute inset-0 ${
+            isMobile
+              ? "scale-110 opacity-90 [filter:blur(48px)_brightness(0.85)]"
+              : ""
+          }`}
+          style={{ zIndex: 0 }}
+        >
+          {isVimeo ? (
+            <VimeoBackground
+              key={active.id}
+              src={activeMediaUrl!}
+              title={active.title}
+              className="transition-opacity duration-500"
+            />
+          ) : isVideo ? (
+            <video
+              key={active.id}
+              src={activeMediaUrl}
+              autoPlay
+              loop
+              muted
+              playsInline
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                opacity: 1,
+              }}
+              className="transition-opacity duration-500"
+            />
+          ) : (
+            <img
+              key={active.id}
+              src={activeMediaUrl}
+              alt=""
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                opacity: 1,
+              }}
+              className="transition-opacity duration-500"
+            />
+          )}
+        </div>
+        {isMobile ? null : (
+          <div className="talent-media-scrim" aria-hidden="true" />
+        )}
+      </>
+    ) : null;
+
+  const categoryNav = (
+    <nav
+      className={`flex flex-wrap items-center gap-x-1 gap-y-2 tracking-[0.1em] uppercase ${
+        isMobile ? "mt-4 text-[13px]" : "mt-8 text-[12px]"
+      }`}
+      aria-label="Work categories"
+    >
+      {CATEGORIES.map((cat, i) => (
+        <span key={cat} className="inline-flex items-center gap-1">
+          {i > 0 ? (
+            <span className="text-white/55" aria-hidden>
+              /
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setCategory((prev) => (prev === cat ? null : cat))}
+            className={`transition-opacity ${
+              category === cat
+                ? "font-bold text-foreground opacity-100"
+                : "text-foreground opacity-65 hover:opacity-100"
+            }`}
+          >
+            {cat}
+          </button>
+        </span>
+      ))}
+    </nav>
+  );
+
+  const projectList = (
+    <ul
+      ref={scrollRef}
+      {...(canScroll ? { "data-scrollable-list": true } : {})}
+      className={[
+        "min-h-0 flex-1 overscroll-contain",
+        canScroll ? "overflow-y-auto" : "overflow-y-hidden",
+        isMobile
+          ? "space-y-5 px-5 py-5 text-left"
+          : "space-y-3.5 py-5 pl-4 pr-4",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {filtered.map((project) => {
+        const isActive = project.id === active?.id;
+        // Mobile mock: client hero + title subtitle (Grindr / CONFESSIONS…)
+        const primary = isMobile
+          ? project.client || project.title
+          : project.title;
+        const secondary = isMobile
+          ? project.client
+            ? project.title
+            : null
+          : project.client;
+
+        return (
+          <li key={project.id}>
+            <Link
+              href={`/work/${project.id}`}
+              onMouseEnter={() => {
+                if (!isMobile) selectProject(project.id);
+              }}
+              onTouchStart={() => selectProject(project.id)}
+              onFocus={() => selectProject(project.id)}
+              className={`group block w-fit max-w-full text-left transition-colors ${
+                isActive
+                  ? "text-foreground"
+                  : "text-white/35 hover:text-foreground"
+              }`}
+            >
+              <span
+                className={`block font-heading font-extrabold leading-none tracking-[-0.02em] ${
+                  isMobile
+                    ? "text-[clamp(1.45rem,6.5vw,1.9rem)]"
+                    : "text-[21pt]"
+                }`}
+              >
+                {primary}
+              </span>
+              {secondary ? (
+                <span
+                  className={`mt-1.5 block font-sans tracking-[0.14em] uppercase ${
+                    isMobile ? "text-[12px]" : "text-[11px]"
+                  }`}
+                >
+                  {secondary}
+                </span>
+              ) : null}
+            </Link>
+          </li>
+        );
+      })}
+      {filtered.length === 0 ? (
+        <li className="text-sm text-muted">No projects match.</li>
+      ) : null}
+    </ul>
+  );
+
+  if (isMobile) {
+    return (
+      <motion.div
+        className="absolute inset-0 overflow-hidden bg-background text-foreground"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.25, ease: "easeInOut" }}
+      >
+        {backgroundMedia}
+
+        <div className="relative z-10 flex h-full min-h-0 flex-col pb-[calc(3.25rem+env(safe-area-inset-bottom,0px))]">
+          <MobileBrandBar />
+          <div className="shrink-0 px-5">{categoryNav}</div>
+
+          {/* Side margins so brackets aren't flush with the screen edge */}
+          <div
+            className={[
+              "relative mx-5 mt-2 flex min-h-0 flex-1 flex-col scroll-indicator-wrapper",
+              showTopIndicator ? "can-scroll-up" : "",
+              showBottomIndicator ? "can-scroll-down" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
+
+            <div
+              className={`scroll-indicator top ${showTopIndicator ? "visible" : ""}`}
+            >
+              <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+                <path
+                  d="M2 8L8 2L14 8"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+
+            {projectList}
+
+            <div
+              className={`scroll-indicator bottom ${showBottomIndicator ? "visible" : ""}`}
+            >
+              <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+                <path
+                  d="M2 2L8 8L14 2"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -169,77 +385,16 @@ export function ListView({ projects }: ListViewProps) {
         ease: "easeInOut",
       }}
     >
-        {/* Background Video/Image */}
-        {active && activeMediaUrl && (
-          <>
-            <div className="absolute inset-0" style={{ zIndex: 0 }}>
-              {isVimeo ? (
-                <VimeoBackground
-                  key={active.id}
-                  src={activeMediaUrl!}
-                  title={active.title}
-                  className="transition-opacity duration-500"
-                />
-              ) : isVideo ? (
-                <video
-                  key={active.id}
-                  src={activeMediaUrl}
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 1 }}
-                  className="transition-opacity duration-500"
-                />
-              ) : (
-                <img
-                  key={active.id}
-                  src={activeMediaUrl}
-                  alt=""
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 1 }}
-                  className="transition-opacity duration-500"
-                />
-              )}
-            </div>
-            {/* Left-side gradient for text legibility */}
-            <div className="talent-media-scrim" aria-hidden="true" />
-          </>
-        )}
-        
-        <div
-          className="relative flex h-full flex-col px-8 pt-8"
-          style={{ zIndex: 10, paddingBottom: STAGE_NAV_CLEARANCE }}
-        >
-          <div className="shrink-0">
-            <BrandHeader />
+      {backgroundMedia}
 
-            <nav
-              className="mt-8 flex flex-wrap items-center gap-x-1 gap-y-2 text-[12px] tracking-[0.1em] uppercase"
-              aria-label="Work categories"
-            >
-            {CATEGORIES.map((cat, i) => (
-              <span key={cat} className="inline-flex items-center gap-1">
-                {i > 0 ? (
-                  <span className="text-white/55" aria-hidden>
-                    /
-                  </span>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCategory((prev) => (prev === cat ? null : cat))
-                  }
-                  className={`transition-opacity ${
-                    category === cat
-                      ? "font-bold text-foreground opacity-100"
-                      : "text-foreground opacity-65 hover:opacity-100"
-                  }`}
-                >
-                  {cat}
-                </button>
-              </span>
-            ))}
-          </nav>
+      <div
+        className="relative flex h-full flex-col px-8 pt-8"
+        style={{ zIndex: 10, paddingBottom: STAGE_NAV_CLEARANCE }}
+      >
+        <div className="shrink-0">
+          <BrandHeader />
+
+          {categoryNav}
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {!specialtyExpanded && (
@@ -251,7 +406,7 @@ export function ListView({ projects }: ListViewProps) {
                 SPECIALTY <span className="ml-1">+</span>
               </button>
             )}
-            
+
             {specialtyExpanded && (
               <>
                 {DISCIPLINES.map((d) => {
@@ -298,92 +453,70 @@ export function ListView({ projects }: ListViewProps) {
                 .join(" ")}
             >
               <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
-              
-              {/* Top scroll indicator */}
-              <div className={`scroll-indicator top ${showTopIndicator ? 'visible' : ''}`}>
+
+              <div
+                className={`scroll-indicator top ${showTopIndicator ? "visible" : ""}`}
+              >
                 <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
-                  <path d="M2 8L8 2L14 8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M2 8L8 2L14 8"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </div>
 
-              <ul
-                ref={scrollRef}
-                {...(canScroll ? { "data-scrollable-list": true } : {})}
-                className={[
-                  "min-h-0 flex-1 space-y-3.5 overscroll-contain py-5 pl-4 pr-4",
-                  canScroll ? "overflow-y-auto" : "overflow-y-hidden",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              >
-                {filtered.map((project) => {
-                  const isActive = project.id === active?.id;
-                  return (
-                    <li key={project.id}>
-                      <Link
-                        href={`/work/${project.id}`}
-                        onMouseEnter={() => selectProject(project.id)}
-                        className={`group block w-fit max-w-full text-left transition-colors ${
-                          isActive
-                            ? "text-foreground"
-                            : "text-white/35 hover:text-foreground"
-                        }`}
-                      >
-                        <span className="block font-heading text-[21pt] font-extrabold leading-none tracking-[-0.02em]">
-                          {project.title}
-                        </span>
-                        <span className="mt-1.5 block font-sans text-[11px] tracking-[0.14em] uppercase">
-                          {project.client}
-                        </span>
-                      </Link>
-                    </li>
-                  );
-                })}
-                {filtered.length === 0 ? (
-                  <li className="text-sm text-muted">No projects match.</li>
-                ) : null}
-              </ul>
+              {projectList}
 
-              {/* Bottom scroll indicator */}
-              <div className={`scroll-indicator bottom ${showBottomIndicator ? 'visible' : ''}`}>
+              <div
+                className={`scroll-indicator bottom ${showBottomIndicator ? "visible" : ""}`}
+              >
                 <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
-                  <path d="M2 2L8 8L14 2" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M2 2L8 8L14 2"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </div>
             </div>
           </div>
         </div>
       </div>
-        
-        {/* Description panel - only when the active project has a write-up */}
-        {active?.description?.trim() ? (
-          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-end pr-10">
-            <div
-              className={`pointer-events-auto flex w-[24rem] items-stretch gap-3 transition-all duration-300 ${
-                descVisible
-                  ? "translate-y-0 opacity-100"
-                  : "translate-y-2 opacity-0"
-              }`}
-            >
-              <div className="max-h-52 flex-1 overflow-hidden rounded-2xl bg-panel px-6 py-5 backdrop-blur-md">
-                <div
-                  key={active.id}
-                  className="h-full overflow-y-auto overscroll-contain font-sans text-[14px] leading-relaxed text-white/90"
-                >
-                  <p>{active.description}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={goNext}
-                aria-label="Next project"
-                className="flex shrink-0 items-center self-center px-1 text-[26px] leading-none text-white/85 transition-opacity hover:opacity-100"
+
+      {/* Description panel - only when the active project has a write-up */}
+      {active?.description?.trim() ? (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-end pr-10">
+          <div
+            className={`pointer-events-auto flex w-[24rem] items-stretch gap-3 transition-all duration-300 ${
+              descVisible
+                ? "translate-y-0 opacity-100"
+                : "translate-y-2 opacity-0"
+            }`}
+          >
+            <div className="max-h-52 flex-1 overflow-hidden rounded-2xl bg-panel px-6 py-5 backdrop-blur-md">
+              <div
+                key={active.id}
+                className="h-full overflow-y-auto overscroll-contain font-sans text-[14px] leading-relaxed text-white/90"
               >
-                ›
-              </button>
+                <p>{active.description}</p>
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={goNext}
+              aria-label="Next project"
+              className="flex shrink-0 items-center self-center px-1 text-[26px] leading-none text-white/85 transition-opacity hover:opacity-100"
+            >
+              ›
+            </button>
           </div>
-        ) : null}
+        </div>
+      ) : null}
     </motion.div>
   );
 }

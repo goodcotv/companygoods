@@ -98,7 +98,7 @@ function MediaCaption({
       className={`absolute z-10 max-w-lg ${getCaptionPositionClasses(position)}`}
     >
       <div className="relative px-5 py-4">
-        <p className="whitespace-pre-wrap font-sans text-[14px] font-normal leading-relaxed text-white/90">
+        <p className="whitespace-pre-wrap font-sans text-[15px] font-normal leading-relaxed text-white/90 md:text-[14px]">
           {caption}
         </p>
       </div>
@@ -205,7 +205,7 @@ function HeroSection({
           <div className="relative flex min-h-0 flex-col px-5 py-4">
             <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2">
               {project.title && (
-                <h1 className="font-heading text-[17pt] leading-[1.05] text-white md:text-[21pt]">
+                <h1 className="font-heading text-[19pt] leading-[1.05] text-white md:text-[21pt]">
                   {project.title}
                 </h1>
               )}
@@ -214,7 +214,7 @@ function HeroSection({
                   {disciplines.map((discipline) => (
                     <span
                       key={discipline}
-                      className="rounded-md border border-white/10 bg-[#4a4a4a]/65 px-3 py-1.5 font-sans text-[11px] tracking-[0.12em] uppercase text-white/90 backdrop-blur-md"
+                      className="rounded-md border border-white/10 bg-[#4a4a4a]/65 px-3 py-1.5 font-sans text-[12px] tracking-[0.12em] uppercase text-white/90 backdrop-blur-md md:text-[11px]"
                     >
                       {discipline}
                     </span>
@@ -224,7 +224,7 @@ function HeroSection({
             </div>
 
             {project.client && (
-              <p className="mt-1 shrink-0 font-display text-[11pt] font-medium uppercase leading-none text-white/90 md:text-[13pt]">
+              <p className="mt-1 shrink-0 font-display text-[13pt] font-medium uppercase leading-none text-white/90">
                 {project.client}
               </p>
             )}
@@ -258,7 +258,7 @@ function HeroSection({
                   {...(canScroll ? { "data-scrollable-list": true } : {})}
                   className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
                 >
-                  <p className="whitespace-pre-wrap font-sans text-[14px] font-normal leading-relaxed text-white/90">
+                  <p className="whitespace-pre-wrap font-sans text-[15px] font-normal leading-relaxed text-white/90 md:text-[14px]">
                     {description}
                   </p>
                 </div>
@@ -452,7 +452,7 @@ export function ProjectPlayer({ project }: ProjectPlayerProps) {
         type="button"
         data-project-player-chrome
         onClick={() => router.back()}
-        className="pointer-events-auto fixed left-4 top-4 z-30 font-display text-[11pt] font-medium uppercase leading-none text-white transition-opacity hover:opacity-70 md:left-8 md:top-8 md:text-[13pt]"
+        className="pointer-events-auto fixed left-4 top-4 z-30 font-display text-[13pt] font-medium uppercase leading-none text-white transition-opacity hover:opacity-70 md:left-8 md:top-8 md:text-[13pt]"
       >
         Back
       </button>

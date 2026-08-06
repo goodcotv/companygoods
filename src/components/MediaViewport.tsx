@@ -8,6 +8,10 @@ type MediaViewportProps = {
   src?: string;
   type?: "video" | "image";
   cornersLayoutId?: string;
+  /** Camera-style corner brackets. Default true. */
+  corners?: boolean;
+  /** Border radius in px. Default 16. */
+  radius?: number;
 };
 
 export function MediaViewport({
@@ -16,12 +20,15 @@ export function MediaViewport({
   src,
   type = "video",
   cornersLayoutId = "media-corners",
+  corners = true,
+  radius = 16,
 }: MediaViewportProps) {
   const useVimeo = type === "video" && Boolean(src && isVimeoUrl(src));
 
   return (
     <div
-      className={`relative overflow-hidden rounded-[16px] bg-[#6e6e6e] ${className}`}
+      className={`relative overflow-hidden bg-[#6e6e6e] ${className}`}
+      style={{ borderRadius: radius }}
       role="img"
       aria-label={src ? `${title} ${type}` : `${title} placeholder`}
     >
@@ -47,7 +54,9 @@ export function MediaViewport({
           />
         )
       ) : null}
-      <AnimatedCornerBrackets inset={10} layoutId={cornersLayoutId} />
+      {corners ? (
+        <AnimatedCornerBrackets inset={10} layoutId={cornersLayoutId} />
+      ) : null}
     </div>
   );
 }

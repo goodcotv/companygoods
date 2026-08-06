@@ -64,7 +64,7 @@ export function ScrollCursor() {
 
   return createPortal(
     <div
-      className="pointer-events-none fixed z-[9999] whitespace-nowrap font-sans text-[11pt] font-medium uppercase leading-none text-white md:text-[13pt]"
+      className="pointer-events-none fixed z-[9999] whitespace-nowrap font-sans text-[12pt] font-medium uppercase leading-none text-white md:text-[13pt]"
       style={{
         left: `${pos.x}px`,
         top: `${pos.y}px`,

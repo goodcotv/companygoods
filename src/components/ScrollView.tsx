@@ -8,8 +8,10 @@ import {
   STAGE_NAV_CLEARANCE,
   STAGE_WIDTH,
 } from "@/lib/stage";
+import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { BrandHeader } from "./BrandHeader";
 import { MediaViewport } from "./MediaViewport";
+import { MobileBrandBar } from "./MobileBrandBar";
 import { isVideoMediaUrl } from "@/lib/vimeo";
 
 type ScrollViewProps = {
@@ -24,9 +26,13 @@ const STEP_LOCK_MS = 650;
 const WHEEL_THRESHOLD = 12;
 const TOUCH_THRESHOLD = 36;
 
-function LatestLabel() {
+function LatestLabel({ className = "" }: { className?: string }) {
   return (
-    <div className="flex items-center gap-2.5 text-[12px] tracking-[0.14em] text-foreground uppercase whitespace-nowrap">
+    <div
+      className={`flex items-center gap-2.5 tracking-[0.14em] text-foreground uppercase whitespace-nowrap ${
+        className.includes("text-[") ? className : `text-[12px] ${className}`
+      }`}
+    >
       <span className="inline-flex flex-col gap-[1px]" aria-hidden>
         <svg width="8" height="5" viewBox="0 0 8 5" fill="none">
           <path d="M1 4L4 1L7 4" stroke="currentColor" strokeWidth="1.2" />
@@ -113,10 +119,8 @@ function ProjectCredits({ project }: { project: Project }) {
   );
 }
 
-export function ScrollView({
-  projects,
-  introVideoUrl,
-}: ScrollViewProps) {
+export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
+  const isMobile = useMobileBrowseLayout();
   const [activeIndex, setActiveIndex] = useState(INTRO_INDEX);
   const indexRef = useRef(INTRO_INDEX);
   const lockedRef = useRef(false);
@@ -225,6 +229,82 @@ export function ScrollView({
     };
   }, [lastIndex]);
 
+  const mediaLayers = (
+    <>
+      <div
+        className={`absolute inset-0 transition-opacity duration-500 ${
+          isIntro ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        aria-hidden={!isIntro}
+      >
+        <MediaViewport
+          title="Intro Video"
+          className="h-full w-full"
+          src={introVideoUrl}
+          type="video"
+          cornersLayoutId="page-corners"
+          corners={!isMobile}
+          radius={isMobile ? 24 : 16}
+        />
+      </div>
+
+      {projects.map((project, i) => {
+        const mediaSrc = project.image;
+        const mediaType = isVideoMediaUrl(mediaSrc) ? "video" : "image";
+        const on = !isIntro && i === activeIndex;
+
+        return (
+          <Link
+            key={project.id}
+            href={`/work/${project.id}`}
+            aria-label={`Open ${project.title}`}
+            className={`absolute inset-0 transition-opacity duration-500 ${
+              on ? "opacity-100" : "pointer-events-none opacity-0"
+            }`}
+            aria-hidden={!on}
+            tabIndex={on ? 0 : -1}
+          >
+            <MediaViewport
+              title={project.title}
+              className="h-full w-full"
+              src={mediaSrc}
+              type={mediaType}
+              cornersLayoutId="page-corners"
+              corners={!isMobile}
+              radius={isMobile ? 24 : 16}
+            />
+            {/* Catch clicks above video/iframe so navigation always works */}
+            <span className="absolute inset-0 z-10" aria-hidden />
+          </Link>
+        );
+      })}
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <motion.div
+        data-scroll-cursor
+        className="absolute inset-0 flex flex-col bg-background text-foreground"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.25, ease: "easeInOut" }}
+      >
+        <MobileBrandBar />
+
+        <div className="relative mt-4 min-h-0 flex-1 px-3 pb-[calc(3.25rem+env(safe-area-inset-bottom,0px))]">
+          <div className="relative h-full w-full overflow-hidden rounded-[24px]">
+            {mediaLayers}
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-4 pt-4">
+              <LatestLabel className="text-[14px] text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.55)]" />
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       data-scroll-cursor
@@ -258,49 +338,7 @@ export function ScrollView({
           className="relative h-full shrink-0"
           style={{ aspectRatio: "16 / 9" }}
         >
-          <div
-            className={`absolute inset-0 transition-opacity duration-500 ${
-              isIntro ? "opacity-100" : "pointer-events-none opacity-0"
-            }`}
-            aria-hidden={!isIntro}
-          >
-            <MediaViewport
-              title="Intro Video"
-              className="h-full w-full"
-              src={introVideoUrl}
-              type="video"
-              cornersLayoutId="page-corners"
-            />
-          </div>
-
-          {projects.map((project, i) => {
-            const mediaSrc = project.image;
-            const mediaType = isVideoMediaUrl(mediaSrc) ? "video" : "image";
-            const on = !isIntro && i === activeIndex;
-
-            return (
-              <Link
-                key={project.id}
-                href={`/work/${project.id}`}
-                aria-label={`Open ${project.title}`}
-                className={`absolute inset-0 transition-opacity duration-500 ${
-                  on ? "opacity-100" : "pointer-events-none opacity-0"
-                }`}
-                aria-hidden={!on}
-                tabIndex={on ? 0 : -1}
-              >
-                <MediaViewport
-                  title={project.title}
-                  className="h-full w-full"
-                  src={mediaSrc}
-                  type={mediaType}
-                  cornersLayoutId="page-corners"
-                />
-                {/* Catch clicks above video/iframe so navigation always works */}
-                <span className="absolute inset-0 z-10" aria-hidden />
-              </Link>
-            );
-          })}
+          {mediaLayers}
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col items-start self-start">

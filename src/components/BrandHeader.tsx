@@ -10,6 +10,8 @@ type BrandHeaderProps = {
   widthClass?: string;
   /** Skip intrinsic viewBox crop (avoids clipping when the mark is sized smaller). */
   uncropped?: boolean;
+  /** When set, logo acts as a button instead of linking home. */
+  onClick?: () => void;
   className?: string;
 };
 
@@ -38,6 +40,7 @@ export function BrandHeader({
   muted = false,
   widthClass: widthClassProp,
   uncropped = false,
+  onClick,
   className = "",
 }: BrandHeaderProps) {
   const { src, width, height, widthClass, crop } = SIZES[variant];
@@ -56,45 +59,61 @@ export function BrandHeader({
     ? height - activeCrop.top - activeCrop.bottom
     : height;
 
+  const markClass = `relative block text-inherit no-underline ${markWidth} ${
+    activeCrop ? "overflow-hidden" : ""
+  }`;
+  const markStyle = activeCrop
+    ? { aspectRatio: `${contentW} / ${contentH}` }
+    : undefined;
+  const image = (
+    <Image
+      src={src}
+      alt="Company Goods — A Post Production Company"
+      width={width}
+      height={height}
+      priority
+      // Next's optimizer re-encodes to lossy WebP (no alpha), which
+      // turns the transparent mark into an opaque black plate.
+      unoptimized
+      style={
+        activeCrop
+          ? {
+              position: "absolute",
+              left: `${(-activeCrop.left / contentW) * 100}%`,
+              top: `${(-activeCrop.top / contentH) * 100}%`,
+              width: `${(width / contentW) * 100}%`,
+              height: "auto",
+              maxWidth: "none",
+            }
+          : undefined
+      }
+      className={`h-auto w-full ${muted ? "opacity-[0.42]" : ""}`}
+    />
+  );
+
   return (
     <header className={`relative shrink-0 select-none ${className}`}>
       <h1 className="m-0 leading-none">
-        <Link
-          href="/"
-          className={`relative block text-inherit no-underline ${markWidth} ${
-            activeCrop ? "overflow-hidden" : ""
-          }`}
-          style={
-            activeCrop
-              ? { aspectRatio: `${contentW} / ${contentH}` }
-              : undefined
-          }
-          aria-label="Company Goods — A Post Production Company"
-        >
-          <Image
-            src={src}
-            alt="Company Goods — A Post Production Company"
-            width={width}
-            height={height}
-            priority
-            // Next's optimizer re-encodes to lossy WebP (no alpha), which
-            // turns the transparent mark into an opaque black plate.
-            unoptimized
-            style={
-              activeCrop
-                ? {
-                    position: "absolute",
-                    left: `${(-activeCrop.left / contentW) * 100}%`,
-                    top: `${(-activeCrop.top / contentH) * 100}%`,
-                    width: `${(width / contentW) * 100}%`,
-                    height: "auto",
-                    maxWidth: "none",
-                  }
-                : undefined
-            }
-            className={`h-auto w-full ${muted ? "opacity-[0.42]" : ""}`}
-          />
-        </Link>
+        {onClick ? (
+          <button
+            type="button"
+            onClick={onClick}
+            className={markClass}
+            style={markStyle}
+            aria-label="Company Goods — A Post Production Company"
+          >
+            {image}
+          </button>
+        ) : (
+          <Link
+            href="/"
+            className={markClass}
+            style={markStyle}
+            aria-label="Company Goods — A Post Production Company"
+          >
+            {image}
+          </Link>
+        )}
       </h1>
     </header>
   );

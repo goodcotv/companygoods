@@ -193,6 +193,14 @@ body {
   margin-bottom: 1.35rem;
 }
 
+@media (hover: none) and (pointer: coarse) {
+  .talent-categories {
+    margin-bottom: 0.75rem;
+    margin-top: 1rem;
+    font-size: 14px;
+  }
+}
+
 .talent-categories__item {
   display: inline-flex;
   align-items: center;
@@ -264,6 +272,10 @@ body {
 
 .talent-list.is-scrollable {
   overflow-y: auto;
+}
+
+.talent-list--mobile .talent-list__name {
+  font-size: clamp(1.35rem, 6vw, 1.7rem);
 }
 
 /* Talent detail project list — same scroll frame behavior as roster names */

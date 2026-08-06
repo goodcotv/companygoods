@@ -260,7 +260,7 @@ export function ControlledVimeo({
           <button
             type="button"
             onClick={closeTheater}
-            className="pointer-events-auto fixed left-4 top-4 z-[10060] font-display text-[11pt] font-medium uppercase leading-none text-white transition-opacity hover:opacity-70 md:left-8 md:top-8 md:text-[13pt]"
+            className="pointer-events-auto fixed left-4 top-4 z-[10060] font-display text-[13pt] font-medium uppercase leading-none text-white transition-opacity hover:opacity-70 md:left-8 md:top-8 md:text-[13pt]"
           >
             Back
           </button>
