@@ -34,11 +34,8 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
 
   const activeProject =
     projects.find((project) => project._id === activeProjectId) ?? projects[0];
-
-  // Background stays on the talent's first project video (does not swap on hover).
-  const firstProject = projects[0];
-  const mediaVideoUrl = firstProject?.videoUrl;
-  const mediaImageUrl = firstProject?.imageUrl || talent.imageUrl;
+  const mediaVideoUrl = activeProject?.videoUrl;
+  const mediaImageUrl = activeProject?.imageUrl || talent.imageUrl;
 
   useLayoutEffect(() => {
     const scrollEl = scrollRef.current;
@@ -85,33 +82,33 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
       <div className="talent-media">
         {mediaVideoUrl && isVimeoUrl(mediaVideoUrl) ? (
           <VimeoBackground
-            key={firstProject?._id}
+            key={activeProject?._id}
             src={mediaVideoUrl}
             title={
-              firstProject
-                ? `${firstProject.title} video`
+              activeProject
+                ? `${activeProject.title} video`
                 : `${talent.name} project video`
             }
           />
         ) : mediaVideoUrl ? (
           <video
-            key={firstProject?._id}
+            key={activeProject?._id}
             src={mediaVideoUrl}
             autoPlay
             loop
             muted
             playsInline
             aria-label={
-              firstProject
-                ? `${firstProject.title} video`
+              activeProject
+                ? `${activeProject.title} video`
                 : `${talent.name} project video`
             }
           />
         ) : mediaImageUrl ? (
           <Image
-            key={firstProject?._id ?? "portrait"}
+            key={activeProject?._id ?? "portrait"}
             src={mediaImageUrl}
-            alt={firstProject ? firstProject.title : talent.name}
+            alt={activeProject ? activeProject.title : talent.name}
             fill
             style={{ objectFit: "cover" }}
             priority
