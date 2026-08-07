@@ -5,6 +5,7 @@ import type { Project, ScrollSubtitleSpan } from "@/data/projects";
 import {
   DISPLAY_LOGO_WIDTH,
   STAGE_HEIGHT,
+  STAGE_LOGO_TOP_PADDING,
   STAGE_NAV_CLEARANCE,
   STAGE_WIDTH,
 } from "@/lib/stage";
@@ -308,10 +309,11 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
   return (
     <motion.div
       data-scroll-cursor
-      className="flex flex-col bg-background px-8 pt-2 text-foreground"
+      className="absolute inset-0 flex flex-col bg-background px-8 text-foreground"
       style={{
         width: STAGE_WIDTH,
         height: STAGE_HEIGHT,
+        paddingTop: STAGE_LOGO_TOP_PADDING,
         // Camera bottom sits on the nav's top edge
         paddingBottom: STAGE_NAV_CLEARANCE,
       }}

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
-import { STAGE_HEIGHT, STAGE_WIDTH } from "@/lib/stage";
+import { STAGE_HEIGHT, STAGE_LOGO_TOP_PADDING, STAGE_WIDTH } from "@/lib/stage";
 import { BrandHeader } from "./BrandHeader";
 import { MobileBrandBar } from "@/components/MobileBrandBar";
 import { InfoCredits } from "./InfoCredits";
@@ -255,8 +255,12 @@ export function InfoShell() {
 
   return (
     <motion.div
-      className="absolute inset-0 flex flex-col bg-background px-8 pt-4 pb-7 text-foreground"
-      style={{ width: STAGE_WIDTH, height: STAGE_HEIGHT }}
+      className="absolute inset-0 flex flex-col bg-background px-8 pb-7 text-foreground"
+      style={{
+        width: STAGE_WIDTH,
+        height: STAGE_HEIGHT,
+        paddingTop: STAGE_LOGO_TOP_PADDING,
+      }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

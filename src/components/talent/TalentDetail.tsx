@@ -11,7 +11,7 @@ import { MobileBrandBar } from "@/components/MobileBrandBar";
 import { ScaleToFit } from "@/components/ScaleToFit";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { isListOverflowing } from "@/lib/cursor-hover";
-import { STAGE_HEIGHT, STAGE_NAV_CLEARANCE, STAGE_WIDTH } from "@/lib/stage";
+import { STAGE_HEIGHT, STAGE_LOGO_TOP_PADDING, STAGE_NAV_CLEARANCE, STAGE_WIDTH } from "@/lib/stage";
 import { isVimeoUrl } from "@/lib/vimeo";
 import type { Project, TalentDetailData } from "@/sanity/types";
 import { VimeoBackground } from "@/components/VimeoBackground";
@@ -286,7 +286,10 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
       >
         {backgroundMedia}
 
-        <div className="absolute top-0 left-0 z-20 px-8 pt-4">
+        <div
+          className="absolute top-0 left-0 z-20 px-8"
+          style={{ paddingTop: STAGE_LOGO_TOP_PADDING }}
+        >
           <BrandHeader
             variant="display"
             widthClass="w-[30rem] max-w-full"

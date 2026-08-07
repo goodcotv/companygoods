@@ -11,7 +11,12 @@ import {
   type Discipline,
   type Project,
 } from "@/data/projects";
-import { STAGE_HEIGHT, STAGE_NAV_CLEARANCE, STAGE_WIDTH } from "@/lib/stage";
+import {
+  STAGE_HEIGHT,
+  STAGE_LOGO_TOP_PADDING,
+  STAGE_NAV_CLEARANCE,
+  STAGE_WIDTH,
+} from "@/lib/stage";
 import { isListOverflowing } from "@/lib/cursor-hover";
 import { isVideoMediaUrl, isVimeoUrl } from "@/lib/vimeo";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
@@ -388,8 +393,12 @@ export function ListView({ projects }: ListViewProps) {
       {backgroundMedia}
 
       <div
-        className="relative flex h-full flex-col px-8 pt-8"
-        style={{ zIndex: 10, paddingBottom: STAGE_NAV_CLEARANCE }}
+        className="relative flex h-full flex-col px-8"
+        style={{
+          zIndex: 10,
+          paddingTop: STAGE_LOGO_TOP_PADDING,
+          paddingBottom: STAGE_NAV_CLEARANCE,
+        }}
       >
         <div className="shrink-0">
           <BrandHeader />

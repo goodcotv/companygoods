@@ -10,7 +10,7 @@ import { MobileBrandBar } from "@/components/MobileBrandBar";
 import { CATEGORIES, type TalentCategory } from "@/data/talent";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { isListOverflowing } from "@/lib/cursor-hover";
-import { STAGE_HEIGHT, STAGE_WIDTH } from "@/lib/stage";
+import { STAGE_HEIGHT, STAGE_LOGO_TOP_PADDING, STAGE_WIDTH } from "@/lib/stage";
 import { isVimeoUrl } from "@/lib/vimeo";
 import type { PostDiscipline, PostWorker } from "@/sanity/types";
 import { VimeoBackground } from "@/components/VimeoBackground";
@@ -386,7 +386,10 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
     >
       {backgroundMedia}
 
-      <div className="relative z-10 px-8 pt-4">
+      <div
+        className="relative z-10 px-8"
+        style={{ paddingTop: STAGE_LOGO_TOP_PADDING }}
+      >
         <BrandHeader variant="display" widthClass="w-[30rem] max-w-full" />
       </div>
 

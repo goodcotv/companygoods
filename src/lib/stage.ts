@@ -7,6 +7,9 @@ export const STAGE_HEIGHT = 720;
  */
 export const DISPLAY_LOGO_WIDTH = 900;
 
+/** Desktop top padding above the shared BrandHeader (Tailwind `pt-4` = 16px). */
+export const STAGE_LOGO_TOP_PADDING = 16;
+
 /** BottomChrome padding below the nav text (was Tailwind `pb-7`). */
 export const STAGE_NAV_PADDING = 28;
 /** Approx height of inline BottomChrome type (`text-[13px]` + underline). */
