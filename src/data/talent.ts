@@ -13,9 +13,9 @@ export type Talent = {
 };
 
 export const CATEGORIES: { id: TalentCategory; label: string }[] = [
-  { id: "editors", label: "Editors" },
-  { id: "colorists", label: "Colorists" },
-  { id: "sound", label: "Sound" },
+  { id: "editors", label: "EDITORS" },
+  { id: "colorists", label: "COLORISTS" },
+  { id: "sound", label: "SOUND" },
   { id: "vfx", label: "VFX" },
 ];
 

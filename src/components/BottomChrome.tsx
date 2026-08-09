@@ -8,7 +8,7 @@ type BottomChromeProps = {
   onViewChange?: (view: ViewMode) => void;
   variant?: "dark" | "over-image";
   activeHref?: "/" | "/talent" | "/info";
-  /** `fixed` pins to the viewport; `inline` sits in document flow (scaled stages). */
+  /** `fixed` pins to the viewport; `inline` sits in the shell’s bottom chrome slot. */
   position?: "fixed" | "inline";
   /** SPA navigation callback. If provided, uses buttons instead of Links. */
   onNavigate?: (section: Section) => void;
@@ -43,7 +43,7 @@ export function BottomChrome({
   
   const showViewToggle = currentSection === "work" && view && onViewChange;
   const showMenuButton = Boolean(onMenuOpen);
-  // Mobile menu chrome reads larger; desktop stage stays on the tighter scale.
+  // Mobile menu chrome reads larger; desktop stays on the tighter type scale.
   const typeClass = showMenuButton
     ? "text-[15px] tracking-[0.12em]"
     : position === "inline"
@@ -83,7 +83,7 @@ export function BottomChrome({
             className={viewClass("scroll")}
             aria-pressed={view === "scroll"}
           >
-            Scroll
+            SCROLL
           </button>
           <span className={muted} aria-hidden>
             /
@@ -94,7 +94,7 @@ export function BottomChrome({
             className={viewClass("list")}
             aria-pressed={view === "list"}
           >
-            List
+            LIST
           </button>
         </div>
       )}
@@ -106,7 +106,7 @@ export function BottomChrome({
           className={`pointer-events-auto uppercase ${typeClass} text-foreground transition-opacity hover:opacity-70`}
           aria-haspopup="dialog"
         >
-          Menu
+          MENU
         </button>
       ) : (
         <nav
@@ -122,7 +122,7 @@ export function BottomChrome({
                 className={navClass("work")}
                 aria-current={currentSection === "work" ? "page" : undefined}
               >
-                Work
+                WORK
               </button>
               <span className={muted} aria-hidden>
                 /
@@ -133,7 +133,7 @@ export function BottomChrome({
                 className={navClass("talent")}
                 aria-current={currentSection === "talent" ? "page" : undefined}
               >
-                Talent
+                TALENT
               </button>
               <span className={muted} aria-hidden>
                 /
@@ -144,7 +144,7 @@ export function BottomChrome({
                 className={navClass("info")}
                 aria-current={currentSection === "info" ? "page" : undefined}
               >
-                Info
+                INFO
               </button>
             </>
           ) : (
@@ -155,7 +155,7 @@ export function BottomChrome({
                 className={navClass("work")}
                 aria-current={currentSection === "work" ? "page" : undefined}
               >
-                Work
+                WORK
               </Link>
               <span className={muted} aria-hidden>
                 /
@@ -165,7 +165,7 @@ export function BottomChrome({
                 className={navClass("talent")}
                 aria-current={currentSection === "talent" ? "page" : undefined}
               >
-                Talent
+                TALENT
               </Link>
               <span className={muted} aria-hidden>
                 /
@@ -175,7 +175,7 @@ export function BottomChrome({
                 className={navClass("info")}
                 aria-current={currentSection === "info" ? "page" : undefined}
               >
-                Info
+                INFO
               </Link>
             </>
           )}

@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { motion } from "framer-motion";
 
 type BrandHeaderProps = {
   /** `work` = small mark; `display` = large wordmark */
@@ -12,6 +15,11 @@ type BrandHeaderProps = {
   uncropped?: boolean;
   /** When set, logo acts as a button instead of linking home. */
   onClick?: () => void;
+  /**
+   * Shared layout id for page-to-page grow/shrink (matches corner brackets).
+   * Pass `false` to opt out (e.g. mobile menu overlay).
+   */
+  layoutId?: string | false;
   className?: string;
 };
 
@@ -28,12 +36,22 @@ const SIZES = {
     src: "/brand/logo-big.svg",
     width: 699,
     height: 277,
-    // Keep in sync with DISPLAY_LOGO_WIDTH in src/lib/stage.ts
+    // Keep in sync with ScrollView display wordmark max width (900px)
     widthClass: "w-[900px] max-w-full",
     // Measured content bbox so "C"/"G" flush with camera left edge
     crop: { left: 34, top: 41, right: 21, bottom: 55 },
   },
 } as const;
+
+/** Same easing as AnimatedCornerBrackets. */
+const LOGO_LAYOUT_TRANSITION = {
+  layout: {
+    duration: 0.7,
+    ease: [0.22, 1, 0.36, 1],
+  },
+} as const;
+
+const MotionLink = motion.create(Link);
 
 export function BrandHeader({
   variant = "work",
@@ -41,11 +59,13 @@ export function BrandHeader({
   widthClass: widthClassProp,
   uncropped = false,
   onClick,
+  layoutId = "brand-logo",
   className = "",
 }: BrandHeaderProps) {
   const { src, width, height, widthClass, crop } = SIZES[variant];
   const markWidth = widthClassProp ?? widthClass;
   const activeCrop = uncropped ? null : crop;
+  const resolvedLayoutId = layoutId === false ? undefined : layoutId;
 
   /**
    * Crop via a fixed aspect-ratio window + absolutely positioned image.
@@ -95,24 +115,28 @@ export function BrandHeader({
     <header className={`relative shrink-0 select-none ${className}`}>
       <h1 className="m-0 leading-none">
         {onClick ? (
-          <button
+          <motion.button
             type="button"
             onClick={onClick}
+            layoutId={resolvedLayoutId}
+            transition={LOGO_LAYOUT_TRANSITION}
             className={markClass}
             style={markStyle}
             aria-label="Company Goods — A Post Production Company"
           >
             {image}
-          </button>
+          </motion.button>
         ) : (
-          <Link
+          <MotionLink
             href="/"
+            layoutId={resolvedLayoutId}
+            transition={LOGO_LAYOUT_TRANSITION}
             className={markClass}
             style={markStyle}
             aria-label="Company Goods — A Post Production Company"
           >
             {image}
-          </Link>
+          </MotionLink>
         )}
       </h1>
     </header>

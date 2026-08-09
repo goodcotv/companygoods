@@ -53,6 +53,7 @@ export function isVideoMediaUrl(url: string | undefined | null): boolean {
 export function buildVimeoEmbedSrc(
   { id, hash }: VimeoVideo,
   mode: "background" | "controlled" = "background",
+  startSeconds?: number,
   origin?: string,
 ): string {
   const params =
@@ -83,5 +84,15 @@ export function buildVimeoEmbedSrc(
         });
   if (hash) params.set("h", hash);
   if (origin) params.set("origin", origin);
-  return `https://player.vimeo.com/video/${id}?${params.toString()}`;
+  // Custom start: disable autoplay/loop so we can seek then play via the API.
+  if (startSeconds && startSeconds > 0 && mode === "background") {
+    params.set("autoplay", "0");
+    params.set("api", "1");
+    params.set("loop", "0");
+  }
+  const base = `https://player.vimeo.com/video/${id}?${params.toString()}`;
+  if (startSeconds && startSeconds > 0) {
+    return `${base}#t=${Math.floor(startSeconds)}s`;
+  }
+  return base;
 }

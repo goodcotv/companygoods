@@ -1,7 +1,20 @@
 const INTERACTIVE_SELECTOR =
   "a, button, [role='button'], input, textarea, label";
 
+/** Elements that show the gray “over text” circle instead of the white dot. */
+const CURSOR_TEXT_SELECTOR =
+  "[data-cursor-text], a, button, h1, h2, h3, p, label, input, textarea, [role='button']";
+
 const OVERFLOW_PX = 2;
+
+export type CursorHoverState = {
+  isHoveringText: boolean;
+  isHoveringScrollableList: boolean;
+};
+
+function isOverCursorText(el: Element | null): boolean {
+  return el?.closest(CURSOR_TEXT_SELECTOR) !== null;
+}
 
 /**
  * True when list content meaningfully overflows its visible area.
@@ -46,4 +59,23 @@ export function shouldShowScrollCursor(
   const list = el.closest("[data-scrollable-list]");
   if (!(list instanceof HTMLElement)) return false;
   return isListOverflowing(list);
+}
+
+/** Hit-test the pointer for custom cursor state (gray circle vs [ scroll ] vs white). */
+export function getCursorHoverState(
+  x: number,
+  y: number,
+  eventTarget?: EventTarget | null,
+): CursorHoverState {
+  const fromPoint = document.elementFromPoint(x, y);
+  const fromEvent = eventTarget instanceof Element ? eventTarget : null;
+
+  const isHoveringText =
+    isOverCursorText(fromPoint) || isOverCursorText(fromEvent);
+
+  return {
+    isHoveringText,
+    isHoveringScrollableList:
+      !isHoveringText && shouldShowScrollCursor(x, y, eventTarget),
+  };
 }

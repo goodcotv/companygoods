@@ -10,9 +10,11 @@ import { MobileBrandBar } from "@/components/MobileBrandBar";
 import { CATEGORIES, type TalentCategory } from "@/data/talent";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { isListOverflowing } from "@/lib/cursor-hover";
-import { STAGE_HEIGHT, STAGE_LOGO_TOP_PADDING, STAGE_WIDTH } from "@/lib/stage";
+import { STAGE_LOGO_TOP_PADDING } from "@/lib/stage";
 import { isVimeoUrl } from "@/lib/vimeo";
+import { parseTimeToSeconds } from "@/lib/parse-time";
 import type { PostDiscipline, PostWorker } from "@/sanity/types";
+import { MutedLoopVideo } from "@/components/MutedLoopVideo";
 import { VimeoBackground } from "@/components/VimeoBackground";
 
 const categoryToDiscipline: Record<TalentCategory, PostDiscipline> = {
@@ -92,6 +94,10 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
   const featured = selected?.featuredByDiscipline?.[discipline] ?? null;
   const mediaUrl = featured?.videoUrl || featured?.imageUrl;
   const isVideo = Boolean(featured?.videoUrl);
+  const previewStart =
+    featured?.videoPreviewStartSeconds ??
+    parseTimeToSeconds(featured?.videoPreviewStart) ??
+    0;
 
   useEffect(() => {
     const html = document.documentElement;
@@ -115,12 +121,12 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     params.set("role", category);
-    
+
     // Preserve SPA routing - if we're in ?section=talent mode, stay there
     if (!params.has("section")) {
       params.set("section", "talent");
     }
-    
+
     const newUrl = `/?${params.toString()}`;
     window.history.replaceState(null, "", newUrl);
   }, [category]);
@@ -207,15 +213,13 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
               key={`${selected._id}-${discipline}`}
               src={mediaUrl}
               title={featured?.title ?? selected.name}
+              startTime={previewStart}
             />
           ) : isVideo ? (
-            <video
+            <MutedLoopVideo
               key={`${selected._id}-${discipline}`}
               src={mediaUrl}
-              autoPlay
-              loop
-              muted
-              playsInline
+              startTime={previewStart}
             />
           ) : (
             <img
@@ -375,7 +379,6 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
   return (
     <motion.div
       className="absolute inset-0 flex flex-col bg-background text-foreground"
-      style={{ width: STAGE_WIDTH, height: STAGE_HEIGHT }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

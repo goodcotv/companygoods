@@ -39,7 +39,6 @@ export default async function ProjectDetailPage({
       description,
       postCredits[] {
         discipline,
-        role,
         "worker": worker-> {
           name,
           "slug": slug.current,

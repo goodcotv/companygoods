@@ -6,7 +6,7 @@
   --brand: #d1d1d1;
   --muted: #9a9a9a;
   --frame: #e8e8e8;
-  --panel: rgba(28, 28, 28, 0.72);
+  --panel: rgba(28, 28, 28, 0.55);
 }
 
 @theme inline {
@@ -60,10 +60,12 @@ body {
   color: #fff;
 }
 
-/* Hide native cursor while custom cursor ([ scroll ] / loading) is shown */
-[data-custom-cursor],
-[data-custom-cursor] * {
-  cursor: none !important;
+/* Custom cursor: hide native pointer (including on links/buttons) */
+@media (hover: hover) and (pointer: fine) {
+  :root[data-custom-cursor],
+  :root[data-custom-cursor] * {
+    cursor: none !important;
+  }
 }
 
 @keyframes fade-up {
@@ -133,22 +135,21 @@ body {
 .talent-media-scrim {
   position: absolute;
   /*
-   * Overscan the media box. The stage is scaled by a fractional factor, and the
-   * video/iframe composites on its own layer that rounds outward — a scrim sized
-   * exactly to the edge leaves a hairline of uncovered video along the bottom.
-   * The clipping ancestor trims the overscan back to the real edge.
+   * Soft left veil — no solid-black plateau. Fixed width so the fade doesn't
+   * rescale with the viewport; oklab keeps mid-stops from banding.
    */
-  inset: -2px -2px -6px;
-  /* Keep the inset stretch even if an ancestor rule sets a size on child divs. */
-  width: auto;
-  height: auto;
+  top: -2px;
+  bottom: -6px;
+  left: -2px;
+  width: min(22rem, 100%);
   z-index: 1;
   background: linear-gradient(
-    to right,
+    to right in oklab,
     #000 0%,
-    rgba(0, 0, 0, 0.85) 22%,
-    rgba(0, 0, 0, 0.35) 42%,
-    transparent 58%
+    #000 12%,
+    rgb(0 0 0 / 0.82) 42%,
+    rgb(0 0 0 / 0.38) 74%,
+    transparent 100%
   );
   pointer-events: none;
 }

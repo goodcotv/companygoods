@@ -3,11 +3,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import type { Project, ScrollSubtitleSpan } from "@/data/projects";
 import {
-  DISPLAY_LOGO_WIDTH,
-  STAGE_HEIGHT,
   STAGE_LOGO_TOP_PADDING,
   STAGE_NAV_CLEARANCE,
-  STAGE_WIDTH,
 } from "@/lib/stage";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { BrandHeader } from "./BrandHeader";
@@ -82,40 +79,32 @@ function SubtitleLine({ spans }: { spans: ScrollSubtitleSpan[] }) {
   );
 }
 
-function ProjectCredits({ project }: { project: Project }) {
+function ProjectCredits({
+  project,
+  className = "",
+}: {
+  project: Project;
+  className?: string;
+}) {
   const customLines = project.scrollSubtitles;
 
   return (
-    <div className="mt-4 animate-fade-up">
-      <h2 className="font-display text-[1.85rem] font-medium leading-[1.15] tracking-[-0.02em] text-foreground">
+    <div className={`animate-fade-up ${className}`.trim()}>
+      <h2 className="font-display text-[1.85rem] font-medium leading-[1.15] tracking-[-0.02em]">
         <Link
           href={`/work/${project.id}`}
-          className="transition-opacity hover:opacity-70"
+          className="pointer-events-auto transition-opacity hover:opacity-70"
         >
           {project.title} — {project.client}
         </Link>
       </h2>
-      <div className="mt-3 space-y-0.5 font-sans text-[12px] leading-snug tracking-[0.06em] text-foreground uppercase">
-        {customLines && customLines.length > 0 ? (
-          customLines.map((spans, index) => (
+      {customLines && customLines.length > 0 ? (
+        <div className="mt-3 space-y-0.5 font-sans text-[12px] leading-snug tracking-[0.06em] uppercase [&_a]:pointer-events-auto">
+          {customLines.map((spans, index) => (
             <SubtitleLine key={index} spans={spans} />
-          ))
-        ) : (
-          <>
-            {project.roles.map((role) => (
-              <p key={role}>{role}</p>
-            ))}
-            {project.lead ? (
-              <p>
-                {project.lead.label}:{" "}
-                <span className="underline underline-offset-4 decoration-white/70">
-                  {project.lead.name}
-                </span>
-              </p>
-            ) : null}
-          </>
-        )}
-      </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -270,6 +259,7 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
               className="h-full w-full"
               src={mediaSrc}
               type={mediaType}
+              startTime={project.videoPreviewStartSeconds ?? 0}
               cornersLayoutId="page-corners"
               corners={!isMobile}
               radius={isMobile ? 24 : 16}
@@ -300,6 +290,15 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
             <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-4 pt-4">
               <LatestLabel className="text-[14px] text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.55)]" />
             </div>
+            {!isIntro && active ? (
+              <div className="pointer-events-none absolute inset-y-0 left-0 z-20 flex max-w-[min(100%,22rem)] items-center px-4">
+                <ProjectCredits
+                  key={active.id}
+                  project={active}
+                  className="text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.55)] [&_h2]:text-[clamp(1.35rem,5.5vw,1.85rem)]"
+                />
+              </div>
+            ) : null}
           </div>
         </div>
       </motion.div>
@@ -311,8 +310,6 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
       data-scroll-cursor
       className="absolute inset-0 flex flex-col bg-background px-8 text-foreground"
       style={{
-        width: STAGE_WIDTH,
-        height: STAGE_HEIGHT,
         paddingTop: STAGE_LOGO_TOP_PADDING,
         // Camera bottom sits on the nav's top edge
         paddingBottom: STAGE_NAV_CLEARANCE,
@@ -326,27 +323,35 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
       }}
     >
       {/* Wordmark: C/G share the camera's left edge */}
-      <div className="shrink-0" style={{ width: DISPLAY_LOGO_WIDTH }}>
+      <div className="w-full max-w-[min(100%,900px)] shrink-0">
         <BrandHeader variant="display" widthClass="w-full" />
       </div>
 
       {/*
-        Fills remaining height above the nav. Camera is 16:9 at full row
-        height so its bottom edge = top of BottomChrome.
+        Fills remaining height above the nav. Camera stays 16:9 and shrinks
+        with the viewport (height- or width-limited) so it never overflows.
         Latest Projects + credits share the sidebar's left edge.
       */}
-      <div className="mt-3 flex min-h-0 flex-1 items-end gap-8">
+      <div
+        className="mt-3 flex min-h-0 flex-1 items-start gap-8"
+        style={{ containerType: "size" }}
+      >
         <div
-          className="relative h-full shrink-0"
-          style={{ aspectRatio: "16 / 9" }}
+          className="relative min-w-0 shrink-0"
+          style={{
+            aspectRatio: "16 / 9",
+            // Prefer full row height; if that would crowd the sidebar, compress.
+            width:
+              "min(max(0px, calc(100cqi - 15rem)), calc(100cqh * 16 / 9))",
+          }}
         >
           {mediaLayers}
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col items-start self-start">
+        <div className="flex min-w-0 flex-1 flex-col items-start self-start overflow-hidden">
           <LatestLabel />
           {!isIntro && active ? (
-            <ProjectCredits key={active.id} project={active} />
+            <ProjectCredits key={active.id} project={active} className="mt-4" />
           ) : null}
         </div>
       </div>

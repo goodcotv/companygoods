@@ -16,21 +16,10 @@ import type {
   PortableTextBlock,
   Project as SanityProject,
 } from "@/sanity/types";
+import { parseTimeToSeconds } from "@/lib/parse-time";
 
 function parseView(value: string | null): ViewMode {
   return value === "list" ? "list" : "scroll";
-}
-
-/**
- * Flattens Sanity Portable Text blocks into plain text, joined by newlines.
- */
-function portableTextToPlainText(blocks?: SanityProject["description"]): string {
-  if (!blocks || blocks.length === 0) return "";
-  return blocks
-    .filter((block) => block._type === "block")
-    .map((block) => block.children?.map((child) => child.text).join("") || "")
-    .filter(Boolean)
-    .join("\n");
 }
 
 /**
@@ -85,17 +74,6 @@ function transformSanityProject(project: SanityProject): LocalProject {
     ),
   ) as LocalProject["disciplines"];
 
-  // Extract roles from credits (fallback when no custom scroll subtitles)
-  const roles = project.postCredits?.map((c) => c.role) || [];
-
-  // Find a lead credit (usually one with role containing "LEAD")
-  const leadCredit = project.postCredits?.find((c) =>
-    c.role.toUpperCase().includes("LEAD"),
-  );
-  const lead = leadCredit?.worker
-    ? { label: "LEAD", name: leadCredit.worker.name }
-    : undefined;
-
   // Map category title to uppercase format
   const categoryMap: Record<string, LocalProject["category"]> = {
     COMMERCIAL: "COMMERCIAL",
@@ -109,22 +87,17 @@ function transformSanityProject(project: SanityProject): LocalProject {
     Beauty: "BEAUTY",
   };
 
-  // Fall back to the rich project write-up when there's no dedicated POST description
-  const description =
-    project.postWorkDescription || portableTextToPlainText(project.description);
-
   return {
     id: project.slug, // Use slug as id for URL routing
     client: project.client || "",
     title: project.title,
     category: categoryMap[project.postCategoryTitle || ""] || "COMMERCIAL",
     disciplines,
-    roles,
-    lead,
     scrollSubtitles: portableTextToScrollSubtitles(project.postScrollSubtitles),
-    description,
+    description: project.postWorkDescription?.trim() || "",
     image: project.videoUrl || project.imageUrl || "/projects/hero-placeholder.jpg",
     imageAlt: `${project.title} project`,
+    videoPreviewStartSeconds: parseTimeToSeconds(project.videoPreviewStart),
   };
 }
 

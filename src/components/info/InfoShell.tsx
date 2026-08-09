@@ -5,15 +5,15 @@ import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
-import { STAGE_HEIGHT, STAGE_LOGO_TOP_PADDING, STAGE_WIDTH } from "@/lib/stage";
+import { STAGE_LOGO_TOP_PADDING } from "@/lib/stage";
 import { BrandHeader } from "./BrandHeader";
 import { MobileBrandBar } from "@/components/MobileBrandBar";
 import { InfoCredits } from "./InfoCredits";
 
 const INFO_SUBNAV = [
-  { id: "about", label: "About" },
-  { id: "contact", label: "Contact" },
-  { id: "management", label: "Management" },
+  { id: "about", label: "ABOUT" },
+  { id: "contact", label: "CONTACT" },
+  { id: "management", label: "MANAGEMENT" },
 ] as const;
 
 type InfoSubRoute = (typeof INFO_SUBNAV)[number]["id"];
@@ -119,9 +119,9 @@ function InfoBody({
       <div className="flex flex-col gap-8 text-foreground">
         <section className="space-y-1">
           <h2
-            className={`font-heading ${headingSize} font-extrabold tracking-[-0.01em]`}
+            className={`font-heading ${headingSize} font-extrabold uppercase tracking-[-0.01em]`}
           >
-            Contact
+            CONTACT
           </h2>
           <a
             href="mailto:post@goodco.tv"
@@ -133,9 +133,9 @@ function InfoBody({
 
         <section className="space-y-1">
           <h2
-            className={`font-heading ${headingSize} font-extrabold tracking-[-0.01em]`}
+            className={`font-heading ${headingSize} font-extrabold uppercase tracking-[-0.01em]`}
           >
-            New York Office
+            NEW YORK OFFICE
           </h2>
           <p
             className={`font-sans ${metaSize} uppercase leading-relaxed tracking-[0.06em]`}
@@ -152,9 +152,9 @@ function InfoBody({
 
         <section className="space-y-1">
           <h2
-            className={`font-heading ${headingSize} font-extrabold tracking-[-0.01em]`}
+            className={`font-heading ${headingSize} font-extrabold uppercase tracking-[-0.01em]`}
           >
-            Los Angeles Office
+            LOS ANGELES OFFICE
           </h2>
           <p
             className={`font-sans ${metaSize} uppercase leading-relaxed tracking-[0.06em]`}
@@ -257,8 +257,6 @@ export function InfoShell() {
     <motion.div
       className="absolute inset-0 flex flex-col bg-background px-8 pb-7 text-foreground"
       style={{
-        width: STAGE_WIDTH,
-        height: STAGE_HEIGHT,
         paddingTop: STAGE_LOGO_TOP_PADDING,
       }}
       initial={{ opacity: 0 }}

@@ -12,10 +12,8 @@ import {
   type Project,
 } from "@/data/projects";
 import {
-  STAGE_HEIGHT,
   STAGE_LOGO_TOP_PADDING,
   STAGE_NAV_CLEARANCE,
-  STAGE_WIDTH,
 } from "@/lib/stage";
 import { isListOverflowing } from "@/lib/cursor-hover";
 import { isVideoMediaUrl, isVimeoUrl } from "@/lib/vimeo";
@@ -23,6 +21,7 @@ import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { BrandHeader } from "./BrandHeader";
 import { AnimatedCornerBrackets } from "./AnimatedCornerBrackets";
 import { MobileBrandBar } from "./MobileBrandBar";
+import { MutedLoopVideo } from "./MutedLoopVideo";
 import { VimeoBackground } from "./VimeoBackground";
 
 type ListViewProps = {
@@ -110,13 +109,6 @@ export function ListView({ projects }: ListViewProps) {
     }, 160);
   }
 
-  function goNext() {
-    if (!active || filtered.length === 0) return;
-    const idx = filtered.findIndex((p) => p.id === active.id);
-    const next = filtered[(idx + 1) % filtered.length];
-    if (next) selectProject(next.id);
-  }
-
   // Scroll + cursor only when content overflows the frame
   useLayoutEffect(() => {
     const scrollEl = scrollRef.current;
@@ -161,6 +153,7 @@ export function ListView({ projects }: ListViewProps) {
   const activeMediaUrl = active?.image;
   const isVideo = isVideoMediaUrl(activeMediaUrl);
   const isVimeo = Boolean(activeMediaUrl && isVimeoUrl(activeMediaUrl));
+  const previewStart = active?.videoPreviewStartSeconds ?? 0;
 
   const backgroundMedia =
     active && activeMediaUrl ? (
@@ -178,16 +171,14 @@ export function ListView({ projects }: ListViewProps) {
               key={active.id}
               src={activeMediaUrl!}
               title={active.title}
+              startTime={previewStart}
               className="transition-opacity duration-500"
             />
           ) : isVideo ? (
-            <video
+            <MutedLoopVideo
               key={active.id}
-              src={activeMediaUrl}
-              autoPlay
-              loop
-              muted
-              playsInline
+              src={activeMediaUrl!}
+              startTime={previewStart}
               style={{
                 width: "100%",
                 height: "100%",
@@ -381,7 +372,6 @@ export function ListView({ projects }: ListViewProps) {
   return (
     <motion.div
       className="absolute inset-0 overflow-hidden bg-background text-foreground"
-      style={{ width: STAGE_WIDTH, height: STAGE_HEIGHT }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -401,7 +391,7 @@ export function ListView({ projects }: ListViewProps) {
         }}
       >
         <div className="shrink-0">
-          <BrandHeader />
+          <BrandHeader variant="display" widthClass="w-[30rem] max-w-full" />
 
           {categoryNav}
 
@@ -438,8 +428,11 @@ export function ListView({ projects }: ListViewProps) {
                 })}
                 <button
                   type="button"
-                  onClick={() => setSpecialtyExpanded(false)}
-                  aria-label="Close specialty filters"
+                  onClick={() => {
+                    setDiscipline(null);
+                    setSpecialtyExpanded(false);
+                  }}
+                  aria-label="Clear and close specialty filters"
                   className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-[13px] text-white/90 transition-colors hover:bg-white/18"
                 >
                   ×
@@ -501,13 +494,13 @@ export function ListView({ projects }: ListViewProps) {
       {active?.description?.trim() ? (
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-end pr-10">
           <div
-            className={`pointer-events-auto flex w-[24rem] items-stretch gap-3 transition-all duration-300 ${
+            className={`pointer-events-auto w-[24rem] transition-all duration-300 ${
               descVisible
                 ? "translate-y-0 opacity-100"
                 : "translate-y-2 opacity-0"
             }`}
           >
-            <div className="max-h-52 flex-1 overflow-hidden rounded-2xl bg-panel px-6 py-5 backdrop-blur-md">
+            <div className="max-h-52 overflow-hidden rounded-2xl bg-panel px-6 py-5 backdrop-blur-md">
               <div
                 key={active.id}
                 className="h-full overflow-y-auto overscroll-contain font-sans text-[14px] leading-relaxed text-white/90"
@@ -515,14 +508,6 @@ export function ListView({ projects }: ListViewProps) {
                 <p>{active.description}</p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={goNext}
-              aria-label="Next project"
-              className="flex shrink-0 items-center self-center px-1 text-[26px] leading-none text-white/85 transition-opacity hover:opacity-100"
-            >
-              ›
-            </button>
           </div>
         </div>
       ) : null}

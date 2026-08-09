@@ -23,13 +23,13 @@ export const homepageQuery = `{
         video.asset->url,
         videoUrl
       ),
+      videoPreviewStart,
       "imageUrl": heroImage.asset->url,
       postWorkDescription,
       description,
       postScrollSubtitles,
       postCredits[] {
         discipline,
-        role,
         "worker": worker-> {
           name,
           "slug": slug.current,
@@ -50,13 +50,13 @@ export const homepageQuery = `{
       video.asset->url,
       videoUrl
     ),
+    videoPreviewStart,
     "imageUrl": heroImage.asset->url,
     postWorkDescription,
     description,
     postScrollSubtitles,
     postCredits[] {
       discipline,
-      role,
       order,
       "worker": worker-> {
         name,
@@ -83,6 +83,7 @@ const featuredProjectByDiscipline = (discipline: string) => `*[
   _id,
   title,
   "videoUrl": coalesce(video.asset->url, videoUrl),
+  videoPreviewStart,
   "imageUrl": heroImage.asset->url
 }`;
 
@@ -146,6 +147,7 @@ export const talentDetailQuery = `*[_type == "postWorker" && slug.current == $sl
       video.asset->url,
       videoUrl
     ),
+    videoPreviewStart,
     "imageUrl": heroImage.asset->url,
     postWorkerDescription,
     "sortOrder": postCredits[worker._ref == ^.^._id && discipline == $discipline][0].order

@@ -1,12 +1,3 @@
-/** Canonical site-frame size — shared by Work / Talent / Info. */
-export const STAGE_WIDTH = 1280;
-export const STAGE_HEIGHT = 720;
-
-/**
- * Display wordmark width (px). Keep BrandHeader display `widthClass` in sync.
- */
-export const DISPLAY_LOGO_WIDTH = 900;
-
 /** Desktop top padding above the shared BrandHeader (Tailwind `pt-4` = 16px). */
 export const STAGE_LOGO_TOP_PADDING = 16;
 

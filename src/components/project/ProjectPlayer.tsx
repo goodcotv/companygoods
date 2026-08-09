@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
 import { CornerBrackets } from "@/components/CornerBrackets";
 import { ControlledVideo } from "@/components/project/ControlledVideo";
 import { isListOverflowing } from "@/lib/cursor-hover";
@@ -74,14 +75,21 @@ function captionToText(caption?: PortableTextBlock[]): string {
  * Viewfinder frame anchored to a single section, so it scrolls with that
  * section instead of floating over the whole page. Top clears the Back button,
  * bottom clears the video scrubber.
+ *
+ * Hero uses shared `page-corners` so brackets morph in from list/scroll/talent.
+ * Later sections stay static — only one layoutId owner at a time.
  */
-function SectionFrame() {
+function SectionFrame({ shared = false }: { shared?: boolean }) {
   return (
     <div
       className="pointer-events-none absolute inset-x-4 bottom-20 top-11 z-10 md:inset-x-8 md:bottom-16 md:top-16"
       aria-hidden
     >
-      <CornerBrackets inset={0} />
+      {shared ? (
+        <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
+      ) : (
+        <CornerBrackets inset={0} />
+      )}
     </div>
   );
 }
@@ -98,7 +106,7 @@ function MediaCaption({
       className={`absolute z-10 max-w-lg ${getCaptionPositionClasses(position)}`}
     >
       <div className="relative px-5 py-4">
-        <p className="whitespace-pre-wrap font-sans text-[15px] font-normal leading-relaxed text-white/90 md:text-[14px]">
+        <p className="whitespace-pre-wrap font-display text-[11pt] font-medium leading-relaxed text-white/90 md:text-[13pt]">
           {caption}
         </p>
       </div>
@@ -195,7 +203,7 @@ function HeroSection({
 
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
 
-      <SectionFrame />
+      <SectionFrame shared />
 
       {hasCopy && (
         <div
@@ -203,18 +211,18 @@ function HeroSection({
           className="pointer-events-auto absolute bottom-[4.75rem] left-4 right-20 z-20 flex max-h-[35dvh] max-w-lg flex-col md:bottom-20 md:left-8 md:right-auto"
         >
           <div className="relative flex min-h-0 flex-col px-5 py-4">
-            <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2">
+            <div className="flex shrink-0 flex-wrap items-start gap-x-3 gap-y-2">
               {project.title && (
                 <h1 className="font-heading text-[19pt] leading-[1.05] text-white md:text-[21pt]">
                   {project.title}
                 </h1>
               )}
               {disciplines.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex flex-wrap items-start gap-1.5">
                   {disciplines.map((discipline) => (
                     <span
                       key={discipline}
-                      className="rounded-md border border-white/10 bg-[#4a4a4a]/65 px-3 py-1.5 font-sans text-[12px] tracking-[0.12em] uppercase text-white/90 backdrop-blur-md md:text-[11px]"
+                      className="rounded-md border border-white/10 bg-[#4a4a4a]/65 px-2 py-0.5 font-sans text-[13px] tracking-[0.12em] uppercase text-white/90 backdrop-blur-md md:text-[12px]"
                     >
                       {discipline}
                     </span>
@@ -258,7 +266,7 @@ function HeroSection({
                   {...(canScroll ? { "data-scrollable-list": true } : {})}
                   className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
                 >
-                  <p className="whitespace-pre-wrap font-sans text-[15px] font-normal leading-relaxed text-white/90 md:text-[14px]">
+                  <p className="whitespace-pre-wrap font-display text-[11pt] font-medium leading-relaxed text-white/90 md:text-[13pt]">
                     {description}
                   </p>
                 </div>
@@ -423,9 +431,7 @@ function MediaSectionComponent({ section }: { section: MediaSection }) {
 
 export function ProjectPlayer({ project }: ProjectPlayerProps) {
   const router = useRouter();
-  const description =
-    project.postWorkDescription?.trim() ||
-    portableTextToPlainText(project.description);
+  const description = project.postWorkDescription?.trim() || "";
   const disciplines = getDisciplines(project);
 
   // Home / talent shells lock html+body overflow; clear so additional media sections can scroll.

@@ -2,15 +2,14 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
-import { AnimatePresence, LayoutGroup } from "framer-motion";
-import { ScaleToFit } from "./ScaleToFit";
+import { AnimatePresence } from "framer-motion";
 import { BottomChrome } from "./BottomChrome";
 import { HomePage } from "./HomePage";
 import TalentRoster from "./talent/TalentRoster";
 import { InfoShell } from "./info/InfoShell";
 import { MobileMenu } from "./MobileMenu";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
-import { STAGE_HEIGHT, STAGE_NAV_PADDING, STAGE_WIDTH } from "@/lib/stage";
+import { STAGE_NAV_PADDING } from "@/lib/stage";
 import type { HomepageData, PostWorker } from "@/sanity/types";
 
 export type Section = "work" | "talent" | "info";
@@ -178,25 +177,20 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
     );
   } else {
     shell = (
-      <ScaleToFit width={STAGE_WIDTH} height={STAGE_HEIGHT}>
+      <div className="fixed inset-0 z-0 overflow-hidden bg-background text-foreground">
+        <div className="absolute inset-0 overflow-hidden">{sections}</div>
         <div
-          className="relative bg-background text-foreground"
-          style={{ width: STAGE_WIDTH, height: STAGE_HEIGHT }}
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex items-end justify-end px-8"
+          style={{ paddingBottom: STAGE_NAV_PADDING }}
         >
-          {sections}
-          <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex items-end justify-end px-8"
-            style={{ paddingBottom: STAGE_NAV_PADDING }}
-          >
-            {chrome}
-          </div>
+          {chrome}
         </div>
-      </ScaleToFit>
+      </div>
     );
   }
 
   return (
-    <LayoutGroup>
+    <>
       {shell}
 
       <MobileMenu
@@ -207,6 +201,6 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
         activeSection={section}
         mediaUrl={introVideoUrl}
       />
-    </LayoutGroup>
+    </>
   );
 }

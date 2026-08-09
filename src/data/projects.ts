@@ -13,13 +13,13 @@ export type Project = {
   title: string;
   category: Category;
   disciplines: Discipline[];
-  roles: string[];
-  lead?: { label: string; name: string };
-  /** Custom Latest Projects lines; when set, takes priority over roles/lead. */
+  /** Manually set Latest Projects credit lines (from Sanity postScrollSubtitles). */
   scrollSubtitles?: ScrollSubtitleSpan[][];
   description: string;
   image: string;
   imageAlt: string;
+  /** Seconds for muted list/scroll/talent preview playback (from Sanity). */
+  videoPreviewStartSeconds?: number;
 };
 
 export const CATEGORIES: Category[] = [
@@ -38,8 +38,6 @@ export const projects: Project[] = [
     title: "Cruise Show '27",
     category: "BEAUTY",
     disciplines: ["VFX", "EDIT"],
-    roles: ["VFX/ANIMATION", "ART DIRECTOR / ANIMATION"],
-    lead: { label: "LEAD", name: "Jenni Yang" },
     scrollSubtitles: [
       [{ text: "VFX/ANIMATION" }],
       [
@@ -58,8 +56,11 @@ export const projects: Project[] = [
     title: "Confessions with Madonna",
     category: "COMMERCIAL",
     disciplines: ["EDIT", "COLOR", "SOUND"],
-    roles: ["EDITORIAL", "COLOR"],
-    lead: { label: "LEAD", name: "Alex Rivera" },
+    scrollSubtitles: [
+      [{ text: "EDITORIAL" }],
+      [{ text: "COLOR" }],
+      [{ text: "LEAD: ALEX RIVERA" }],
+    ],
     description:
       "There should be an option to add a description, which would appear here in a scrollable frame like this. Lorem Ipsum Dolor Sit Amet, Consectetur Adipiscing Elit. Maecenas.",
     image:
@@ -72,7 +73,7 @@ export const projects: Project[] = [
     title: "Kacey Musgraves",
     category: "MUSIC",
     disciplines: ["EDIT", "COLOR"],
-    roles: ["EDITORIAL", "COLOR GRADE"],
+    scrollSubtitles: [[{ text: "EDITORIAL" }], [{ text: "COLOR GRADE" }]],
     description:
       "A music-forward brand film pairing Kacey Musgraves with Zillow's storytelling — edit and color across principal and cutdowns.",
     image:
@@ -85,7 +86,7 @@ export const projects: Project[] = [
     title: "I Use Zoom",
     category: "COMMERCIAL",
     disciplines: ["EDIT", "SOUND", "VFX"],
-    roles: ["EDITORIAL", "SOUND DESIGN"],
+    scrollSubtitles: [[{ text: "EDITORIAL" }], [{ text: "SOUND DESIGN" }]],
     description:
       "Campaign package for Zoom — editorial, sound design, and finishing across social and broadcast.",
     image:
@@ -98,7 +99,7 @@ export const projects: Project[] = [
     title: "Game Day Rituals",
     category: "COMMERCIAL",
     disciplines: ["EDIT", "COLOR"],
-    roles: ["EDITORIAL"],
+    scrollSubtitles: [[{ text: "EDITORIAL" }]],
     description:
       "Game-day rituals across Marriott and NCAA — a multi-spot package spanning lifestyle and sports.",
     image:
@@ -111,7 +112,7 @@ export const projects: Project[] = [
     title: "Billie Eilish",
     category: "IMMERSIVE & LIVE",
     disciplines: ["VFX", "EDIT", "SOUND"],
-    roles: ["VFX", "IMMERSIVE"],
+    scrollSubtitles: [[{ text: "VFX" }], [{ text: "IMMERSIVE" }]],
     description:
       "Immersive experience for Oculus featuring Billie Eilish — VFX, edit, and spatial sound.",
     image:
@@ -124,7 +125,7 @@ export const projects: Project[] = [
     title: "Water Down Nothing",
     category: "COMMERCIAL",
     disciplines: ["EDIT", "COLOR", "SOUND"],
-    roles: ["EDITORIAL", "COLOR"],
+    scrollSubtitles: [[{ text: "EDITORIAL" }], [{ text: "COLOR" }]],
     description:
       "Sparkling water campaign — crisp editorial and color across hero and social cutdowns.",
     image:
@@ -137,7 +138,7 @@ export const projects: Project[] = [
     title: "Galaxy Pro 2025",
     category: "COMMERCIAL",
     disciplines: ["VFX", "EDIT", "COLOR"],
-    roles: ["VFX", "EDITORIAL"],
+    scrollSubtitles: [[{ text: "VFX" }], [{ text: "EDITORIAL" }]],
     description:
       "Product launch film for Galaxy Pro 2025 — VFX-led storytelling with editorial and grade.",
     image:
@@ -150,7 +151,7 @@ export const projects: Project[] = [
     title: "Love Story",
     category: "BEAUTY",
     disciplines: ["EDIT", "COLOR"],
-    roles: ["EDITORIAL", "COLOR GRADE"],
+    scrollSubtitles: [[{ text: "EDITORIAL" }], [{ text: "COLOR GRADE" }]],
     description:
       "Brand narrative for Canon — a love story told through lens, light, and editorial craft.",
     image:

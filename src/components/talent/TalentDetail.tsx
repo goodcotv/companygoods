@@ -8,12 +8,13 @@ import { BrandHeader } from "@/components/BrandHeader";
 import { BottomChrome } from "@/components/BottomChrome";
 import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
 import { MobileBrandBar } from "@/components/MobileBrandBar";
-import { ScaleToFit } from "@/components/ScaleToFit";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { isListOverflowing } from "@/lib/cursor-hover";
-import { STAGE_HEIGHT, STAGE_LOGO_TOP_PADDING, STAGE_NAV_CLEARANCE, STAGE_WIDTH } from "@/lib/stage";
+import { STAGE_LOGO_TOP_PADDING, STAGE_NAV_CLEARANCE } from "@/lib/stage";
 import { isVimeoUrl } from "@/lib/vimeo";
+import { parseTimeToSeconds } from "@/lib/parse-time";
 import type { Project, TalentDetailData } from "@/sanity/types";
+import { MutedLoopVideo } from "@/components/MutedLoopVideo";
 import { VimeoBackground } from "@/components/VimeoBackground";
 
 type TalentDetailProps = {
@@ -36,6 +37,10 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
     projects.find((project) => project._id === activeProjectId) ?? projects[0];
   const mediaVideoUrl = activeProject?.videoUrl;
   const mediaImageUrl = activeProject?.imageUrl || talent.imageUrl;
+  const previewStart =
+    activeProject?.videoPreviewStartSeconds ??
+    parseTimeToSeconds(activeProject?.videoPreviewStart) ??
+    0;
 
   useLayoutEffect(() => {
     const scrollEl = scrollRef.current;
@@ -89,15 +94,13 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
                 ? `${activeProject.title} video`
                 : `${talent.name} project video`
             }
+            startTime={previewStart}
           />
         ) : mediaVideoUrl ? (
-          <video
+          <MutedLoopVideo
             key={activeProject?._id}
             src={mediaVideoUrl}
-            autoPlay
-            loop
-            muted
-            playsInline
+            startTime={previewStart}
             aria-label={
               activeProject
                 ? `${activeProject.title} video`
@@ -279,100 +282,95 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
   }
 
   return (
-    <ScaleToFit width={STAGE_WIDTH} height={STAGE_HEIGHT}>
-      <div
-        className="relative flex flex-col overflow-hidden bg-background text-foreground"
-        style={{ width: STAGE_WIDTH, height: STAGE_HEIGHT }}
-      >
-        {backgroundMedia}
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-background text-foreground">
+      {backgroundMedia}
 
-        <div
-          className="absolute top-0 left-0 z-20 px-8"
-          style={{ paddingTop: STAGE_LOGO_TOP_PADDING }}
-        >
-          <BrandHeader
-            variant="display"
-            widthClass="w-[30rem] max-w-full"
-          />
+      <div
+        className="absolute top-0 left-0 z-20 px-8"
+        style={{ paddingTop: STAGE_LOGO_TOP_PADDING }}
+      >
+        <BrandHeader
+          variant="display"
+          widthClass="w-[30rem] max-w-full"
+        />
+      </div>
+
+      <div
+        className="absolute left-12 top-[11.5rem] z-10 flex min-h-0 flex-col"
+        style={{ bottom: STAGE_NAV_CLEARANCE }}
+      >
+        <div className="mb-6 flex shrink-0 items-baseline gap-4">
+          <h1 className="font-sans text-[11px] font-normal tracking-[0.18em] uppercase text-white">
+            {talent.name}
+          </h1>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="font-sans text-[13px] font-normal text-white transition-opacity hover:opacity-60"
+            aria-label="Close"
+          >
+            x
+          </button>
         </div>
 
-        <div
-          className="absolute left-12 top-[11.5rem] z-10 flex min-h-0 flex-col"
-          style={{ bottom: STAGE_NAV_CLEARANCE }}
-        >
-          <div className="mb-6 flex shrink-0 items-baseline gap-4">
-            <h1 className="font-sans text-[11px] font-normal tracking-[0.18em] uppercase text-white">
-              {talent.name}
-            </h1>
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="font-sans text-[13px] font-normal text-white transition-opacity hover:opacity-60"
-              aria-label="Close"
-            >
-              x
-            </button>
-          </div>
-
-          {projects.length > 0 && (
+        {projects.length > 0 && (
+          <div
+            className={[
+              "talent-list-slot",
+              canScroll ? "is-scrollable" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
             <div
               className={[
-                "talent-list-slot",
-                canScroll ? "is-scrollable" : "",
+                "talent-list-frame scroll-indicator-wrapper",
+                showTopIndicator ? "can-scroll-up" : "",
+                showBottomIndicator ? "can-scroll-down" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
             >
-              <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
               <div
-                className={[
-                  "talent-list-frame scroll-indicator-wrapper",
-                  showTopIndicator ? "can-scroll-up" : "",
-                  showBottomIndicator ? "can-scroll-down" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
+                className={`scroll-indicator top ${showTopIndicator ? "visible" : ""}`}
               >
-                <div
-                  className={`scroll-indicator top ${showTopIndicator ? "visible" : ""}`}
-                >
-                  <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
-                    <path
-                      d="M2 8L8 2L14 8"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
+                <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+                  <path
+                    d="M2 8L8 2L14 8"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
 
-                {projectList}
+              {projectList}
 
-                <div
-                  className={`scroll-indicator bottom ${showBottomIndicator ? "visible" : ""}`}
-                >
-                  <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
-                    <path
-                      d="M2 2L8 8L14 2"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
+              <div
+                className={`scroll-indicator bottom ${showBottomIndicator ? "visible" : ""}`}
+              >
+                <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+                  <path
+                    d="M2 2L8 8L14 2"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </div>
             </div>
-          )}
-        </div>
-
-        <BottomChrome
-          position="inline"
-          activeHref="/talent"
-          className="absolute right-8 bottom-7 z-30 justify-end"
-        />
+          </div>
+        )}
       </div>
-    </ScaleToFit>
+
+      <BottomChrome
+        position="inline"
+        activeHref="/talent"
+        className="absolute right-8 bottom-7 z-30 justify-end"
+      />
+    </div>
   );
 }

@@ -9,6 +9,10 @@ export interface FeaturedProjectMedia {
   title: string;
   videoUrl?: string;
   imageUrl?: string;
+  /** Sanity string like "1:30" or "90"; parsed client-side when needed. */
+  videoPreviewStart?: string;
+  /** Parsed seconds for muted list/talent preview playback. */
+  videoPreviewStartSeconds?: number;
 }
 
 export interface WorkerRoleOrder {
@@ -39,7 +43,6 @@ export interface PostWorker {
 
 export interface PostCredit {
   discipline: PostDiscipline;
-  role: string;
   /** Sort order of this project on the linked worker's talent page for this discipline. */
   order?: number;
   worker?: {
@@ -116,9 +119,13 @@ export interface Project {
   videoUrl?: string;
   imageUrl?: string;
   posterImageUrl?: string;
+  /** Sanity string like "1:30" or "90" for list/talent muted previews. */
+  videoPreviewStart?: string;
+  /** Parsed seconds for muted list/talent preview playback. */
+  videoPreviewStartSeconds?: number;
   postWorkDescription?: string;
   postWorkerDescription?: string;
-  /** Rich project write-up (Portable Text). Used as a fallback when postWorkDescription is empty. */
+  /** Rich project write-up (Portable Text). Not shown in post/list UI. */
   description?: PortableTextBlock[];
   /** Custom Latest Projects scroll lines (Portable Text with optional links). */
   postScrollSubtitles?: PortableTextBlock[];

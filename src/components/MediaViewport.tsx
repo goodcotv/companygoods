@@ -1,4 +1,8 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import { AnimatedCornerBrackets } from "./AnimatedCornerBrackets";
+import { MutedLoopVideo } from "./MutedLoopVideo";
 import { VimeoBackground } from "./VimeoBackground";
 import { isVimeoUrl } from "@/lib/vimeo";
 
@@ -7,6 +11,8 @@ type MediaViewportProps = {
   className?: string;
   src?: string;
   type?: "video" | "image";
+  /** Seconds into muted preview videos (from Sanity videoPreviewStart). */
+  startTime?: number;
   cornersLayoutId?: string;
   /** Camera-style corner brackets. Default true. */
   corners?: boolean;
@@ -19,38 +25,66 @@ export function MediaViewport({
   className = "",
   src,
   type = "video",
+  startTime = 0,
   cornersLayoutId = "media-corners",
   corners = true,
   radius = 16,
 }: MediaViewportProps) {
   const useVimeo = type === "video" && Boolean(src && isVimeoUrl(src));
+  const [ready, setReady] = useState(false);
+  const imageRef = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    setReady(false);
+  }, [src, startTime]);
+
+  useEffect(() => {
+    if (useVimeo || type === "video" || !src) return;
+
+    const image = imageRef.current;
+    if (image?.complete && image.naturalWidth > 0) setReady(true);
+  }, [src, type, useVimeo]);
+
+  const mediaClass = `pointer-events-none h-full w-full scale-[1.01] object-cover transition-opacity duration-700 ease-out ${
+    ready ? "opacity-100" : "opacity-0"
+  }`;
 
   return (
     <div
-      className={`relative overflow-hidden bg-[#6e6e6e] ${className}`}
+      className={`relative overflow-hidden bg-black ${className}`}
       style={{ borderRadius: radius }}
       role="img"
       aria-label={src ? `${title} ${type}` : `${title} placeholder`}
     >
       {src ? (
         useVimeo ? (
-          <VimeoBackground src={src} title={title} className="h-full w-full" />
-        ) : type === "video" ? (
-          <video
-            src={src}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="pointer-events-none h-full w-full scale-[1.01] object-cover"
+          <div
+            className={`h-full w-full transition-opacity duration-700 ease-out ${
+              ready ? "opacity-100" : "opacity-0"
+            }`}
           >
-            <track kind="captions" />
-          </video>
+            <VimeoBackground
+              src={src}
+              title={title}
+              startTime={startTime}
+              className="h-full w-full"
+              onReady={() => setReady(true)}
+            />
+          </div>
+        ) : type === "video" ? (
+          <MutedLoopVideo
+            src={src}
+            startTime={startTime}
+            onReady={() => setReady(true)}
+            className={mediaClass}
+          />
         ) : (
           <img
+            ref={imageRef}
             src={src}
             alt={title}
-            className="pointer-events-none h-full w-full scale-[1.01] object-cover"
+            onLoad={() => setReady(true)}
+            className={mediaClass}
           />
         )
       ) : null}

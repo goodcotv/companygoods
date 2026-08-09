@@ -7,9 +7,9 @@ import { isVideoMediaUrl, isVimeoUrl } from "@/lib/vimeo";
 import type { Section } from "./BottomChrome";
 
 const MENU_ITEMS: { label: string; section: Section }[] = [
-  { label: "Work", section: "work" },
-  { label: "Talent", section: "talent" },
-  { label: "Info", section: "info" },
+  { label: "WORK", section: "work" },
+  { label: "TALENT", section: "talent" },
+  { label: "INFO", section: "info" },
 ];
 
 type MobileMenuProps = {
@@ -107,7 +107,8 @@ export function MobileMenu({
       </div>
 
       {/* Top brand — shared mobile mark placement */}
-      <MobileBrandBar onClick={onGoHome} />
+      {/* Opt out of shared logo layout — page mark underneath already owns it */}
+      <MobileBrandBar onClick={onGoHome} layoutId={false} />
 
       {/* Centered section links */}
       <nav
@@ -121,7 +122,7 @@ export function MobileMenu({
               key={item.section}
               type="button"
               onClick={() => handleNavigate(item.section)}
-              className={`font-heading text-[clamp(1.55rem,6.5vw,2.15rem)] font-extrabold leading-none tracking-[-0.01em] text-white transition-opacity hover:opacity-70 ${
+              className={`font-heading text-[clamp(1.55rem,6.5vw,2.15rem)] font-extrabold uppercase leading-none tracking-[-0.01em] text-white transition-opacity hover:opacity-70 ${
                 isActive ? "opacity-100" : "opacity-90"
               }`}
               aria-current={isActive ? "page" : undefined}

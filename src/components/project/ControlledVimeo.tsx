@@ -72,7 +72,12 @@ export function ControlledVimeo({
 
   useEffect(() => {
     setEmbedSrc(
-      buildVimeoEmbedSrc(video, "controlled", window.location.origin),
+      buildVimeoEmbedSrc(
+        video,
+        "controlled",
+        undefined,
+        window.location.origin,
+      ),
     );
     setIframeLoaded(false);
     setPlayerReady(false);
