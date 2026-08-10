@@ -328,8 +328,9 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
       </div>
 
       {/*
-        Fills remaining height above the nav. Camera stays 16:9 and shrinks
-        with the viewport (height- or width-limited) so it never overflows.
+        Fills remaining height above the nav. Prefers a 16:9 width at full
+        height; when the row is too narrow, only width shrinks (height stays
+        full) so the frame never scales down as a smaller 16:9 box.
         Latest Projects + credits share the sidebar's left edge.
       */}
       <div
@@ -337,10 +338,10 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
         style={{ containerType: "size" }}
       >
         <div
-          className="relative min-w-0 shrink-0"
+          className="relative h-full min-w-0 shrink-0"
           style={{
-            aspectRatio: "16 / 9",
-            // Prefer full row height; if that would crowd the sidebar, compress.
+            // Cap at 16:9 for the available height; otherwise take remaining
+            // width (minus sidebar) and keep full height.
             width:
               "min(max(0px, calc(100cqi - 15rem)), calc(100cqh * 16 / 9))",
           }}

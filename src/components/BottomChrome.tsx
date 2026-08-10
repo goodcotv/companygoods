@@ -75,7 +75,7 @@ export function BottomChrome({
     <div className={`${shell} ${className}`}>
       {showViewToggle && (
         <div
-          className={`pointer-events-auto flex items-center gap-1.5 uppercase ${typeClass}`}
+          className={`bottom-chrome-scrim pointer-events-auto flex items-center gap-1.5 uppercase ${typeClass}`}
         >
           <button
             type="button"
@@ -103,14 +103,14 @@ export function BottomChrome({
         <button
           type="button"
           onClick={onMenuOpen}
-          className={`pointer-events-auto uppercase ${typeClass} text-foreground transition-opacity hover:opacity-70`}
+          className={`bottom-chrome-scrim pointer-events-auto uppercase ${typeClass} text-foreground transition-opacity hover:opacity-70`}
           aria-haspopup="dialog"
         >
           MENU
         </button>
       ) : (
         <nav
-          className={`pointer-events-auto flex items-center gap-1.5 uppercase ${typeClass}`}
+          className={`bottom-chrome-scrim pointer-events-auto flex items-center gap-1.5 uppercase ${typeClass}`}
           aria-label="Primary"
         >
           {onNavigate ? (

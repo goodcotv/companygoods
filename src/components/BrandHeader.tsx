@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useGoHome } from "./GoHomeContext";
 
 type BrandHeaderProps = {
   /** `work` = small mark; `display` = large wordmark */
@@ -62,6 +63,9 @@ export function BrandHeader({
   layoutId = "brand-logo",
   className = "",
 }: BrandHeaderProps) {
+  // AppShell SPA views stay on `/`, so Link href="/" no-ops — prefer goHome.
+  const goHome = useGoHome();
+  const handleClick = onClick ?? goHome ?? undefined;
   const { src, width, height, widthClass, crop } = SIZES[variant];
   const markWidth = widthClassProp ?? widthClass;
   const activeCrop = uncropped ? null : crop;
@@ -114,10 +118,10 @@ export function BrandHeader({
   return (
     <header className={`relative shrink-0 select-none ${className}`}>
       <h1 className="m-0 leading-none">
-        {onClick ? (
+        {handleClick ? (
           <motion.button
             type="button"
-            onClick={onClick}
+            onClick={handleClick}
             layoutId={resolvedLayoutId}
             transition={LOGO_LAYOUT_TRANSITION}
             className={markClass}

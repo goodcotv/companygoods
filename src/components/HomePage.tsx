@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { projects as fallbackProjects } from "@/data/projects";
 import type {
   Project as LocalProject,
@@ -138,16 +138,27 @@ export function HomePage({ data, externalView }: HomePageProps) {
   }, [view]);
 
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
-      {view === "scroll" ? (
-        <ScrollView
-          key="scroll"
-          projects={projects}
-          introVideoUrl={introVideoUrl}
-        />
-      ) : (
-        <ListView key="list" projects={projects} />
-      )}
-    </AnimatePresence>
+    <motion.div
+      className="absolute inset-0"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{
+        duration: 0.25,
+        ease: "easeInOut",
+      }}
+    >
+      <AnimatePresence mode="popLayout" initial={false}>
+        {view === "scroll" ? (
+          <ScrollView
+            key="scroll"
+            projects={projects}
+            introVideoUrl={introVideoUrl}
+          />
+        ) : (
+          <ListView key="list" projects={projects} />
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }

@@ -10,7 +10,11 @@ import { MobileBrandBar } from "@/components/MobileBrandBar";
 import { CATEGORIES, type TalentCategory } from "@/data/talent";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { isListOverflowing } from "@/lib/cursor-hover";
-import { STAGE_LOGO_TOP_PADDING } from "@/lib/stage";
+import {
+  STAGE_LOGO_NAV_GAP_CLASS,
+  STAGE_LOGO_TOP_PADDING,
+  STAGE_NAV_CLEARANCE,
+} from "@/lib/stage";
 import { isVimeoUrl } from "@/lib/vimeo";
 import { parseTimeToSeconds } from "@/lib/parse-time";
 import type { PostDiscipline, PostWorker } from "@/sanity/types";
@@ -237,7 +241,10 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
     ) : null;
 
   const categoryNav = (
-    <nav className="talent-categories" aria-label="Talent categories">
+    <nav
+      className={`talent-categories ${isMobile ? "" : STAGE_LOGO_NAV_GAP_CLASS}`}
+      aria-label="Talent categories"
+    >
       {CATEGORIES.map((item, index) => (
         <span key={item.id} className="talent-categories__item">
           {index > 0 && (
@@ -390,91 +397,95 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
       {backgroundMedia}
 
       <div
-        className="relative z-10 px-8"
-        style={{ paddingTop: STAGE_LOGO_TOP_PADDING }}
+        className="relative z-10 flex h-full min-h-0 flex-col px-8"
+        style={{
+          paddingTop: STAGE_LOGO_TOP_PADDING,
+          paddingBottom: STAGE_NAV_CLEARANCE,
+        }}
       >
-        <BrandHeader variant="display" widthClass="w-[30rem] max-w-full" />
-      </div>
-
-      <div className="talent-body">
-        <div className="talent-left">
+        <div className="shrink-0">
+          <BrandHeader variant="display" widthClass="w-[30rem] max-w-full" />
           {categoryNav}
+        </div>
 
-          <div
-            className={[
-              "talent-list-slot",
-              canScroll ? "is-scrollable" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-          >
-            <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
+        <div className="talent-body">
+          <div className="talent-left">
             <div
               className={[
-                "talent-list-frame scroll-indicator-wrapper",
-                showTopIndicator ? "can-scroll-up" : "",
-                showBottomIndicator ? "can-scroll-down" : "",
+                "talent-list-slot",
+                canScroll ? "is-scrollable" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
             >
-              <span className="talent-list__sizer" aria-hidden="true">
-                {widthAnchor}
-              </span>
-
+              <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
               <div
-                className={`scroll-indicator top ${showTopIndicator ? "visible" : ""}`}
+                className={[
+                  "talent-list-frame scroll-indicator-wrapper",
+                  showTopIndicator ? "can-scroll-up" : "",
+                  showBottomIndicator ? "can-scroll-down" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
               >
-                <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
-                  <path
-                    d="M2 8L8 2L14 8"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
+                <span className="talent-list__sizer" aria-hidden="true">
+                  {widthAnchor}
+                </span>
 
-              {nameList}
+                <div
+                  className={`scroll-indicator top ${showTopIndicator ? "visible" : ""}`}
+                >
+                  <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+                    <path
+                      d="M2 8L8 2L14 8"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
 
-              <div
-                className={`scroll-indicator bottom ${showBottomIndicator ? "visible" : ""}`}
-              >
-                <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
-                  <path
-                    d="M2 2L8 8L14 2"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+                {nameList}
+
+                <div
+                  className={`scroll-indicator bottom ${showBottomIndicator ? "visible" : ""}`}
+                >
+                  <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+                    <path
+                      d="M2 2L8 8L14 2"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div
-          className="talent-stage"
-          aria-hidden={!selected?.featuredWorkTitle}
-        >
-          {selected?.featuredWorkTitle && (
-            <p
-              className={`talent-stage__title ${titleVisible ? "is-visible" : ""} ${mediaUrl ? "has-media" : ""}`}
-            >
-              {selected.featuredWorkTitle}
-            </p>
-          )}
-        </div>
+          <div
+            className="talent-stage"
+            aria-hidden={!selected?.featuredWorkTitle}
+          >
+            {selected?.featuredWorkTitle && (
+              <p
+                className={`talent-stage__title ${titleVisible ? "is-visible" : ""} ${mediaUrl ? "has-media" : ""}`}
+              >
+                {selected.featuredWorkTitle}
+              </p>
+            )}
+          </div>
 
-        <aside
-          className={`talent-bio ${bioVisible && selected?.bio ? "is-visible" : ""}`}
-          aria-live="polite"
-          aria-hidden={!selected?.bio}
-        >
-          {selected?.bio ? <p>{selected.bio}</p> : null}
-        </aside>
+          <aside
+            className={`talent-bio ${bioVisible && selected?.bio ? "is-visible" : ""}`}
+            aria-live="polite"
+            aria-hidden={!selected?.bio}
+          >
+            {selected?.bio ? <p>{selected.bio}</p> : null}
+          </aside>
+        </div>
       </div>
     </motion.div>
   );

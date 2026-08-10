@@ -154,6 +154,41 @@ body {
   pointer-events: none;
 }
 
+/* Soft black halo behind bottom nav so type stays readable over light video */
+.bottom-chrome-scrim {
+  position: relative;
+  isolation: isolate;
+}
+.bottom-chrome-scrim::before {
+  content: "";
+  position: absolute;
+  inset: -0.55rem -1.5rem;
+  z-index: -1;
+  /* Soft rectangle: solid center, fade only at the edges */
+  background: linear-gradient(
+    to right in oklab,
+    transparent 0%,
+    rgb(0 0 0 / 0.5) 10%,
+    rgb(0 0 0 / 0.5) 90%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom in oklab,
+    transparent 0%,
+    #000 22%,
+    #000 78%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom in oklab,
+    transparent 0%,
+    #000 22%,
+    #000 78%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
 .talent-body {
   position: relative;
   z-index: 1;
@@ -164,8 +199,8 @@ body {
   gap: 1.5rem;
   flex: 1;
   min-height: 0;
-  /* Reserve space for in-stage nav chrome — matches STAGE_NAV_CLEARANCE */
-  padding: 1.25rem 2rem 2.875rem 2rem;
+  /* Horizontal + bottom chrome padding live on the shared stage shell with the logo */
+  padding: 0;
 }
 
 .talent-left {
@@ -188,10 +223,12 @@ body {
   align-items: center;
   flex-shrink: 0;
   gap: 0.25rem 0.25rem;
-  font-size: 13px;
+  /* Match ListView slash nav */
+  font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  margin-bottom: 1.35rem;
+  /* Nav → list gap (logo → nav gap comes from STAGE_LOGO_NAV_GAP_CLASS) */
+  margin-bottom: 1.5rem;
 }
 
 @media (hover: none) and (pointer: coarse) {
@@ -286,12 +323,18 @@ body {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.875rem;
+  gap: 14px;
   overflow-x: hidden;
   overflow-y: hidden;
   overscroll-behavior: contain;
   flex: 1;
   min-height: 0;
+}
+
+@media (min-width: 768px) {
+  .talent-detail-projects {
+    gap: 18px;
+  }
 }
 
 .talent-detail-projects.is-scrollable {

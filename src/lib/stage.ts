@@ -1,6 +1,9 @@
 /** Desktop top padding above the shared BrandHeader (Tailwind `pt-4` = 16px). */
 export const STAGE_LOGO_TOP_PADDING = 16;
 
+/** Desktop gap between display wordmark and slash category nav (Tailwind `mt-8`). */
+export const STAGE_LOGO_NAV_GAP_CLASS = "mt-8";
+
 /** BottomChrome padding below the nav text (was Tailwind `pb-7`). */
 export const STAGE_NAV_PADDING = 28;
 /** Approx height of inline BottomChrome type (`text-[13px]` + underline). */

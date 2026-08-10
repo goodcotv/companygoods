@@ -162,21 +162,11 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
               onTouchStart={() => setActiveProjectId(project._id)}
               onFocus={() => setActiveProjectId(project._id)}
             >
-              <span
-                className={`block font-heading font-extrabold leading-none tracking-[-0.02em] ${
-                  isMobile
-                    ? "text-[clamp(1.45rem,6.5vw,1.9rem)]"
-                    : "text-[21pt]"
-                }`}
-              >
+              <span className="block font-heading text-[15pt] leading-[1.05] md:text-[19pt]">
                 {primary}
               </span>
               {secondary ? (
-                <span
-                  className={`mt-1.5 block font-sans tracking-[0.14em] uppercase ${
-                    isMobile ? "text-[12px]" : "text-[11px]"
-                  }`}
-                >
+                <span className="mt-0.5 block font-display text-[11pt] font-medium uppercase leading-none md:text-[13pt]">
                   {secondary}
                 </span>
               ) : null}

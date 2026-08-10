@@ -1,7 +1,7 @@
 import { BrandHeader } from "./BrandHeader";
 
 type MobileBrandBarProps = {
-  /** When set, logo acts as a button (e.g. menu → home). Otherwise links to `/`. */
+  /** When set, logo acts as a button (e.g. menu → home). Else uses AppShell goHome or `/`. */
   onClick?: () => void;
   /** Pass `false` when another brand mark is already on screen (menu overlay). */
   layoutId?: string | false;

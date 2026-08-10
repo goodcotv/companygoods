@@ -12,6 +12,7 @@ import {
   type Project,
 } from "@/data/projects";
 import {
+  STAGE_LOGO_NAV_GAP_CLASS,
   STAGE_LOGO_TOP_PADDING,
   STAGE_NAV_CLEARANCE,
 } from "@/lib/stage";
@@ -211,7 +212,7 @@ export function ListView({ projects }: ListViewProps) {
   const categoryNav = (
     <nav
       className={`flex flex-wrap items-center gap-x-1 gap-y-2 tracking-[0.1em] uppercase ${
-        isMobile ? "mt-4 text-[13px]" : "mt-8 text-[12px]"
+        isMobile ? "mt-4 text-[13px]" : `${STAGE_LOGO_NAV_GAP_CLASS} text-[12px]`
       }`}
       aria-label="Work categories"
     >
@@ -246,8 +247,8 @@ export function ListView({ projects }: ListViewProps) {
         "min-h-0 flex-1 overscroll-contain",
         canScroll ? "overflow-y-auto" : "overflow-y-hidden",
         isMobile
-          ? "space-y-5 px-5 py-5 text-left"
-          : "space-y-3.5 py-5 pl-4 pr-4",
+          ? "flex flex-col gap-[14px] px-5 py-5 text-left"
+          : "flex flex-col gap-[14px] py-5 pl-4 pr-4 md:gap-[18px]",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -279,21 +280,11 @@ export function ListView({ projects }: ListViewProps) {
                   : "text-white/35 hover:text-foreground"
               }`}
             >
-              <span
-                className={`block font-heading font-extrabold leading-none tracking-[-0.02em] ${
-                  isMobile
-                    ? "text-[clamp(1.45rem,6.5vw,1.9rem)]"
-                    : "text-[21pt]"
-                }`}
-              >
+              <span className="block font-heading text-[15pt] leading-[1.05] md:text-[19pt]">
                 {primary}
               </span>
               {secondary ? (
-                <span
-                  className={`mt-1.5 block font-sans tracking-[0.14em] uppercase ${
-                    isMobile ? "text-[12px]" : "text-[11px]"
-                  }`}
-                >
+                <span className="mt-0.5 block font-display text-[11pt] font-medium uppercase leading-none md:text-[13pt]">
                   {secondary}
                 </span>
               ) : null}

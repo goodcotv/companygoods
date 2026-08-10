@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import { BottomChrome } from "./BottomChrome";
+import { GoHomeProvider } from "./GoHomeContext";
 import { HomePage } from "./HomePage";
 import TalentRoster from "./talent/TalentRoster";
 import { InfoShell } from "./info/InfoShell";
@@ -190,7 +191,7 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
   }
 
   return (
-    <>
+    <GoHomeProvider value={handleGoHome}>
       {shell}
 
       <MobileMenu
@@ -201,6 +202,6 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
         activeSection={section}
         mediaUrl={introVideoUrl}
       />
-    </>
+    </GoHomeProvider>
   );
 }
