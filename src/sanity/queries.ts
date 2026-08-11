@@ -12,6 +12,18 @@ export const homepageQuery = `{
       introVideo.asset->url,
       introVideoUrl
     ),
+    aboutParagraphs,
+    contactEmail,
+    offices[] {
+      label,
+      address,
+      phone
+    },
+    management[] {
+      name,
+      title,
+      email
+    },
     featuredProjects[]-> {
       _id,
       title,

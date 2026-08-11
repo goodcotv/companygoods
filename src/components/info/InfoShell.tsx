@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { STAGE_LOGO_TOP_PADDING } from "@/lib/stage";
+import type { PostSiteSettings } from "@/sanity/types";
 import { BrandHeader } from "./BrandHeader";
 import { MobileBrandBar } from "@/components/MobileBrandBar";
 import { InfoCredits } from "./InfoCredits";
@@ -18,28 +19,24 @@ const INFO_SUBNAV = [
 
 type InfoSubRoute = (typeof INFO_SUBNAV)[number]["id"];
 
-const MANAGEMENT = [
-  {
-    name: "Ralph Miccio",
-    title: "Head of Post Production",
-    email: "ralph@goodco.tv",
-  },
-  {
-    name: "Matt Lowe",
-    title: "Director of Experiential & Technology",
-    email: "matt@goodco.tv",
-  },
-  {
-    name: "Ryan Heiferman",
-    title: "Co-Founder / Managing Partner",
-    email: "ryan@goodco.tv",
-  },
-];
-
 function parseSubRoute(value: string | null): InfoSubRoute {
   if (value === "contact") return "contact";
   if (value === "management") return "management";
   return "about";
+}
+
+/** Formats post@goodco.tv → Post @goodco.tv */
+function formatContactEmailDisplay(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!local || !domain) return email;
+  return `${local.charAt(0).toUpperCase()}${local.slice(1)} @${domain}`;
+}
+
+function phoneHref(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) return `tel:${phone}`;
+  if (digits.length === 10) return `tel:+1${digits}`;
+  return `tel:+${digits}`;
 }
 
 function InfoSubNav({
@@ -86,9 +83,11 @@ function InfoSubNav({
 
 function InfoBody({
   activeSubRoute,
+  settings,
   mobile = false,
 }: {
   activeSubRoute: InfoSubRoute;
+  settings?: PostSiteSettings;
   mobile?: boolean;
 }) {
   const aboutSize = mobile
@@ -103,96 +102,113 @@ function InfoBody({
   const metaSize = mobile ? "text-[13px]" : "text-[11px]";
 
   if (activeSubRoute === "about") {
+    const paragraphs = settings?.aboutParagraphs?.filter(Boolean) ?? [];
+    if (paragraphs.length === 0) return null;
+
     return (
-      <p
-        className={`font-heading ${aboutSize} font-extrabold leading-[1.35] tracking-[-0.01em] text-foreground`}
-      >
-        In order to bring to life our clients&apos; ambitious creative visions, we
-        needed post production workflows that did not exist. So, we built them
-        ourselves while developing a talented, tight-knit roster.
-      </p>
-    );
-  }
-
-  if (activeSubRoute === "contact") {
-    return (
-      <div className="flex flex-col gap-8 text-foreground">
-        <section className="space-y-1">
-          <h2
-            className={`font-heading ${headingSize} font-extrabold uppercase tracking-[-0.01em]`}
-          >
-            CONTACT
-          </h2>
-          <a
-            href="mailto:post@goodco.tv"
-            className={`block font-sans ${metaSize} uppercase tracking-[0.06em]`}
-          >
-            Post @goodco.tv
-          </a>
-        </section>
-
-        <section className="space-y-1">
-          <h2
-            className={`font-heading ${headingSize} font-extrabold uppercase tracking-[-0.01em]`}
-          >
-            NEW YORK OFFICE
-          </h2>
+      <div className="flex flex-col gap-6">
+        {paragraphs.map((paragraph) => (
           <p
-            className={`font-sans ${metaSize} uppercase leading-relaxed tracking-[0.06em]`}
+            key={paragraph}
+            className={`font-heading ${aboutSize} font-extrabold leading-[1.35] tracking-[-0.01em] text-foreground`}
           >
-            81 Walker St., 1st Floor / New York, NY 10013
+            {paragraph}
           </p>
-          <a
-            href="tel:+16463899177"
-            className={`block font-sans ${metaSize} uppercase tracking-[0.06em]`}
-          >
-            646.389.9177
-          </a>
-        </section>
-
-        <section className="space-y-1">
-          <h2
-            className={`font-heading ${headingSize} font-extrabold uppercase tracking-[-0.01em]`}
-          >
-            LOS ANGELES OFFICE
-          </h2>
-          <p
-            className={`font-sans ${metaSize} uppercase leading-relaxed tracking-[0.06em]`}
-          >
-            2825 Glendale Blvd / Los Angeles, CA 90039
-          </p>
-        </section>
+        ))}
       </div>
     );
   }
 
+  if (activeSubRoute === "contact") {
+    const contactEmail = settings?.contactEmail;
+    const offices = settings?.offices?.filter((o) => o.label) ?? [];
+
+    if (!contactEmail && offices.length === 0) return null;
+
+    return (
+      <div className="flex flex-col gap-8 text-foreground">
+        {contactEmail && (
+          <section className="space-y-1">
+            <h2
+              className={`font-heading ${headingSize} font-extrabold uppercase tracking-[-0.01em]`}
+            >
+              CONTACT
+            </h2>
+            <a
+              href={`mailto:${contactEmail}`}
+              className={`block font-sans ${metaSize} uppercase tracking-[0.06em]`}
+            >
+              {formatContactEmailDisplay(contactEmail)}
+            </a>
+          </section>
+        )}
+
+        {offices.map((office) => (
+          <section key={office.label} className="space-y-1">
+            <h2
+              className={`font-heading ${headingSize} font-extrabold uppercase tracking-[-0.01em]`}
+            >
+              {office.label}
+            </h2>
+            {office.address && (
+              <p
+                className={`font-sans ${metaSize} uppercase leading-relaxed tracking-[0.06em]`}
+              >
+                {office.address}
+              </p>
+            )}
+            {office.phone && (
+              <a
+                href={phoneHref(office.phone)}
+                className={`block font-sans ${metaSize} uppercase tracking-[0.06em]`}
+              >
+                {office.phone}
+              </a>
+            )}
+          </section>
+        ))}
+      </div>
+    );
+  }
+
+  const management = settings?.management?.filter((p) => p.name) ?? [];
+  if (management.length === 0) return null;
+
   return (
     <ul className="flex flex-col gap-10">
-      {MANAGEMENT.map((person) => (
-        <li key={person.email} className="space-y-0.5">
+      {management.map((person) => (
+        <li key={person.email || person.name} className="space-y-0.5">
           <h2
             className={`font-heading ${nameSize} font-extrabold tracking-[-0.01em] text-foreground`}
           >
             {person.name}
           </h2>
-          <p
-            className={`font-sans ${metaSize} uppercase tracking-[0.06em] text-foreground`}
-          >
-            {person.title}
-          </p>
-          <a
-            href={`mailto:${person.email}`}
-            className={`block font-sans ${metaSize} uppercase tracking-[0.06em] text-foreground`}
-          >
-            {person.email}
-          </a>
+          {person.title && (
+            <p
+              className={`font-sans ${metaSize} uppercase tracking-[0.06em] text-foreground`}
+            >
+              {person.title}
+            </p>
+          )}
+          {person.email && (
+            <a
+              href={`mailto:${person.email}`}
+              className={`block font-sans ${metaSize} uppercase tracking-[0.06em] text-foreground`}
+            >
+              {person.email}
+            </a>
+          )}
         </li>
       ))}
     </ul>
   );
 }
 
-export function InfoShell() {
+type InfoShellProps = {
+  settings?: PostSiteSettings;
+};
+
+export function InfoShell({ settings }: InfoShellProps) {
   const searchParams = useSearchParams();
   const isMobile = useMobileBrowseLayout();
   const [activeSubRoute, setActiveSubRoute] = useState<InfoSubRoute>(() =>
@@ -242,7 +258,11 @@ export function InfoShell() {
         <div className="relative mx-2 mt-5 min-h-0 flex-1">
           <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
           <div className="h-full overflow-y-auto px-4 py-5">
-            <InfoBody activeSubRoute={activeSubRoute} mobile />
+            <InfoBody
+              activeSubRoute={activeSubRoute}
+              settings={settings}
+              mobile
+            />
           </div>
         </div>
 
@@ -274,7 +294,7 @@ export function InfoShell() {
 
         <div className="flex h-full items-start gap-16 px-5 py-5">
           <div className="max-w-[30rem]">
-            <InfoBody activeSubRoute={activeSubRoute} />
+            <InfoBody activeSubRoute={activeSubRoute} settings={settings} />
           </div>
 
           <div className="ml-auto shrink-0 pt-1">

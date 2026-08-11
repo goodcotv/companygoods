@@ -147,7 +147,9 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
         <TalentRoster key="talent" workers={talentWorkers} />
       )}
 
-      {section === "info" && <InfoShell key="info" />}
+      {section === "info" && (
+        <InfoShell key="info" settings={homepageData.settings} />
+      )}
     </AnimatePresence>
   );
 
