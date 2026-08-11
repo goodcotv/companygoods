@@ -47,7 +47,7 @@ export function BottomChrome({
   const typeClass = showMenuButton
     ? "text-[15px] tracking-[0.12em]"
     : position === "inline"
-      ? "text-[13px] tracking-[0.12em]"
+      ? "text-[11px] tracking-[0.12em]"
       : "text-[12px] tracking-[0.14em]";
 
   function navClass(section: Section) {
@@ -75,7 +75,7 @@ export function BottomChrome({
     <div className={`${shell} ${className}`}>
       {showViewToggle && (
         <div
-          className={`bottom-chrome-scrim pointer-events-auto flex items-center gap-1.5 uppercase ${typeClass}`}
+          className={`pointer-events-auto flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-1.5 uppercase ${typeClass}`}
         >
           <button
             type="button"
@@ -103,14 +103,14 @@ export function BottomChrome({
         <button
           type="button"
           onClick={onMenuOpen}
-          className={`bottom-chrome-scrim pointer-events-auto uppercase ${typeClass} text-foreground transition-opacity hover:opacity-70`}
+          className={`pointer-events-auto rounded-md bg-white/10 px-3 py-1.5 uppercase ${typeClass} text-foreground transition-opacity hover:opacity-70`}
           aria-haspopup="dialog"
         >
           MENU
         </button>
       ) : (
         <nav
-          className={`bottom-chrome-scrim pointer-events-auto flex items-center gap-1.5 uppercase ${typeClass}`}
+          className={`pointer-events-auto flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-1.5 uppercase ${typeClass}`}
           aria-label="Primary"
         >
           {onNavigate ? (

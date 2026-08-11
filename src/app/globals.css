@@ -135,59 +135,36 @@ body {
 .talent-media-scrim {
   position: absolute;
   /*
-   * Soft left veil — no solid-black plateau. Fixed width so the fade doesn't
+   * Soft side veils — mirrored left + right. Fixed width so the fade doesn't
    * rescale with the viewport; oklab keeps mid-stops from banding.
    */
   top: -2px;
+  right: -2px;
   bottom: -6px;
   left: -2px;
-  width: min(22rem, 100%);
   z-index: 1;
-  background: linear-gradient(
-    to right in oklab,
-    #000 0%,
-    #000 12%,
-    rgb(0 0 0 / 0.82) 42%,
-    rgb(0 0 0 / 0.38) 74%,
-    transparent 100%
-  );
+  background:
+    linear-gradient(
+      to right in oklab,
+      #000 0%,
+      #000 8%,
+      rgb(0 0 0 / 0.82) 36%,
+      rgb(0 0 0 / 0.38) 68%,
+      transparent 100%
+    )
+      left center / min(17rem, 42%) 100% no-repeat,
+    linear-gradient(
+      to left in oklab,
+      #000 0%,
+      #000 8%,
+      rgb(0 0 0 / 0.82) 36%,
+      rgb(0 0 0 / 0.38) 68%,
+      transparent 100%
+    )
+      right center / min(17rem, 42%) 100% no-repeat;
   pointer-events: none;
 }
 
-/* Soft black halo behind bottom nav so type stays readable over light video */
-.bottom-chrome-scrim {
-  position: relative;
-  isolation: isolate;
-}
-.bottom-chrome-scrim::before {
-  content: "";
-  position: absolute;
-  inset: -0.55rem -1.5rem;
-  z-index: -1;
-  /* Soft rectangle: solid center, fade only at the edges */
-  background: linear-gradient(
-    to right in oklab,
-    transparent 0%,
-    rgb(0 0 0 / 0.5) 10%,
-    rgb(0 0 0 / 0.5) 90%,
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to bottom in oklab,
-    transparent 0%,
-    #000 22%,
-    #000 78%,
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to bottom in oklab,
-    transparent 0%,
-    #000 22%,
-    #000 78%,
-    transparent 100%
-  );
-  pointer-events: none;
-}
 
 .talent-body {
   position: relative;

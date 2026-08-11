@@ -4,7 +4,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
-import { CornerBrackets } from "@/components/CornerBrackets";
 import { ControlledVideo } from "@/components/project/ControlledVideo";
 import { isListOverflowing } from "@/lib/cursor-hover";
 import type {
@@ -48,8 +47,8 @@ function getDisciplines(project: Project): Discipline[] {
 }
 
 /**
- * Bottom captions rest just above the section frame's lower brackets, which
- * top out 45px above the frame edge (5rem, 4rem at md).
+ * Bottom captions rest just above the fixed frame's lower brackets, which
+ * top out ~5rem above the viewport edge (4rem at md).
  */
 function getCaptionPositionClasses(position = "bottom-left") {
   const bottom = "bottom-[6.2rem] md:bottom-[5.2rem]";
@@ -72,24 +71,18 @@ function captionToText(caption?: PortableTextBlock[]): string {
 }
 
 /**
- * Viewfinder frame anchored to a single section, so it scrolls with that
- * section instead of floating over the whole page. Top clears the Back button,
- * bottom clears the video scrubber.
- *
- * Hero uses shared `page-corners` so brackets morph in from list/scroll/talent.
- * Later sections stay static — only one layoutId owner at a time.
+ * Fixed viewfinder frame that floats over scrolling project content.
+ * Top clears the Back button; bottom clears the video scrubber.
+ * Shared `page-corners` so brackets morph in from list/scroll/talent.
  */
-function SectionFrame({ shared = false }: { shared?: boolean }) {
+function ProjectFrame() {
   return (
     <div
-      className="pointer-events-none absolute inset-x-4 bottom-20 top-11 z-10 md:inset-x-8 md:bottom-16 md:top-16"
+      data-project-player-chrome
+      className="pointer-events-none fixed inset-x-4 bottom-20 top-11 z-10 md:inset-x-8 md:bottom-16 md:top-16"
       aria-hidden
     >
-      {shared ? (
-        <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
-      ) : (
-        <CornerBrackets inset={0} />
-      )}
+      <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
     </div>
   );
 }
@@ -203,8 +196,6 @@ function HeroSection({
 
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
 
-      <SectionFrame shared />
-
       {hasCopy && (
         <div
           data-project-player-chrome
@@ -218,11 +209,11 @@ function HeroSection({
                 </h1>
               )}
               {disciplines.length > 0 && (
-                <div className="flex flex-wrap items-start gap-1.5">
+                <div className="flex flex-wrap items-start gap-1">
                   {disciplines.map((discipline) => (
                     <span
                       key={discipline}
-                      className="rounded-md border border-white/10 bg-[#4a4a4a]/65 px-2 py-0.5 font-sans text-[13px] tracking-[0.12em] uppercase text-white/90 backdrop-blur-md md:text-[12px]"
+                      className="rounded border border-white/10 bg-[#4a4a4a]/65 px-1.5 py-px font-sans text-[10px] tracking-[0.1em] uppercase text-white/90 backdrop-blur-md md:text-[9px]"
                     >
                       {discipline}
                     </span>
@@ -310,7 +301,6 @@ function MediaSectionShell({
         data-project-section
       >
         <div className="relative w-full max-w-[1600px]">{children}</div>
-        <SectionFrame />
         {caption && (
           <MediaCaption caption={caption} position={section.captionPosition} />
         )}
@@ -330,7 +320,6 @@ function MediaSectionShell({
           <MediaCaption caption={caption} position={section.captionPosition} />
         )}
       </div>
-      <SectionFrame />
     </section>
   );
 }
@@ -454,6 +443,8 @@ export function ProjectPlayer({ project }: ProjectPlayerProps) {
 
   return (
     <div className="relative min-h-dvh w-full overflow-x-hidden bg-black">
+      <ProjectFrame />
+
       <button
         type="button"
         data-project-player-chrome

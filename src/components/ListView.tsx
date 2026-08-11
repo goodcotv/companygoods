@@ -41,10 +41,11 @@ export function ListView({ projects }: ListViewProps) {
     beauty: "BEAUTY",
   };
 
-  // Initialize from URL params
+  // Initialize from URL params; default to Commercial when none is set
   const [category, setCategory] = useState<Category | null>(() => {
     const param = searchParams.get("category");
-    return param ? slugToCategory[param] || null : null;
+    if (!param) return "COMMERCIAL";
+    return slugToCategory[param] || "COMMERCIAL";
   });
   const [discipline, setDiscipline] = useState<Discipline | null>(() => {
     const param = searchParams.get("discipline");

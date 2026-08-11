@@ -6,8 +6,8 @@ export const STAGE_LOGO_NAV_GAP_CLASS = "mt-8";
 
 /** BottomChrome padding below the nav text (was Tailwind `pb-7`). */
 export const STAGE_NAV_PADDING = 28;
-/** Approx height of inline BottomChrome type (`text-[13px]` + underline). */
-export const STAGE_NAV_LINE = 18;
+/** Approx height of inline BottomChrome type (`text-[11px]` + underline). */
+export const STAGE_NAV_LINE = 16;
 /**
  * Distance from stage bottom to the top of the nav text.
  * Scroll camera bottom sits on this line.
