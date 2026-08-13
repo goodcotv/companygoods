@@ -610,7 +610,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
         }}
       >
         <div className="shrink-0">
-          <BrandHeader variant="display" widthClass="w-[30rem] max-w-full" />
+          <BrandHeader variant="work" widthClass="w-[30rem] max-w-full" />
           {categoryNav}
         </div>
 

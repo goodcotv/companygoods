@@ -31,7 +31,7 @@ const SIZES = {
     height: 277,
     widthClass: "w-[min(100%,17.5rem)] md:w-[19rem]",
     /** Intrinsic padding in the SVG viewBox (px at source size). */
-    crop: null as null | { left: number; top: number; right: number; bottom: number },
+    crop: { left: 34, top: 41, right: 21, bottom: 55 },
   },
   display: {
     src: "/brand/logo-big.svg",
