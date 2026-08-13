@@ -50,7 +50,7 @@ export const homepageQuery = `{
       }
     }
   },
-  "allProjects": *[_type == "project" && hasPostProduction == true] | order(coalesce(postSortOrder, 999999) asc, _createdAt desc) {
+  "allProjects": *[_type == "project" && hasPostProduction == true && defined(postCategory)] | order(coalesce(postSortOrder, 999999) asc, _createdAt desc) {
     _id,
     title,
     client,

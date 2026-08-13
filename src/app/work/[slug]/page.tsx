@@ -7,7 +7,7 @@ export const revalidate = 3600;
 
 export async function generateStaticParams() {
   const projects = await client.fetch<{ slug: string }[]>(
-    `*[_type == "project" && hasPostProduction == true && defined(slug.current)] {
+    `*[_type == "project" && hasPostProduction == true && defined(postCategory) && defined(slug.current)] {
       "slug": slug.current
     }`,
   );
