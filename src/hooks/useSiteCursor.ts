@@ -1,45 +1,58 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { usePathname } from "next/navigation";
 import { getCursorHoverState } from "@/lib/cursor-hover";
 import { useCoarsePointerDevice } from "@/hooks/useCoarsePointerDevice";
 import { useHideNativeCursor } from "@/hooks/useHideNativeCursor";
 
+function applyCursorTransform(
+  el: HTMLElement | null,
+  x: number,
+  y: number,
+) {
+  if (!el) return;
+  el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+}
+
 /** White/gray dot cursor for standard site pages. */
-export function useSiteCursor() {
+export function useSiteCursor(cursorElRef: RefObject<HTMLDivElement | null>) {
   const isCoarsePointer = useCoarsePointerDevice();
   const pathname = usePathname();
   const [ready, setReady] = useState(false);
-  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const [isHoveringText, setIsHoveringText] = useState(false);
   const [isHoveringScrollableList, setIsHoveringScrollableList] =
     useState(false);
   const [hasMoved, setHasMoved] = useState(false);
 
-  const rafRef = useRef<number | undefined>(undefined);
   const positionRef = useRef({ x: 0, y: 0 });
   const lastHoverCheckRef = useRef(0);
+  const hasMovedRef = useRef(false);
 
   const isStudio = pathname?.startsWith("/studio") ?? false;
   const showCursor = ready && !isCoarsePointer && !isStudio;
+  // Hide the system cursor as soon as we know this device should use the
+  // custom one — don't wait for `ready` / first mouse move, or it flashes.
+  const hideNativeCursor = !isCoarsePointer && !isStudio;
 
   useEffect(() => {
     setReady(true);
   }, []);
 
+  useLayoutEffect(() => {
+    if (!showCursor || !hasMoved) return;
+    const { x, y } = positionRef.current;
+    applyCursorTransform(cursorElRef.current, x, y);
+  }, [showCursor, hasMoved, cursorElRef]);
+
   useEffect(() => {
     if (!showCursor) return;
 
-    const updatePosition = () => {
-      setCursorPos({ ...positionRef.current });
-      rafRef.current = undefined;
-    };
-
     const handleMouseMove = (e: MouseEvent) => {
-      setHasMoved(true);
       positionRef.current = { x: e.clientX, y: e.clientY };
+      applyCursorTransform(cursorElRef.current, e.clientX, e.clientY);
 
-      if (!rafRef.current) {
-        rafRef.current = requestAnimationFrame(updatePosition);
+      if (!hasMovedRef.current) {
+        hasMovedRef.current = true;
+        setHasMoved(true);
       }
 
       const now = Date.now();
@@ -65,16 +78,12 @@ export function useSiteCursor() {
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("pointerover", handlePointerOver, true);
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-      }
     };
-  }, [showCursor]);
+  }, [showCursor, cursorElRef]);
 
-  useHideNativeCursor(showCursor);
+  useHideNativeCursor(hideNativeCursor);
 
   return {
-    cursorPos,
     isHoveringText,
     isHoveringScrollableList,
     showCursor,

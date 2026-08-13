@@ -60,11 +60,17 @@ body {
   color: #fff;
 }
 
-/* Custom cursor: hide native pointer (including on links/buttons) */
+/* Custom cursor: hide native pointer (including on links/buttons).
+   Transparent 1×1 fallback covers Safari/Chrome flashing `cursor: none`
+   when hovering new elements (links, text, form controls). */
 @media (hover: hover) and (pointer: fine) {
   :root[data-custom-cursor],
-  :root[data-custom-cursor] * {
-    cursor: none !important;
+  :root[data-custom-cursor] *,
+  :root[data-custom-cursor] *::before,
+  :root[data-custom-cursor] *::after {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'%3E%3C/svg%3E")
+        0 0,
+      none !important;
   }
 }
 

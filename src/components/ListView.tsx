@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -17,13 +24,19 @@ import {
   STAGE_NAV_CLEARANCE,
 } from "@/lib/stage";
 import { isListOverflowing } from "@/lib/cursor-hover";
+import { markVideoUrlPreloaded } from "@/lib/preload-video";
 import { isVideoMediaUrl, isVimeoUrl } from "@/lib/vimeo";
+import { useCoarsePointerDevice } from "@/hooks/useCoarsePointerDevice";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
+import { useSequentialMediaPreload } from "@/hooks/useSequentialMediaPreload";
 import { BrandHeader } from "./BrandHeader";
 import { AnimatedCornerBrackets } from "./AnimatedCornerBrackets";
 import { MobileBrandBar } from "./MobileBrandBar";
 import { MutedLoopVideo } from "./MutedLoopVideo";
 import { VimeoBackground } from "./VimeoBackground";
+
+const ITEM_MIN_HEIGHT =
+  "min-h-[calc(15pt*1.05+0.125rem+11pt)] md:min-h-[calc(19pt*1.05+0.125rem+13pt)]";
 
 type ListViewProps = {
   projects: Project[];
@@ -32,6 +45,8 @@ type ListViewProps = {
 export function ListView({ projects }: ListViewProps) {
   const searchParams = useSearchParams();
   const isMobile = useMobileBrowseLayout();
+  const isCoarsePointer = useCoarsePointerDevice();
+  const waitForVideos = !isCoarsePointer;
 
   // Map URL slugs back to category names
   const slugToCategory: Record<string, Category> = {
@@ -57,9 +72,18 @@ export function ListView({ projects }: ListViewProps) {
   const [descVisible, setDescVisible] = useState(true);
   const [specialtyExpanded, setSpecialtyExpanded] = useState(false);
   const scrollRef = useRef<HTMLUListElement>(null);
+  const itemRefs = useRef(new Map<string, HTMLLIElement>());
+  const [visibleProjectIds, setVisibleProjectIds] = useState(
+    () => new Set<string>(),
+  );
   const [canScroll, setCanScroll] = useState(false);
   const [showTopIndicator, setShowTopIndicator] = useState(false);
   const [showBottomIndicator, setShowBottomIndicator] = useState(false);
+
+  const setItemRef = useCallback((id: string, node: HTMLLIElement | null) => {
+    if (node) itemRefs.current.set(id, node);
+    else itemRefs.current.delete(id);
+  }, []);
 
   // Update URL when filters change
   useEffect(() => {
@@ -93,10 +117,137 @@ export function ListView({ projects }: ListViewProps) {
 
   const active = filtered.find((p) => p.id === activeId) ?? filtered[0] ?? null;
 
+  const preloadItems = useMemo(
+    () =>
+      filtered.map((project) => ({
+        id: project.id,
+        videoUrl: isVideoMediaUrl(project.image) ? project.image : undefined,
+        startTime: project.videoPreviewStartSeconds ?? 0,
+      })),
+    [filtered],
+  );
+
+  const allProjectIds = useMemo(
+    () => new Set(filtered.map((project) => project.id)),
+    [filtered],
+  );
+
+  const effectiveVisibleIds = useMemo(() => {
+    if (!waitForVideos) return allProjectIds;
+    if (visibleProjectIds.size > 0) return visibleProjectIds;
+    return new Set(filtered.slice(0, 6).map((project) => project.id));
+  }, [waitForVideos, filtered, visibleProjectIds, allProjectIds]);
+
+  const priorityVideoUrl =
+    active?.image && isVideoMediaUrl(active.image) ? active.image : undefined;
+  const previewStart = active?.videoPreviewStartSeconds ?? 0;
+
+  const { readyIds: readyProjectIds } = useSequentialMediaPreload(
+    preloadItems,
+    effectiveVisibleIds,
+    priorityVideoUrl,
+    waitForVideos,
+    previewStart,
+  );
+
+  const syncVisibleItems = useCallback(() => {
+    const root = scrollRef.current;
+    if (!root || !waitForVideos) return;
+
+    const rootRect = root.getBoundingClientRect();
+    const next = new Set<string>();
+
+    itemRefs.current.forEach((element) => {
+      const rect = element.getBoundingClientRect();
+      if (rect.top < rootRect.bottom + 120 && rect.bottom > rootRect.top - 120) {
+        const id = element.getAttribute("data-project-id");
+        if (id) next.add(id);
+      }
+    });
+
+    if (next.size === 0 && filtered.length > 0) {
+      for (const project of filtered.slice(0, 6)) {
+        next.add(project.id);
+      }
+    }
+
+    setVisibleProjectIds((prev) => {
+      // Grow-only within the current filter so reveal/layout shifts can't
+      // shrink visibility, flip visibilityKey, and retrigger the preload pump.
+      const filteredIds = new Set(filtered.map((project) => project.id));
+      const merged = new Set<string>();
+      for (const id of prev) {
+        if (filteredIds.has(id)) merged.add(id);
+      }
+      for (const id of next) merged.add(id);
+
+      if (
+        merged.size === prev.size &&
+        [...merged].every((id) => prev.has(id))
+      ) {
+        return prev;
+      }
+      return merged;
+    });
+  }, [filtered, waitForVideos]);
+
+  useLayoutEffect(() => {
+    if (!waitForVideos || !scrollRef.current) return;
+
+    syncVisibleItems();
+
+    const root = scrollRef.current;
+    const observer = new IntersectionObserver(() => syncVisibleItems(), {
+      root,
+      rootMargin: "120px 0px",
+      threshold: 0,
+    });
+
+    itemRefs.current.forEach((element) => observer.observe(element));
+
+    const resizeObserver = new ResizeObserver(() => syncVisibleItems());
+    resizeObserver.observe(root);
+
+    const frame = requestAnimationFrame(() => syncVisibleItems());
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      resizeObserver.disconnect();
+    };
+  }, [filtered, syncVisibleItems, waitForVideos]);
+
+  useEffect(() => {
+    if (!waitForVideos) return;
+    syncVisibleItems();
+  }, [readyProjectIds, syncVisibleItems, waitForVideos]);
+
+  useEffect(() => {
+    const root = scrollRef.current;
+    if (!root || !waitForVideos) return;
+    root.addEventListener("scroll", syncVisibleItems, { passive: true });
+    return () => root.removeEventListener("scroll", syncVisibleItems);
+  }, [syncVisibleItems, waitForVideos]);
+
   useEffect(() => {
     if (!active) return;
     if (active.id !== activeId) setActiveId(active.id);
   }, [active, activeId]);
+
+  const markActivePreloaded = useCallback(() => {
+    if (priorityVideoUrl) {
+      markVideoUrlPreloaded(priorityVideoUrl, previewStart);
+    }
+  }, [priorityVideoUrl, previewStart]);
+
+  const loadingProjectId =
+    waitForVideos && readyProjectIds
+      ? filtered.find(
+          (project) =>
+            effectiveVisibleIds.has(project.id) &&
+            !readyProjectIds.has(project.id),
+        )?.id
+      : undefined;
 
   function selectDiscipline(d: Discipline) {
     setDiscipline((prev) => (prev === d ? null : d));
@@ -155,7 +306,6 @@ export function ListView({ projects }: ListViewProps) {
   const activeMediaUrl = active?.image;
   const isVideo = isVideoMediaUrl(activeMediaUrl);
   const isVimeo = Boolean(activeMediaUrl && isVimeoUrl(activeMediaUrl));
-  const previewStart = active?.videoPreviewStartSeconds ?? 0;
 
   const backgroundMedia =
     active && activeMediaUrl ? (
@@ -175,6 +325,7 @@ export function ListView({ projects }: ListViewProps) {
               title={active.title}
               startTime={previewStart}
               className="transition-opacity duration-500"
+              onReady={markActivePreloaded}
             />
           ) : isVideo ? (
             <MutedLoopVideo
@@ -188,6 +339,7 @@ export function ListView({ projects }: ListViewProps) {
                 opacity: 1,
               }}
               className="transition-opacity duration-500"
+              onReady={markActivePreloaded}
             />
           ) : (
             <img
@@ -255,6 +407,55 @@ export function ListView({ projects }: ListViewProps) {
         .join(" ")}
     >
       {filtered.map((project) => {
+        const isReady =
+          !waitForVideos ||
+          !readyProjectIds ||
+          readyProjectIds.has(project.id);
+        const isVisible =
+          !waitForVideos || effectiveVisibleIds.has(project.id);
+        const isLoading = project.id === loadingProjectId;
+
+        if (waitForVideos && !isReady && !isVisible) {
+          return (
+            <li
+              key={project.id}
+              ref={(node) => setItemRef(project.id, node)}
+              data-project-id={project.id}
+              className={ITEM_MIN_HEIGHT}
+              aria-hidden
+            />
+          );
+        }
+
+        if (!isReady && isLoading) {
+          return (
+            <li
+              key={project.id}
+              ref={(node) => setItemRef(project.id, node)}
+              data-project-id={project.id}
+              aria-busy="true"
+            >
+              <div
+                className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white"
+                aria-hidden
+              />
+              <span className="sr-only">Loading {project.title}</span>
+            </li>
+          );
+        }
+
+        if (!isReady) {
+          return (
+            <li
+              key={project.id}
+              ref={(node) => setItemRef(project.id, node)}
+              data-project-id={project.id}
+              className={ITEM_MIN_HEIGHT}
+              aria-hidden
+            />
+          );
+        }
+
         const isActive = project.id === active?.id;
         // Mobile mock: client hero + title subtitle (Grindr / CONFESSIONS…)
         const primary = isMobile
@@ -267,7 +468,12 @@ export function ListView({ projects }: ListViewProps) {
           : project.client;
 
         return (
-          <li key={project.id}>
+          <li
+            key={project.id}
+            ref={(node) => setItemRef(project.id, node)}
+            data-project-id={project.id}
+            className="animate-[fade-in_0.25s_ease-out]"
+          >
             <Link
               href={`/work/${project.id}`}
               onMouseEnter={() => {

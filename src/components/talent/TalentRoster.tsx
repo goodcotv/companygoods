@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
@@ -8,18 +15,23 @@ import { BrandHeader } from "@/components/BrandHeader";
 import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
 import { MobileBrandBar } from "@/components/MobileBrandBar";
 import { CATEGORIES, type TalentCategory } from "@/data/talent";
+import { useCoarsePointerDevice } from "@/hooks/useCoarsePointerDevice";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
+import { useSequentialMediaPreload } from "@/hooks/useSequentialMediaPreload";
 import { isListOverflowing } from "@/lib/cursor-hover";
+import { markVideoUrlPreloaded } from "@/lib/preload-video";
 import {
   STAGE_LOGO_NAV_GAP_CLASS,
   STAGE_LOGO_TOP_PADDING,
   STAGE_NAV_CLEARANCE,
 } from "@/lib/stage";
-import { isVimeoUrl } from "@/lib/vimeo";
+import { isVideoMediaUrl, isVimeoUrl } from "@/lib/vimeo";
 import { parseTimeToSeconds } from "@/lib/parse-time";
 import type { PostDiscipline, PostWorker } from "@/sanity/types";
 import { MutedLoopVideo } from "@/components/MutedLoopVideo";
 import { VimeoBackground } from "@/components/VimeoBackground";
+
+const ITEM_MIN_HEIGHT = "min-h-[calc(21pt*1)]";
 
 const categoryToDiscipline: Record<TalentCategory, PostDiscipline> = {
   editors: "edit",
@@ -71,6 +83,8 @@ function workersForCategory(
 export default function TalentRoster({ workers = [] }: TalentRosterProps) {
   const searchParams = useSearchParams();
   const isMobile = useMobileBrowseLayout();
+  const isCoarsePointer = useCoarsePointerDevice();
+  const waitForVideos = !isCoarsePointer;
   const [category, setCategory] = useState<TalentCategory>(() =>
     parseCategory(searchParams.get("role")),
   );
@@ -84,9 +98,16 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
   const [bioVisible, setBioVisible] = useState(true);
   const [titleVisible, setTitleVisible] = useState(true);
   const scrollRef = useRef<HTMLUListElement>(null);
+  const itemRefs = useRef(new Map<string, HTMLLIElement>());
+  const [visibleIds, setVisibleIds] = useState(() => new Set<string>());
   const [canScroll, setCanScroll] = useState(false);
   const [showTopIndicator, setShowTopIndicator] = useState(false);
   const [showBottomIndicator, setShowBottomIndicator] = useState(false);
+
+  const setItemRef = useCallback((id: string, node: HTMLLIElement | null) => {
+    if (node) itemRefs.current.set(id, node);
+    else itemRefs.current.delete(id);
+  }, []);
 
   const widthAnchor = workers.reduce(
     (longest, person) =>
@@ -102,6 +123,137 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
     featured?.videoPreviewStartSeconds ??
     parseTimeToSeconds(featured?.videoPreviewStart) ??
     0;
+
+  const preloadItems = useMemo(
+    () =>
+      roster.map((person) => {
+        const hover = person.featuredByDiscipline?.[discipline];
+        const url = hover?.videoUrl || hover?.imageUrl;
+        return {
+          id: person._id,
+          videoUrl: isVideoMediaUrl(url) ? url : undefined,
+          startTime:
+            hover?.videoPreviewStartSeconds ??
+            parseTimeToSeconds(hover?.videoPreviewStart) ??
+            0,
+        };
+      }),
+    [roster, discipline],
+  );
+
+  const allIds = useMemo(
+    () => new Set(roster.map((person) => person._id)),
+    [roster],
+  );
+
+  const effectiveVisibleIds = useMemo(() => {
+    if (!waitForVideos) return allIds;
+    if (visibleIds.size > 0) return visibleIds;
+    return new Set(roster.slice(0, 6).map((person) => person._id));
+  }, [waitForVideos, roster, visibleIds, allIds]);
+
+  const priorityVideoUrl = isVideoMediaUrl(mediaUrl) ? mediaUrl : undefined;
+
+  const { readyIds } = useSequentialMediaPreload(
+    preloadItems,
+    effectiveVisibleIds,
+    priorityVideoUrl,
+    waitForVideos,
+    previewStart,
+  );
+
+  const syncVisibleItems = useCallback(() => {
+    const root = scrollRef.current;
+    if (!root || !waitForVideos) return;
+
+    const rootRect = root.getBoundingClientRect();
+    const next = new Set<string>();
+
+    itemRefs.current.forEach((element) => {
+      const rect = element.getBoundingClientRect();
+      if (rect.top < rootRect.bottom + 120 && rect.bottom > rootRect.top - 120) {
+        const id = element.getAttribute("data-talent-id");
+        if (id) next.add(id);
+      }
+    });
+
+    if (next.size === 0 && roster.length > 0) {
+      for (const person of roster.slice(0, 6)) {
+        next.add(person._id);
+      }
+    }
+
+    setVisibleIds((prev) => {
+      // Grow-only within the current roster so reveal/layout shifts can't
+      // shrink visibility, flip visibilityKey, and retrigger the preload pump.
+      const rosterIds = new Set(roster.map((person) => person._id));
+      const merged = new Set<string>();
+      for (const id of prev) {
+        if (rosterIds.has(id)) merged.add(id);
+      }
+      for (const id of next) merged.add(id);
+
+      if (
+        merged.size === prev.size &&
+        [...merged].every((id) => prev.has(id))
+      ) {
+        return prev;
+      }
+      return merged;
+    });
+  }, [roster, waitForVideos]);
+
+  useLayoutEffect(() => {
+    if (!waitForVideos || !scrollRef.current) return;
+
+    syncVisibleItems();
+
+    const root = scrollRef.current;
+    const observer = new IntersectionObserver(() => syncVisibleItems(), {
+      root,
+      rootMargin: "120px 0px",
+      threshold: 0,
+    });
+
+    itemRefs.current.forEach((element) => observer.observe(element));
+
+    const resizeObserver = new ResizeObserver(() => syncVisibleItems());
+    resizeObserver.observe(root);
+
+    const frame = requestAnimationFrame(() => syncVisibleItems());
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      resizeObserver.disconnect();
+    };
+  }, [roster, syncVisibleItems, waitForVideos]);
+
+  useEffect(() => {
+    if (!waitForVideos) return;
+    syncVisibleItems();
+  }, [readyIds, syncVisibleItems, waitForVideos]);
+
+  useEffect(() => {
+    const root = scrollRef.current;
+    if (!root || !waitForVideos) return;
+    root.addEventListener("scroll", syncVisibleItems, { passive: true });
+    return () => root.removeEventListener("scroll", syncVisibleItems);
+  }, [syncVisibleItems, waitForVideos]);
+
+  const markActivePreloaded = useCallback(() => {
+    if (priorityVideoUrl) {
+      markVideoUrlPreloaded(priorityVideoUrl, previewStart);
+    }
+  }, [priorityVideoUrl, previewStart]);
+
+  const loadingId =
+    waitForVideos && readyIds
+      ? roster.find(
+          (person) =>
+            effectiveVisibleIds.has(person._id) && !readyIds.has(person._id),
+        )?._id
+      : undefined;
 
   useEffect(() => {
     const html = document.documentElement;
@@ -218,12 +370,14 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
               src={mediaUrl}
               title={featured?.title ?? selected.name}
               startTime={previewStart}
+              onReady={markActivePreloaded}
             />
           ) : isVideo ? (
             <MutedLoopVideo
               key={`${selected._id}-${discipline}`}
               src={mediaUrl}
               startTime={previewStart}
+              onReady={markActivePreloaded}
             />
           ) : (
             <img
@@ -282,9 +436,61 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
         .join(" ")}
     >
       {roster.map((person) => {
+        const isReady =
+          !waitForVideos || !readyIds || readyIds.has(person._id);
+        const isVisible =
+          !waitForVideos || effectiveVisibleIds.has(person._id);
+        const isLoading = person._id === loadingId;
+
+        if (waitForVideos && !isReady && !isVisible) {
+          return (
+            <li
+              key={person._id}
+              ref={(node) => setItemRef(person._id, node)}
+              data-talent-id={person._id}
+              className={ITEM_MIN_HEIGHT}
+              aria-hidden
+            />
+          );
+        }
+
+        if (!isReady && isLoading) {
+          return (
+            <li
+              key={person._id}
+              ref={(node) => setItemRef(person._id, node)}
+              data-talent-id={person._id}
+              aria-busy="true"
+            >
+              <div
+                className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white"
+                aria-hidden
+              />
+              <span className="sr-only">Loading {person.name}</span>
+            </li>
+          );
+        }
+
+        if (!isReady) {
+          return (
+            <li
+              key={person._id}
+              ref={(node) => setItemRef(person._id, node)}
+              data-talent-id={person._id}
+              className={ITEM_MIN_HEIGHT}
+              aria-hidden
+            />
+          );
+        }
+
         const isActive = person._id === selected?._id;
         return (
-          <li key={person._id}>
+          <li
+            key={person._id}
+            ref={(node) => setItemRef(person._id, node)}
+            data-talent-id={person._id}
+            className="animate-[fade-in_0.25s_ease-out]"
+          >
             <Link
               href={`/talent/${person.slug}?role=${category}`}
               className={

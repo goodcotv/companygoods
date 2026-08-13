@@ -86,11 +86,11 @@ export function MutedLoopVideo({
       lastTime = current;
     };
 
-    const readyEvent = startTime > 0 ? "loadeddata" : "loadedmetadata";
+    const readyEvent = startTime > 0 ? "canplay" : "canplaythrough";
     const requiredState =
       startTime > 0
-        ? HTMLMediaElement.HAVE_CURRENT_DATA
-        : HTMLMediaElement.HAVE_METADATA;
+        ? HTMLMediaElement.HAVE_FUTURE_DATA
+        : HTMLMediaElement.HAVE_ENOUGH_DATA;
 
     if (video.readyState >= requiredState) {
       void start();
@@ -112,7 +112,7 @@ export function MutedLoopVideo({
       loop={startTime <= 0}
       muted
       playsInline
-      preload={startTime > 0 ? "auto" : "metadata"}
+      preload="auto"
       aria-label={ariaLabel}
       className={className}
       style={style}

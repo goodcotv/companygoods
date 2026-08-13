@@ -1,6 +1,13 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,14 +15,20 @@ import { BrandHeader } from "@/components/BrandHeader";
 import { BottomChrome } from "@/components/BottomChrome";
 import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
 import { MobileBrandBar } from "@/components/MobileBrandBar";
+import { useCoarsePointerDevice } from "@/hooks/useCoarsePointerDevice";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
+import { useSequentialMediaPreload } from "@/hooks/useSequentialMediaPreload";
 import { isListOverflowing } from "@/lib/cursor-hover";
+import { markVideoUrlPreloaded } from "@/lib/preload-video";
 import { STAGE_LOGO_TOP_PADDING, STAGE_NAV_CLEARANCE } from "@/lib/stage";
-import { isVimeoUrl } from "@/lib/vimeo";
+import { isVideoMediaUrl, isVimeoUrl } from "@/lib/vimeo";
 import { parseTimeToSeconds } from "@/lib/parse-time";
 import type { Project, TalentDetailData } from "@/sanity/types";
 import { MutedLoopVideo } from "@/components/MutedLoopVideo";
 import { VimeoBackground } from "@/components/VimeoBackground";
+
+const ITEM_MIN_HEIGHT =
+  "min-h-[calc(15pt*1.05+0.125rem+11pt)] md:min-h-[calc(19pt*1.05+0.125rem+13pt)]";
 
 type TalentDetailProps = {
   talent: TalentDetailData;
@@ -25,13 +38,24 @@ type TalentDetailProps = {
 export function TalentDetail({ talent, projects }: TalentDetailProps) {
   const router = useRouter();
   const isMobile = useMobileBrowseLayout();
+  const isCoarsePointer = useCoarsePointerDevice();
+  const waitForVideos = !isCoarsePointer;
   const [activeProjectId, setActiveProjectId] = useState<string | null>(
     projects[0]?._id ?? null,
   );
   const scrollRef = useRef<HTMLUListElement>(null);
+  const itemRefs = useRef(new Map<string, HTMLLIElement>());
+  const [visibleProjectIds, setVisibleProjectIds] = useState(
+    () => new Set<string>(),
+  );
   const [canScroll, setCanScroll] = useState(false);
   const [showTopIndicator, setShowTopIndicator] = useState(false);
   const [showBottomIndicator, setShowBottomIndicator] = useState(false);
+
+  const setItemRef = useCallback((id: string, node: HTMLLIElement | null) => {
+    if (node) itemRefs.current.set(id, node);
+    else itemRefs.current.delete(id);
+  }, []);
 
   const activeProject =
     projects.find((project) => project._id === activeProjectId) ?? projects[0];
@@ -41,6 +65,136 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
     activeProject?.videoPreviewStartSeconds ??
     parseTimeToSeconds(activeProject?.videoPreviewStart) ??
     0;
+
+  const preloadItems = useMemo(
+    () =>
+      projects.map((project) => ({
+        id: project._id,
+        videoUrl: isVideoMediaUrl(project.videoUrl)
+          ? project.videoUrl
+          : undefined,
+        startTime:
+          project.videoPreviewStartSeconds ??
+          parseTimeToSeconds(project.videoPreviewStart) ??
+          0,
+      })),
+    [projects],
+  );
+
+  const allProjectIds = useMemo(
+    () => new Set(projects.map((project) => project._id)),
+    [projects],
+  );
+
+  const effectiveVisibleIds = useMemo(() => {
+    if (!waitForVideos) return allProjectIds;
+    if (visibleProjectIds.size > 0) return visibleProjectIds;
+    return new Set(projects.slice(0, 6).map((project) => project._id));
+  }, [waitForVideos, projects, visibleProjectIds, allProjectIds]);
+
+  const priorityVideoUrl = isVideoMediaUrl(mediaVideoUrl)
+    ? mediaVideoUrl
+    : undefined;
+
+  const { readyIds: readyProjectIds } = useSequentialMediaPreload(
+    preloadItems,
+    effectiveVisibleIds,
+    priorityVideoUrl,
+    waitForVideos,
+    previewStart,
+  );
+
+  const syncVisibleItems = useCallback(() => {
+    const root = scrollRef.current;
+    if (!root || !waitForVideos) return;
+
+    const rootRect = root.getBoundingClientRect();
+    const next = new Set<string>();
+
+    itemRefs.current.forEach((element) => {
+      const rect = element.getBoundingClientRect();
+      if (rect.top < rootRect.bottom + 120 && rect.bottom > rootRect.top - 120) {
+        const id = element.getAttribute("data-project-id");
+        if (id) next.add(id);
+      }
+    });
+
+    if (next.size === 0 && projects.length > 0) {
+      for (const project of projects.slice(0, 6)) {
+        next.add(project._id);
+      }
+    }
+
+    setVisibleProjectIds((prev) => {
+      const projectIds = new Set(projects.map((project) => project._id));
+      const merged = new Set<string>();
+      for (const id of prev) {
+        if (projectIds.has(id)) merged.add(id);
+      }
+      for (const id of next) merged.add(id);
+
+      if (
+        merged.size === prev.size &&
+        [...merged].every((id) => prev.has(id))
+      ) {
+        return prev;
+      }
+      return merged;
+    });
+  }, [projects, waitForVideos]);
+
+  useLayoutEffect(() => {
+    if (!waitForVideos || !scrollRef.current) return;
+
+    syncVisibleItems();
+
+    const root = scrollRef.current;
+    const observer = new IntersectionObserver(() => syncVisibleItems(), {
+      root,
+      rootMargin: "120px 0px",
+      threshold: 0,
+    });
+
+    itemRefs.current.forEach((element) => observer.observe(element));
+
+    const resizeObserver = new ResizeObserver(() => syncVisibleItems());
+    resizeObserver.observe(root);
+
+    const frame = requestAnimationFrame(() => syncVisibleItems());
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      resizeObserver.disconnect();
+    };
+  }, [projects, syncVisibleItems, waitForVideos]);
+
+  useEffect(() => {
+    if (!waitForVideos) return;
+    syncVisibleItems();
+  }, [readyProjectIds, syncVisibleItems, waitForVideos]);
+
+  useEffect(() => {
+    const root = scrollRef.current;
+    if (!root || !waitForVideos) return;
+    root.addEventListener("scroll", syncVisibleItems, { passive: true });
+    return () => root.removeEventListener("scroll", syncVisibleItems);
+  }, [syncVisibleItems, waitForVideos]);
+
+  const markActivePreloaded = useCallback(() => {
+    if (priorityVideoUrl) {
+      markVideoUrlPreloaded(priorityVideoUrl, previewStart);
+    }
+  }, [priorityVideoUrl, previewStart]);
+
+  const loadingProjectId =
+    waitForVideos && readyProjectIds
+      ? projects.find(
+          (project) =>
+            effectiveVisibleIds.has(project._id) &&
+            !readyProjectIds.has(project._id),
+        )?._id
+      : undefined;
 
   useLayoutEffect(() => {
     const scrollEl = scrollRef.current;
@@ -95,12 +249,14 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
                 : `${talent.name} project video`
             }
             startTime={previewStart}
+            onReady={markActivePreloaded}
           />
         ) : mediaVideoUrl ? (
           <MutedLoopVideo
             key={activeProject?._id}
             src={mediaVideoUrl}
             startTime={previewStart}
+            onReady={markActivePreloaded}
             aria-label={
               activeProject
                 ? `${activeProject.title} video`
@@ -137,6 +293,55 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
         .join(" ")}
     >
       {projects.map((project) => {
+        const isReady =
+          !waitForVideos ||
+          !readyProjectIds ||
+          readyProjectIds.has(project._id);
+        const isVisible =
+          !waitForVideos || effectiveVisibleIds.has(project._id);
+        const isLoading = project._id === loadingProjectId;
+
+        if (waitForVideos && !isReady && !isVisible) {
+          return (
+            <li
+              key={project._id}
+              ref={(node) => setItemRef(project._id, node)}
+              data-project-id={project._id}
+              className={ITEM_MIN_HEIGHT}
+              aria-hidden
+            />
+          );
+        }
+
+        if (!isReady && isLoading) {
+          return (
+            <li
+              key={project._id}
+              ref={(node) => setItemRef(project._id, node)}
+              data-project-id={project._id}
+              aria-busy="true"
+            >
+              <div
+                className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white"
+                aria-hidden
+              />
+              <span className="sr-only">Loading {project.title}</span>
+            </li>
+          );
+        }
+
+        if (!isReady) {
+          return (
+            <li
+              key={project._id}
+              ref={(node) => setItemRef(project._id, node)}
+              data-project-id={project._id}
+              className={ITEM_MIN_HEIGHT}
+              aria-hidden
+            />
+          );
+        }
+
         const isActive = project._id === activeProject?._id;
         const primary = isMobile
           ? project.client || project.title
@@ -148,7 +353,12 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
           : project.client;
 
         return (
-          <li key={project._id}>
+          <li
+            key={project._id}
+            ref={(node) => setItemRef(project._id, node)}
+            data-project-id={project._id}
+            className="animate-[fade-in_0.25s_ease-out]"
+          >
             <Link
               href={`/work/${project.slug}`}
               className={`group block w-fit max-w-full text-left transition-colors ${
