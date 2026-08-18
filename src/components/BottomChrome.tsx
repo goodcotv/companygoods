@@ -34,9 +34,7 @@ export function BottomChrome({
   className = "",
 }: BottomChromeProps) {
   const muted = variant === "over-image" ? "text-white/55" : "text-muted";
-  const viewActive =
-    "text-foreground underline decoration-foreground underline-offset-[5px]";
-  const navActive = "text-foreground";
+  const active = "text-foreground";
   
   // Derive active section from activeHref if not explicitly provided
   const currentSection: Section = activeSection ?? 
@@ -52,11 +50,11 @@ export function BottomChrome({
       : "text-[12px] tracking-[0.14em]";
 
   function navClass(section: Section) {
-    return `${currentSection === section ? navActive : muted} transition-colors hover:text-foreground`;
+    return `${currentSection === section ? active : muted} transition-colors hover:text-foreground`;
   }
 
   function viewClass(mode: ViewMode) {
-    return `transition-colors hover:text-foreground ${view === mode ? viewActive : muted}`;
+    return `transition-colors hover:text-foreground ${view === mode ? active : muted}`;
   }
 
   const shell =
