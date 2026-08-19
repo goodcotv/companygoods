@@ -490,7 +490,7 @@ export function ListView({ projects }: ListViewProps) {
   if (isMobile) {
     return (
       <motion.div
-        className="absolute inset-0 overflow-hidden bg-background text-foreground"
+        className="absolute inset-0 overflow-hidden bg-transparent text-foreground"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -551,7 +551,7 @@ export function ListView({ projects }: ListViewProps) {
 
   return (
     <motion.div
-      className="absolute inset-0 overflow-hidden bg-background text-foreground"
+      className="absolute inset-0 overflow-hidden bg-transparent text-foreground"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

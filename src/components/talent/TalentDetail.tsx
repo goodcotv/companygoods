@@ -379,7 +379,7 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
 
   if (isMobile) {
     return (
-      <div className="fixed inset-0 overflow-hidden bg-background text-foreground">
+      <div className="fixed inset-0 overflow-hidden bg-transparent text-foreground">
         {backgroundMedia}
 
         <div className="relative z-10 flex h-full min-h-0 flex-col pb-[calc(3.25rem+env(safe-area-inset-bottom,0px))]">
@@ -467,7 +467,7 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
   }
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden bg-background text-foreground">
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-transparent text-foreground">
       {backgroundMedia}
 
       <div

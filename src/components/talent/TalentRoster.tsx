@@ -507,7 +507,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
   if (isMobile) {
     return (
       <motion.div
-        className="absolute inset-0 flex flex-col overflow-hidden bg-background text-foreground"
+        className="absolute inset-0 flex flex-col overflow-hidden bg-transparent text-foreground"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -583,7 +583,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
 
   return (
     <motion.div
-      className="absolute inset-0 flex flex-col bg-background text-foreground"
+      className="absolute inset-0 flex flex-col bg-transparent text-foreground"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

@@ -39,8 +39,15 @@ export default function RootLayout({
   return (
     <html lang="en" className={`h-full antialiased ${mintGrotesk.variable} ${neueHaas.variable} ${tekioGrotesk.variable}`}>
       <body className="min-h-full bg-background text-foreground">
-        <SiteCursor />
-        <SharedLayout>{children}</SharedLayout>
+        <div
+          id="warm-video-layer"
+          className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-black"
+          aria-hidden
+        />
+        <div className="relative z-[1] min-h-full">
+          <SiteCursor />
+          <SharedLayout>{children}</SharedLayout>
+        </div>
       </body>
     </html>
   );

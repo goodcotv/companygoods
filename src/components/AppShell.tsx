@@ -170,7 +170,7 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
   let shell: ReactNode;
   if (isMobile) {
     shell = (
-      <div className="fixed inset-0 z-0 bg-background text-foreground">
+      <div className="fixed inset-0 z-0 bg-transparent text-foreground">
         {/* Full-bleed stage — chrome floats over so media reaches the bottom */}
         <div className="absolute inset-0 z-0 overflow-hidden">{sections}</div>
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
@@ -180,7 +180,7 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
     );
   } else {
     shell = (
-      <div className="fixed inset-0 z-0 overflow-hidden bg-background text-foreground">
+      <div className="fixed inset-0 z-0 overflow-hidden bg-transparent text-foreground">
         <div className="absolute inset-0 z-0 overflow-hidden">{sections}</div>
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex items-end justify-end px-8"

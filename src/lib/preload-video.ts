@@ -5,8 +5,14 @@ const SEEK_TIMEOUT_MS = 4000;
 const MAX_WARM_VIDEOS = 16;
 const VIMEO_ORIGIN = "https://player.vimeo.com";
 
+export const WARM_VIDEO_LAYER_ID = "warm-video-layer";
+
 export function warmClipKey(url: string, startTime = 0) {
   return `${url}@@${startTime}`;
+}
+
+function warmVideoLayer(): HTMLElement {
+  return document.getElementById(WARM_VIDEO_LAYER_ID) ?? document.body;
 }
 
 function mediaSrcWithStart(src: string, startSeconds: number): string {
@@ -173,9 +179,9 @@ async function prepareWarmMp4(url: string, startTime: number): Promise<void> {
 }
 
 /**
- * Full-viewport, opacity 0. Zero-size iframes never actually buffer; moving
- * them later reloads the player. Hover only toggles opacity and play/pause.
- * z-index 0 sits above the page fill and under list chrome (z-10).
+ * Full-viewport, opacity 0, parented to #warm-video-layer (z-0).
+ * The React app sits at z-1 so chrome always paints above this frame.
+ * Zero-size iframes never actually buffer; hover only toggles opacity and play.
  */
 function styleWarmVimeo(
   iframe: HTMLIFrameElement,
@@ -184,9 +190,9 @@ function styleWarmVimeo(
 ) {
   const opacity = visible ? "1" : "0";
   if (fit === "cover") {
-    iframe.style.cssText = `position:fixed;left:50%;top:50%;height:56.25vw;min-height:100%;width:177.78vh;min-width:100%;transform:translate(-50%,-50%);opacity:${opacity};pointer-events:none;border:0;z-index:0;background:#000`;
+    iframe.style.cssText = `position:absolute;left:50%;top:50%;height:56.25vw;min-height:100%;width:177.78vh;min-width:100%;transform:translate(-50%,-50%);opacity:${opacity};pointer-events:none;border:0;background:#000`;
   } else {
-    iframe.style.cssText = `position:fixed;inset:0;width:100%;height:100%;opacity:${opacity};pointer-events:none;border:0;z-index:0;background:#000`;
+    iframe.style.cssText = `position:absolute;inset:0;width:100%;height:100%;opacity:${opacity};pointer-events:none;border:0;background:#000`;
   }
 }
 
@@ -220,7 +226,7 @@ function ensureWarmVimeo(url: string, startTime = 0): HTMLIFrameElement {
   iframe.title = "";
   iframe.src = warmVimeoSrc(url, startTime) ?? url;
   styleWarmVimeo(iframe, "cover", false);
-  document.body.appendChild(iframe);
+  warmVideoLayer().appendChild(iframe);
 
   warmVimeos.set(key, iframe);
   touchWarm(key);
