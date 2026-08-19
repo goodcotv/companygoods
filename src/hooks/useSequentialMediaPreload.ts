@@ -69,10 +69,19 @@ export function useSequentialMediaPreload(
     }
 
     // Keep already-revealed titles when the filtered set changes so overlapping
-    // items don't blank out and cascade again.
-    const nextIds = new Set(itemsRef.current.map((item) => item.id));
+    // items don't blank out and cascade again — but only if this id's clip is
+    // still the one we warmed (category/discipline can swap the hover URL).
     const preserved = new Set(
-      [...readyIdsRef.current].filter((id) => nextIds.has(id)),
+      itemsRef.current
+        .filter((item) => {
+          if (!readyIdsRef.current.has(item.id)) return false;
+          const url = item.videoUrl;
+          if (!url) return true;
+          return readyUrlsRef.current.has(
+            warmClipKey(url, item.startTime ?? 0),
+          );
+        })
+        .map((item) => item.id),
     );
     if (setsEqual(readyIdsRef.current, preserved)) return;
     readyIdsRef.current = preserved;

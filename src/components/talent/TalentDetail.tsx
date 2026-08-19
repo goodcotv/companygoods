@@ -19,7 +19,7 @@ import { useCoarsePointerDevice } from "@/hooks/useCoarsePointerDevice";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { useSequentialMediaPreload } from "@/hooks/useSequentialMediaPreload";
 import { isListOverflowing } from "@/lib/cursor-hover";
-import { markVideoUrlPreloaded } from "@/lib/preload-video";
+import { markVideoUrlPreloaded, hideWarmMediaOverlays } from "@/lib/preload-video";
 import { STAGE_LOGO_TOP_PADDING, STAGE_NAV_CLEARANCE } from "@/lib/stage";
 import { isVideoMediaUrl } from "@/lib/vimeo";
 import { parseTimeToSeconds } from "@/lib/parse-time";
@@ -50,6 +50,10 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
   const [canScroll, setCanScroll] = useState(false);
   const [showTopIndicator, setShowTopIndicator] = useState(false);
   const [showBottomIndicator, setShowBottomIndicator] = useState(false);
+
+  useLayoutEffect(() => {
+    return () => hideWarmMediaOverlays();
+  }, []);
 
   const setItemRef = useCallback((id: string, node: HTMLLIElement | null) => {
     if (node) itemRefs.current.set(id, node);

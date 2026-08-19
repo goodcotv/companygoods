@@ -36,10 +36,12 @@ export function WarmHoverVideo({
   onReadyRef.current = onPreviewReady;
   playingRef.current = playing;
 
-  const vimeo = parseVimeoUrl(src);
+  // Boolean only — parseVimeoUrl() returns a new object each render and would
+  // remount/pause the warmed iframe on every parent update.
+  const isVimeo = parseVimeoUrl(src) != null;
 
   useLayoutEffect(() => {
-    if (vimeo) return;
+    if (isVimeo) return;
 
     const host = hostRef.current;
     if (!host) return;
@@ -92,10 +94,10 @@ export function WarmHoverVideo({
       videoRef.current = null;
       releaseWarmVideo(src, startTime, video);
     };
-  }, [src, startTime, fit, vimeo]);
+  }, [src, startTime, fit, isVimeo]);
 
   useLayoutEffect(() => {
-    if (vimeo) return;
+    if (isVimeo) return;
     const video = videoRef.current;
     if (!video) return;
     if (playing) {
@@ -103,10 +105,10 @@ export function WarmHoverVideo({
       return;
     }
     video.pause();
-  }, [playing, vimeo]);
+  }, [playing, isVimeo]);
 
   useLayoutEffect(() => {
-    if (!vimeo) return;
+    if (!isVimeo) return;
 
     let released = false;
     const iframe = adoptWarmVimeo(src, startTime);
@@ -114,7 +116,11 @@ export function WarmHoverVideo({
     setWarmVimeoVisible(iframe, fit, playingRef.current);
 
     void preloadVideoUrl(src, startTime).then(() => {
-      if (!released) onReadyRef.current?.(true);
+      if (released) return;
+      if (playingRef.current) {
+        setWarmVimeoVisible(iframe, fit, true);
+      }
+      onReadyRef.current?.(true);
     });
 
     return () => {
@@ -122,16 +128,16 @@ export function WarmHoverVideo({
       iframeRef.current = null;
       releaseWarmVimeo(src, startTime, iframe, fit);
     };
-  }, [src, startTime, fit, vimeo]);
+  }, [src, startTime, fit, isVimeo]);
 
   useLayoutEffect(() => {
-    if (!vimeo) return;
+    if (!isVimeo) return;
     const iframe = iframeRef.current;
     if (!iframe) return;
     setWarmVimeoVisible(iframe, fit, playing);
-  }, [playing, fit, vimeo]);
+  }, [playing, fit, isVimeo]);
 
-  if (vimeo) {
+  if (isVimeo) {
     return null;
   }
 

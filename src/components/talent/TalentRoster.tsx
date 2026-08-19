@@ -19,7 +19,7 @@ import { useCoarsePointerDevice } from "@/hooks/useCoarsePointerDevice";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { useSequentialMediaPreload } from "@/hooks/useSequentialMediaPreload";
 import { isListOverflowing } from "@/lib/cursor-hover";
-import { markVideoUrlPreloaded } from "@/lib/preload-video";
+import { markVideoUrlPreloaded, hideWarmMediaOverlays } from "@/lib/preload-video";
 import {
   STAGE_LOGO_NAV_GAP_CLASS,
   STAGE_LOGO_TOP_PADDING,
@@ -103,6 +103,10 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
   const [showTopIndicator, setShowTopIndicator] = useState(false);
   const [showBottomIndicator, setShowBottomIndicator] = useState(false);
 
+  useLayoutEffect(() => {
+    return () => hideWarmMediaOverlays();
+  }, []);
+
   const setItemRef = useCallback((id: string, node: HTMLLIElement | null) => {
     if (node) itemRefs.current.set(id, node);
     else itemRefs.current.delete(id);
@@ -117,7 +121,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
   const discipline = categoryToDiscipline[category];
   const featured = selected?.featuredByDiscipline?.[discipline] ?? null;
   const mediaUrl = featured?.videoUrl || featured?.imageUrl;
-  const isVideo = Boolean(featured?.videoUrl);
+  const isVideo = isVideoMediaUrl(mediaUrl);
   const previewStart =
     featured?.videoPreviewStartSeconds ??
     parseTimeToSeconds(featured?.videoPreviewStart) ??
