@@ -137,7 +137,7 @@ function waitForVideoEvent(
     return Promise.resolve();
   }
 
-  return new Promise((resolve) => {
+  return new Promise<void>((resolve) => {
     const finish = () => {
       clearTimeout(timeout);
       video.removeEventListener(event, onEvent);
@@ -245,7 +245,7 @@ function prepareWarmVimeo(url: string, startTime: number): Promise<void> {
   pinnedKeys.add(key);
   const iframe = ensureWarmVimeo(url, startTime);
 
-  return new Promise((resolve) => {
+  return new Promise<void>((resolve) => {
     let done = false;
     const finish = () => {
       if (done) return;
