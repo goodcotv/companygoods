@@ -303,6 +303,10 @@ function prepareWarmVimeo(url: string, startTime: number): Promise<void> {
     const timeout = setTimeout(finish, PRELOAD_TIMEOUT_MS);
     window.addEventListener("message", onMessage);
     iframe.addEventListener("load", onLoad, { once: true });
+  }).then(() => {
+    if (!displayedKeys.has(key)) {
+      postVimeo(iframe, { method: "pause" });
+    }
   });
 }
 
@@ -387,4 +391,15 @@ export function setWarmVimeoVisible(
 ) {
   styleWarmVimeo(iframe, fit, visible);
   postVimeo(iframe, { method: visible ? "play" : "pause" });
+}
+
+/** Hide and pause pooled players so list hover clips cannot leak into scroll. */
+export function hideWarmMediaOverlays() {
+  for (const iframe of warmVimeos.values()) {
+    styleWarmVimeo(iframe, "cover", false);
+    postVimeo(iframe, { method: "pause" });
+  }
+  for (const video of warmMp4s.values()) {
+    video.pause();
+  }
 }

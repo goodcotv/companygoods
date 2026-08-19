@@ -24,7 +24,7 @@ import {
   STAGE_NAV_CLEARANCE,
 } from "@/lib/stage";
 import { isListOverflowing } from "@/lib/cursor-hover";
-import { markVideoUrlPreloaded } from "@/lib/preload-video";
+import { markVideoUrlPreloaded, hideWarmMediaOverlays } from "@/lib/preload-video";
 import { isVideoMediaUrl } from "@/lib/vimeo";
 import { useCoarsePointerDevice } from "@/hooks/useCoarsePointerDevice";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
@@ -46,6 +46,10 @@ export function ListView({ projects }: ListViewProps) {
   const isMobile = useMobileBrowseLayout();
   const isCoarsePointer = useCoarsePointerDevice();
   const waitForVideos = !isCoarsePointer;
+
+  useLayoutEffect(() => {
+    return () => hideWarmMediaOverlays();
+  }, []);
 
   // Map URL slugs back to category names
   const slugToCategory: Record<string, Category> = {

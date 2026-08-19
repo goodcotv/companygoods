@@ -62,7 +62,7 @@ export function MediaViewport({
 
   return (
     <div
-      className={`relative overflow-hidden ${ready ? "bg-black" : "bg-transparent"} ${className}`}
+      className={`relative overflow-hidden bg-black ${className}`}
       style={{ borderRadius: radius }}
       role="img"
       aria-label={src ? `${title} ${type}` : `${title} placeholder`}

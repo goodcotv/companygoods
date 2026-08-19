@@ -1,7 +1,15 @@
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { motion } from "framer-motion";
 import type { Project, ScrollSubtitleSpan } from "@/data/projects";
+import { hideWarmMediaOverlays } from "@/lib/preload-video";
 import {
   STAGE_LOGO_TOP_PADDING,
   STAGE_NAV_CLEARANCE,
@@ -135,6 +143,10 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
     indexRef.current = activeIndex;
   }, [activeIndex]);
 
+  useLayoutEffect(() => {
+    hideWarmMediaOverlays();
+  }, []);
+
   useEffect(() => {
     const html = document.documentElement;
     const { body } = document;
@@ -245,7 +257,7 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
           type="video"
           active={isIntro}
           cornersLayoutId="page-corners"
-          corners={!isMobile}
+          corners={!isMobile && isIntro}
           radius={isMobile ? 24 : 16}
           onReady={() => markMediaReady(INTRO_KEY)}
         />
@@ -255,7 +267,11 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
         const mediaSrc = project.image;
         const mediaType = isVideoMediaUrl(mediaSrc) ? "video" : "image";
         const on = !isIntro && i === activeIndex;
-        const warm = on || i === activeIndex + 1 || i === activeIndex - 1 || (isIntro && i === 0);
+        const nearby =
+          on ||
+          (!isIntro && (i === activeIndex + 1 || i === activeIndex - 1));
+
+        if (!nearby) return null;
 
         return (
           <Link
@@ -274,9 +290,9 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
               src={mediaSrc}
               type={mediaType}
               startTime={project.videoPreviewStartSeconds ?? 0}
-              active={warm}
+              active={on}
               cornersLayoutId="page-corners"
-              corners={!isMobile}
+              corners={!isMobile && on}
               radius={isMobile ? 24 : 16}
               onReady={() => markMediaReady(project.id)}
             />

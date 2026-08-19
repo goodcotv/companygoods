@@ -134,17 +134,17 @@ function VimeoBackgroundEmbed({
     };
 
     const kickPlayback = () => {
+      if (!active) {
+        postVimeoMessage(iframe, { method: "pause" });
+        return;
+      }
       if (startTime > 0) {
         postVimeoMessage(iframe, {
           method: "setCurrentTime",
           value: startTime,
         });
       }
-      if (active || !readyNotifiedRef.current) {
-        postVimeoMessage(iframe, { method: "play" });
-      } else {
-        postVimeoMessage(iframe, { method: "pause" });
-      }
+      postVimeoMessage(iframe, { method: "play" });
     };
 
     const onMessage = (event: MessageEvent) => {
