@@ -569,7 +569,7 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
       <BottomChrome
         position="inline"
         activeHref="/talent"
-        className="absolute right-8 bottom-7 z-30 justify-end"
+        className="absolute right-8 bottom-7 z-50 justify-end"
       />
     </div>
   );

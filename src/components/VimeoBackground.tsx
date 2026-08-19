@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   buildVimeoEmbedSrc,
   parseVimeoUrl,
@@ -15,7 +15,9 @@ type VimeoBackgroundProps = {
   cover?: boolean;
   /** Seconds into the video to begin muted looping preview. */
   startTime?: number;
-  /** Fires once the embed is ready to show (after seek when startTime is set). */
+  /** When false, the player is kept paused (inactive scroll layers). */
+  active?: boolean;
+  /** Fires once the embed has painted a real frame (after seek when startTime is set). */
   onReady?: () => void;
 };
 
@@ -51,6 +53,7 @@ export function VimeoBackground({
   title = "Video",
   cover = true,
   startTime = 0,
+  active = true,
   onReady,
 }: VimeoBackgroundProps) {
   const video = parseVimeoUrl(src);
@@ -63,6 +66,7 @@ export function VimeoBackground({
       title={title}
       cover={cover}
       startTime={startTime}
+      active={active}
       onReady={onReady}
     />
   );
@@ -74,6 +78,7 @@ function VimeoBackgroundEmbed({
   title,
   cover,
   startTime,
+  active,
   onReady,
 }: {
   video: VimeoVideo;
@@ -81,54 +86,72 @@ function VimeoBackgroundEmbed({
   title: string;
   cover: boolean;
   startTime: number;
+  active: boolean;
   onReady?: () => void;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [previewReady, setPreviewReady] = useState(startTime <= 0);
+  const onReadyRef = useRef(onReady);
+  const readyNotifiedRef = useRef(false);
+  const [previewReady, setPreviewReady] = useState(false);
   const embedSrc = buildVimeoEmbedSrc(video, "background", startTime);
 
+  onReadyRef.current = onReady;
+
   useEffect(() => {
-    setPreviewReady(startTime <= 0);
+    readyNotifiedRef.current = false;
+    setPreviewReady(false);
   }, [video.id, video.hash, startTime]);
 
-  useEffect(() => {
-    if (previewReady) onReady?.();
-  }, [previewReady, onReady]);
+  const markReady = () => {
+    setPreviewReady(true);
+    if (readyNotifiedRef.current) return;
+    readyNotifiedRef.current = true;
+    onReadyRef.current?.();
+  };
 
-  const handleIframeLoad = useCallback(() => {
+  useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
 
-    postVimeoMessage(iframe, { method: "addEventListener", value: "play" });
-    if (startTime > 0) {
+    let lastSeconds = 0;
+
+    const subscribe = () => {
       postVimeoMessage(iframe, { method: "addEventListener", value: "ready" });
+      postVimeoMessage(iframe, { method: "addEventListener", value: "play" });
+      postVimeoMessage(iframe, {
+        method: "addEventListener",
+        value: "playing",
+      });
       postVimeoMessage(iframe, {
         method: "addEventListener",
         value: "timeupdate",
       });
-    } else {
-      setPreviewReady(true);
-    }
-  }, [startTime]);
+    };
 
-  useEffect(() => {
-    if (startTime <= 0) return;
+    const kickPlayback = () => {
+      if (startTime > 0) {
+        postVimeoMessage(iframe, {
+          method: "setCurrentTime",
+          value: startTime,
+        });
+      }
+      if (active) {
+        postVimeoMessage(iframe, { method: "play" });
+      } else {
+        postVimeoMessage(iframe, { method: "pause" });
+      }
+    };
 
-    let lastSeconds = 0;
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== VIMEO_ORIGIN) return;
-      const iframe = iframeRef.current;
-      if (!iframe || event.source !== iframe.contentWindow) return;
+      if (event.source !== iframe.contentWindow) return;
 
       const data = parseVimeoEvent(event.data);
       if (!data) return;
 
       if (data.event === "ready") {
-        postVimeoMessage(iframe, {
-          method: "setCurrentTime",
-          value: startTime,
-        });
-        postVimeoMessage(iframe, { method: "play" });
+        subscribe();
+        kickPlayback();
         return;
       }
 
@@ -139,24 +162,30 @@ function VimeoBackgroundEmbed({
       ) {
         const payload = data.data as { seconds?: number };
         const seconds = payload.seconds ?? 0;
-        if (Math.abs(seconds - startTime) < 2) {
-          setPreviewReady(true);
+        if (startTime > 0 && Math.abs(seconds - startTime) < 2) {
+          markReady();
+        } else if (startTime <= 0 && seconds > 0.05) {
+          markReady();
         }
         // Natural end / loop jumped back to 0 — restart from preview start
-        if (lastSeconds > 1 && seconds < 1) {
-          postVimeoMessage(iframe, {
-            method: "setCurrentTime",
-            value: startTime,
-          });
-          postVimeoMessage(iframe, { method: "play" });
+        if (startTime > 0 && lastSeconds > 1 && seconds < 1) {
+          kickPlayback();
         }
         lastSeconds = seconds;
       }
     };
 
     window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, [startTime]);
+    iframe.addEventListener("load", subscribe);
+    subscribe();
+    const readyFallback = window.setTimeout(markReady, 2500);
+
+    return () => {
+      window.clearTimeout(readyFallback);
+      window.removeEventListener("message", onMessage);
+      iframe.removeEventListener("load", subscribe);
+    };
+  }, [active, startTime, video.hash, video.id]);
 
   const iframeClass = cover
     ? "pointer-events-none absolute left-1/2 top-1/2 h-[56.25vw] min-h-full w-[177.78vh] min-w-full -translate-x-1/2 -translate-y-1/2 border-0"
@@ -175,10 +204,9 @@ function VimeoBackgroundEmbed({
         title={title}
         allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
         allowFullScreen
-        onLoad={handleIframeLoad}
         className={`${iframeClass} ${
           previewReady ? "opacity-100" : "opacity-0"
-        } transition-opacity`}
+        }`}
       />
     </div>
   );

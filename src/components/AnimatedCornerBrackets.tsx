@@ -31,7 +31,7 @@ export function AnimatedCornerBrackets({
   return (
     <motion.div
       layoutId={layoutId}
-      className={`pointer-events-none absolute inset-0 z-50 ${className}`}
+      className={`pointer-events-none absolute inset-0 z-10 ${className}`}
       aria-hidden
       transition={{
         layout: {

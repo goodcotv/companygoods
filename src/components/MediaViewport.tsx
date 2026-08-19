@@ -18,6 +18,9 @@ type MediaViewportProps = {
   corners?: boolean;
   /** Border radius in px. Default 16. */
   radius?: number;
+  /** When false, Vimeo/video layers can pause to save work. */
+  active?: boolean;
+  onReady?: () => void;
 };
 
 export function MediaViewport({
@@ -29,14 +32,22 @@ export function MediaViewport({
   cornersLayoutId = "media-corners",
   corners = true,
   radius = 16,
+  active = true,
+  onReady,
 }: MediaViewportProps) {
   const useVimeo = type === "video" && Boolean(src && isVimeoUrl(src));
   const [ready, setReady] = useState(false);
   const imageRef = useRef<HTMLImageElement>(null);
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
 
   useEffect(() => {
     setReady(false);
   }, [src, startTime]);
+
+  useEffect(() => {
+    if (ready) onReadyRef.current?.();
+  }, [ready]);
 
   useEffect(() => {
     if (useVimeo || type === "video" || !src) return;
@@ -51,7 +62,7 @@ export function MediaViewport({
 
   return (
     <div
-      className={`relative overflow-hidden bg-black ${className}`}
+      className={`relative overflow-hidden ${ready ? "bg-black" : "bg-transparent"} ${className}`}
       style={{ borderRadius: radius }}
       role="img"
       aria-label={src ? `${title} ${type}` : `${title} placeholder`}
@@ -67,6 +78,7 @@ export function MediaViewport({
               src={src}
               title={title}
               startTime={startTime}
+              active={active}
               className="h-full w-full"
               onReady={() => setReady(true)}
             />

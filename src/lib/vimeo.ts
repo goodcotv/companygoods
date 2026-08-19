@@ -81,13 +81,16 @@ export function buildVimeoEmbedSrc(
           byline: "0",
           portrait: "0",
           transparent: "0",
+          playsinline: "1",
+          api: "1",
+          // Multiple stacked embeds (scroll/list) must not pause each other.
+          autopause: "0",
         });
   if (hash) params.set("h", hash);
   if (origin) params.set("origin", origin);
-  // Custom start: disable autoplay/loop so we can seek then play via the API.
+  // Custom start: keep autoplay so the player buffers at #t=, but disable
+  // native loop so we can restart from the preview point via the API.
   if (startSeconds && startSeconds > 0 && mode === "background") {
-    params.set("autoplay", "0");
-    params.set("api", "1");
     params.set("loop", "0");
   }
   const base = `https://player.vimeo.com/video/${id}?${params.toString()}`;

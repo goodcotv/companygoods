@@ -38,6 +38,26 @@ import { VimeoBackground } from "./VimeoBackground";
 const ITEM_MIN_HEIGHT =
   "min-h-[calc(15pt*1.05+0.125rem+11pt)] md:min-h-[calc(19pt*1.05+0.125rem+13pt)]";
 
+type ListMediaSlot = {
+  id: string;
+  url: string;
+  title: string;
+  startTime: number;
+  kind: "vimeo" | "video" | "image";
+};
+
+function toListMediaSlot(project: Project): ListMediaSlot | null {
+  if (!project.image) return null;
+  const url = project.image;
+  return {
+    id: project.id,
+    url,
+    title: project.title,
+    startTime: project.videoPreviewStartSeconds ?? 0,
+    kind: isVimeoUrl(url) ? "vimeo" : isVideoMediaUrl(url) ? "video" : "image",
+  };
+}
+
 type ListViewProps = {
   projects: Project[];
 };
@@ -79,6 +99,7 @@ export function ListView({ projects }: ListViewProps) {
   const [canScroll, setCanScroll] = useState(false);
   const [showTopIndicator, setShowTopIndicator] = useState(false);
   const [showBottomIndicator, setShowBottomIndicator] = useState(false);
+  const [shownSlot, setShownSlot] = useState<ListMediaSlot | null>(null);
 
   const setItemRef = useCallback((id: string, node: HTMLLIElement | null) => {
     if (node) itemRefs.current.set(id, node);
@@ -240,6 +261,103 @@ export function ListView({ projects }: ListViewProps) {
     }
   }, [priorityVideoUrl, previewStart]);
 
+  const incomingSlot = active ? toListMediaSlot(active) : null;
+
+  useEffect(() => {
+    if (!incomingSlot) {
+      setShownSlot(null);
+      return;
+    }
+    if (incomingSlot.kind === "image") {
+      setShownSlot(incomingSlot);
+    }
+  }, [incomingSlot?.id, incomingSlot?.kind, incomingSlot?.url]);
+
+  const mediaSlots = useMemo(() => {
+    const slots: ListMediaSlot[] = [];
+    if (shownSlot) slots.push(shownSlot);
+    if (incomingSlot && incomingSlot.id !== shownSlot?.id) {
+      slots.push(incomingSlot);
+    }
+    return slots;
+  }, [incomingSlot, shownSlot]);
+
+  function renderListMedia(slot: ListMediaSlot) {
+    const onReady = () => {
+      setShownSlot(slot);
+      markVideoUrlPreloaded(slot.url, slot.startTime);
+      if (slot.id === active?.id) markActivePreloaded();
+    };
+
+    if (slot.kind === "vimeo") {
+      return (
+        <VimeoBackground
+          src={slot.url}
+          title={slot.title}
+          startTime={slot.startTime}
+          className="h-full w-full"
+          onReady={onReady}
+        />
+      );
+    }
+
+    if (slot.kind === "video") {
+      return (
+        <MutedLoopVideo
+          src={slot.url}
+          startTime={slot.startTime}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+          }}
+          className="transition-opacity duration-500"
+          onReady={onReady}
+        />
+      );
+    }
+
+    return (
+      <img
+        src={slot.url}
+        alt=""
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+        }}
+        className="transition-opacity duration-500"
+      />
+    );
+  }
+
+  const backgroundMedia =
+    mediaSlots.length > 0 ? (
+      <>
+        <div
+          className={`absolute inset-0 ${
+            isMobile
+              ? "scale-110 opacity-90 [filter:blur(48px)_brightness(0.85)]"
+              : ""
+          }`}
+          style={{ zIndex: 0 }}
+        >
+          {mediaSlots.map((slot) => (
+            <div
+              key={slot.id}
+              className="absolute inset-0"
+              style={{ zIndex: slot.id === shownSlot?.id ? 10 : 0 }}
+            >
+              {renderListMedia(slot)}
+            </div>
+          ))}
+        </div>
+        {isMobile ? null : (
+          <div className="talent-media-scrim" aria-hidden="true" />
+        )}
+      </>
+    ) : null;
+
   const loadingProjectId =
     waitForVideos && readyProjectIds
       ? filtered.find(
@@ -302,65 +420,6 @@ export function ListView({ projects }: ListViewProps) {
       resizeObserver?.disconnect();
     };
   }, [filtered, isMobile]);
-
-  const activeMediaUrl = active?.image;
-  const isVideo = isVideoMediaUrl(activeMediaUrl);
-  const isVimeo = Boolean(activeMediaUrl && isVimeoUrl(activeMediaUrl));
-
-  const backgroundMedia =
-    active && activeMediaUrl ? (
-      <>
-        <div
-          className={`absolute inset-0 ${
-            isMobile
-              ? "scale-110 opacity-90 [filter:blur(48px)_brightness(0.85)]"
-              : ""
-          }`}
-          style={{ zIndex: 0 }}
-        >
-          {isVimeo ? (
-            <VimeoBackground
-              key={active.id}
-              src={activeMediaUrl!}
-              title={active.title}
-              startTime={previewStart}
-              className="transition-opacity duration-500"
-              onReady={markActivePreloaded}
-            />
-          ) : isVideo ? (
-            <MutedLoopVideo
-              key={active.id}
-              src={activeMediaUrl!}
-              startTime={previewStart}
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                opacity: 1,
-              }}
-              className="transition-opacity duration-500"
-              onReady={markActivePreloaded}
-            />
-          ) : (
-            <img
-              key={active.id}
-              src={activeMediaUrl}
-              alt=""
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                opacity: 1,
-              }}
-              className="transition-opacity duration-500"
-            />
-          )}
-        </div>
-        {isMobile ? null : (
-          <div className="talent-media-scrim" aria-hidden="true" />
-        )}
-      </>
-    ) : null;
 
   const categoryNav = (
     <nav

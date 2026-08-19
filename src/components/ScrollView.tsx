@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import type { Project, ScrollSubtitleSpan } from "@/data/projects";
 import {
@@ -19,6 +19,7 @@ type ScrollViewProps = {
 
 /** Sentinel index for the site intro / main video (from Post Site Settings). */
 const INTRO_INDEX = -1;
+const INTRO_KEY = "__intro__";
 /** Ignore further wheel/touch input while a step is in progress. */
 const STEP_LOCK_MS = 650;
 const WHEEL_THRESHOLD = 12;
@@ -119,6 +120,25 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
   const lastIndex = projects.length - 1;
   const isIntro = activeIndex === INTRO_INDEX;
   const active = isIntro ? null : (projects[activeIndex] ?? projects[0]);
+  const [readyKeys, setReadyKeys] = useState(() => new Set<string>());
+  const [shownIndex, setShownIndex] = useState(INTRO_INDEX);
+
+  const markMediaReady = useCallback((key: string) => {
+    setReadyKeys((prev) => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  }, []);
+
+  const activeKey = isIntro ? INTRO_KEY : (active?.id ?? INTRO_KEY);
+
+  useEffect(() => {
+    if (readyKeys.has(activeKey)) {
+      setShownIndex(activeIndex);
+    }
+  }, [activeIndex, activeKey, readyKeys]);
 
   useEffect(() => {
     indexRef.current = activeIndex;
@@ -219,11 +239,18 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
     };
   }, [lastIndex]);
 
+  const introShown = shownIndex === INTRO_INDEX;
+  const introPending = isIntro && !introShown;
+
   const mediaLayers = (
     <>
       <div
         className={`absolute inset-0 transition-opacity duration-500 ${
-          isIntro ? "opacity-100" : "pointer-events-none opacity-0"
+          introShown
+            ? "z-10 opacity-100"
+            : introPending
+              ? "z-0 opacity-100"
+              : "pointer-events-none z-0 opacity-0"
         }`}
         aria-hidden={!isIntro}
       >
@@ -232,9 +259,11 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
           className="h-full w-full"
           src={introVideoUrl}
           type="video"
+          active={introShown || introPending}
           cornersLayoutId="page-corners"
           corners={!isMobile}
           radius={isMobile ? 24 : 16}
+          onReady={() => markMediaReady(INTRO_KEY)}
         />
       </div>
 
@@ -242,6 +271,8 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
         const mediaSrc = project.image;
         const mediaType = isVideoMediaUrl(mediaSrc) ? "video" : "image";
         const on = !isIntro && i === activeIndex;
+        const shown = shownIndex === i;
+        const pending = on && !shown;
 
         return (
           <Link
@@ -249,7 +280,13 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
             href={`/work/${project.id}`}
             aria-label={`Open ${project.title}`}
             className={`absolute inset-0 transition-opacity duration-500 ${
-              on ? "opacity-100" : "pointer-events-none opacity-0"
+              shown
+                ? on
+                  ? "z-10 opacity-100"
+                  : "pointer-events-none z-10 opacity-100"
+                : pending
+                  ? "pointer-events-none z-0 opacity-100"
+                  : "pointer-events-none z-0 opacity-0"
             }`}
             aria-hidden={!on}
             tabIndex={on ? 0 : -1}
@@ -260,9 +297,11 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
               src={mediaSrc}
               type={mediaType}
               startTime={project.videoPreviewStartSeconds ?? 0}
+              active={shown || pending}
               cornersLayoutId="page-corners"
               corners={!isMobile}
               radius={isMobile ? 24 : 16}
+              onReady={() => markMediaReady(project.id)}
             />
             {/* Catch clicks above video/iframe so navigation always works */}
             <span className="absolute inset-0 z-10" aria-hidden />
