@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { markVideoUrlPreloaded } from "@/lib/preload-video";
 import {
   buildVimeoEmbedSrc,
   parseVimeoUrl,
@@ -61,6 +62,7 @@ export function VimeoBackground({
 
   return (
     <VimeoBackgroundEmbed
+      src={src}
       video={video}
       className={className}
       title={title}
@@ -73,6 +75,7 @@ export function VimeoBackground({
 }
 
 function VimeoBackgroundEmbed({
+  src,
   video,
   className,
   title,
@@ -81,6 +84,7 @@ function VimeoBackgroundEmbed({
   active,
   onReady,
 }: {
+  src: string;
   video: VimeoVideo;
   className: string;
   title: string;
@@ -106,6 +110,7 @@ function VimeoBackgroundEmbed({
     setPreviewReady(true);
     if (readyNotifiedRef.current) return;
     readyNotifiedRef.current = true;
+    markVideoUrlPreloaded(src, startTime);
     onReadyRef.current?.();
   };
 
@@ -135,7 +140,7 @@ function VimeoBackgroundEmbed({
           value: startTime,
         });
       }
-      if (active) {
+      if (active || !readyNotifiedRef.current) {
         postVimeoMessage(iframe, { method: "play" });
       } else {
         postVimeoMessage(iframe, { method: "pause" });
@@ -164,8 +169,14 @@ function VimeoBackgroundEmbed({
         const seconds = payload.seconds ?? 0;
         if (startTime > 0 && Math.abs(seconds - startTime) < 2) {
           markReady();
+          if (!active) {
+            postVimeoMessage(iframe, { method: "pause" });
+          }
         } else if (startTime <= 0 && seconds > 0.05) {
           markReady();
+          if (!active) {
+            postVimeoMessage(iframe, { method: "pause" });
+          }
         }
         // Natural end / loop jumped back to 0 — restart from preview start
         if (startTime > 0 && lastSeconds > 1 && seconds < 1) {
@@ -178,14 +189,15 @@ function VimeoBackgroundEmbed({
     window.addEventListener("message", onMessage);
     iframe.addEventListener("load", subscribe);
     subscribe();
-    const readyFallback = window.setTimeout(markReady, 2500);
+    kickPlayback();
+    const readyFallback = window.setTimeout(markReady, 8000);
 
     return () => {
       window.clearTimeout(readyFallback);
       window.removeEventListener("message", onMessage);
       iframe.removeEventListener("load", subscribe);
     };
-  }, [active, startTime, video.hash, video.id]);
+  }, [active, src, startTime, video.hash, video.id]);
 
   const iframeClass = cover
     ? "pointer-events-none absolute left-1/2 top-1/2 h-[56.25vw] min-h-full w-[177.78vh] min-w-full -translate-x-1/2 -translate-y-1/2 border-0"

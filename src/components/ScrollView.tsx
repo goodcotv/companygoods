@@ -121,7 +121,6 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
   const isIntro = activeIndex === INTRO_INDEX;
   const active = isIntro ? null : (projects[activeIndex] ?? projects[0]);
   const [readyKeys, setReadyKeys] = useState(() => new Set<string>());
-  const [shownIndex, setShownIndex] = useState(INTRO_INDEX);
 
   const markMediaReady = useCallback((key: string) => {
     setReadyKeys((prev) => {
@@ -131,14 +130,6 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
       return next;
     });
   }, []);
-
-  const activeKey = isIntro ? INTRO_KEY : (active?.id ?? INTRO_KEY);
-
-  useEffect(() => {
-    if (readyKeys.has(activeKey)) {
-      setShownIndex(activeIndex);
-    }
-  }, [activeIndex, activeKey, readyKeys]);
 
   useEffect(() => {
     indexRef.current = activeIndex;
@@ -239,18 +230,11 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
     };
   }, [lastIndex]);
 
-  const introShown = shownIndex === INTRO_INDEX;
-  const introPending = isIntro && !introShown;
-
   const mediaLayers = (
     <>
       <div
         className={`absolute inset-0 transition-opacity duration-500 ${
-          introShown
-            ? "z-10 opacity-100"
-            : introPending
-              ? "z-0 opacity-100"
-              : "pointer-events-none z-0 opacity-0"
+          isIntro ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         aria-hidden={!isIntro}
       >
@@ -259,7 +243,7 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
           className="h-full w-full"
           src={introVideoUrl}
           type="video"
-          active={introShown || introPending}
+          active={isIntro}
           cornersLayoutId="page-corners"
           corners={!isMobile}
           radius={isMobile ? 24 : 16}
@@ -271,8 +255,7 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
         const mediaSrc = project.image;
         const mediaType = isVideoMediaUrl(mediaSrc) ? "video" : "image";
         const on = !isIntro && i === activeIndex;
-        const shown = shownIndex === i;
-        const pending = on && !shown;
+        const warm = on || i === activeIndex + 1 || i === activeIndex - 1 || (isIntro && i === 0);
 
         return (
           <Link
@@ -280,13 +263,7 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
             href={`/work/${project.id}`}
             aria-label={`Open ${project.title}`}
             className={`absolute inset-0 transition-opacity duration-500 ${
-              shown
-                ? on
-                  ? "z-10 opacity-100"
-                  : "pointer-events-none z-10 opacity-100"
-                : pending
-                  ? "pointer-events-none z-0 opacity-100"
-                  : "pointer-events-none z-0 opacity-0"
+              on ? "opacity-100" : "pointer-events-none opacity-0"
             }`}
             aria-hidden={!on}
             tabIndex={on ? 0 : -1}
@@ -297,7 +274,7 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
               src={mediaSrc}
               type={mediaType}
               startTime={project.videoPreviewStartSeconds ?? 0}
-              active={shown || pending}
+              active={warm}
               cornersLayoutId="page-corners"
               corners={!isMobile}
               radius={isMobile ? 24 : 16}
@@ -329,7 +306,7 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
             <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-4 pt-4">
               <LatestLabel className="text-[14px] text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.55)]" />
             </div>
-            {!isIntro && active ? (
+            {!isIntro && active && readyKeys.has(active.id) ? (
               <div className="pointer-events-none absolute inset-y-0 left-0 z-20 flex max-w-[min(100%,22rem)] items-center px-4">
                 <ProjectCredits
                   key={active.id}
@@ -390,7 +367,7 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
 
         <div className="flex min-w-0 flex-1 flex-col items-start self-start overflow-hidden">
           <LatestLabel />
-          {!isIntro && active ? (
+          {!isIntro && active && readyKeys.has(active.id) ? (
             <ProjectCredits key={active.id} project={active} className="mt-4" />
           ) : null}
         </div>

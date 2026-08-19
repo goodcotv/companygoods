@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { preloadVideoUrl } from "@/lib/preload-video";
+import { preloadVideoUrl, warmClipKey } from "@/lib/preload-video";
 
 /** Keeps a visible cascade even when videos resolve from cache instantly. */
 const MIN_REVEAL_GAP_MS = 55;
@@ -32,14 +32,9 @@ function wait(ms: number) {
   });
 }
 
-function urlKeyFor(url: string, startTime: number) {
-  return startTime > 0 ? `${url}#t=${startTime}` : url;
-}
-
 /**
- * Downloads visible hover videos in parallel (cold CDN), then reveals titles
- * in order with a short cascade gap. Refresh feels fast because the browser
- * cache makes each preload resolve almost immediately.
+ * Warms visible hover clips one at a time (same player the hover will adopt),
+ * then reveals titles in order with a short cascade gap.
  */
 export function useSequentialMediaPreload(
   items: PreloadMediaItem[],
@@ -90,37 +85,16 @@ export function useSequentialMediaPreload(
     let cancelled = false;
 
     async function pump() {
-      // Warm the idle/intro backdrop without blocking title reveal.
+      if (readyIdsRef.current.size > 0) {
+        setReadyIds(new Set(readyIdsRef.current));
+      }
+
       if (priorityUrl) {
-        const priorityKey = urlKeyFor(priorityUrl, priorityStartTime);
+        const priorityKey = warmClipKey(priorityUrl, priorityStartTime);
         void preloadVideoUrl(priorityUrl, priorityStartTime).then(() => {
           readyUrlsRef.current.add(priorityKey);
           readyUrlsRef.current.add(priorityUrl);
         });
-      }
-
-      // Start every visible download now — don't serialize network waits.
-      // Reveal order below still awaits in list order for the cascade.
-      const pendingByUrl = new Map<string, Promise<void>>();
-
-      for (const item of itemsRef.current) {
-        if (!visibleIdsRef.current.has(item.id)) continue;
-        if (readyIdsRef.current.has(item.id)) continue;
-
-        const url = item.videoUrl;
-        if (!url) continue;
-
-        const startTime = item.startTime ?? 0;
-        const urlKey = urlKeyFor(url, startTime);
-        if (readyUrlsRef.current.has(urlKey) || pendingByUrl.has(urlKey)) {
-          continue;
-        }
-
-        const pending = preloadVideoUrl(url, startTime).then(() => {
-          readyUrlsRef.current.add(urlKey);
-          readyUrlsRef.current.add(url);
-        });
-        pendingByUrl.set(urlKey, pending);
       }
 
       let lastRevealAt = 0;
@@ -132,15 +106,16 @@ export function useSequentialMediaPreload(
 
         const url = item.videoUrl;
         const startTime = item.startTime ?? 0;
-        const urlKey = url ? urlKeyFor(url, startTime) : "";
-
-        if (url && !readyUrlsRef.current.has(urlKey)) {
-          const pending = pendingByUrl.get(urlKey) ?? preloadVideoUrl(url, startTime);
-          if (cancelled) return;
-          await pending;
-          if (cancelled) return;
-          readyUrlsRef.current.add(urlKey);
-          readyUrlsRef.current.add(url);
+        if (!url) {
+          readyIdsRef.current.add(item.id);
+        } else {
+          const urlKey = warmClipKey(url, startTime);
+          if (!readyUrlsRef.current.has(urlKey)) {
+            await preloadVideoUrl(url, startTime);
+            if (cancelled) return;
+            readyUrlsRef.current.add(urlKey);
+            readyUrlsRef.current.add(url);
+          }
         }
 
         const elapsed = performance.now() - lastRevealAt;

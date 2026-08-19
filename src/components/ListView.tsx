@@ -25,38 +25,17 @@ import {
 } from "@/lib/stage";
 import { isListOverflowing } from "@/lib/cursor-hover";
 import { markVideoUrlPreloaded } from "@/lib/preload-video";
-import { isVideoMediaUrl, isVimeoUrl } from "@/lib/vimeo";
+import { isVideoMediaUrl } from "@/lib/vimeo";
 import { useCoarsePointerDevice } from "@/hooks/useCoarsePointerDevice";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { useSequentialMediaPreload } from "@/hooks/useSequentialMediaPreload";
 import { BrandHeader } from "./BrandHeader";
 import { AnimatedCornerBrackets } from "./AnimatedCornerBrackets";
 import { MobileBrandBar } from "./MobileBrandBar";
-import { MutedLoopVideo } from "./MutedLoopVideo";
-import { VimeoBackground } from "./VimeoBackground";
+import { WarmHoverVideo } from "./WarmHoverVideo";
 
 const ITEM_MIN_HEIGHT =
   "min-h-[calc(15pt*1.05+0.125rem+11pt)] md:min-h-[calc(19pt*1.05+0.125rem+13pt)]";
-
-type ListMediaSlot = {
-  id: string;
-  url: string;
-  title: string;
-  startTime: number;
-  kind: "vimeo" | "video" | "image";
-};
-
-function toListMediaSlot(project: Project): ListMediaSlot | null {
-  if (!project.image) return null;
-  const url = project.image;
-  return {
-    id: project.id,
-    url,
-    title: project.title,
-    startTime: project.videoPreviewStartSeconds ?? 0,
-    kind: isVimeoUrl(url) ? "vimeo" : isVideoMediaUrl(url) ? "video" : "image",
-  };
-}
 
 type ListViewProps = {
   projects: Project[];
@@ -99,7 +78,6 @@ export function ListView({ projects }: ListViewProps) {
   const [canScroll, setCanScroll] = useState(false);
   const [showTopIndicator, setShowTopIndicator] = useState(false);
   const [showBottomIndicator, setShowBottomIndicator] = useState(false);
-  const [shownSlot, setShownSlot] = useState<ListMediaSlot | null>(null);
 
   const setItemRef = useCallback((id: string, node: HTMLLIElement | null) => {
     if (node) itemRefs.current.set(id, node);
@@ -261,78 +239,11 @@ export function ListView({ projects }: ListViewProps) {
     }
   }, [priorityVideoUrl, previewStart]);
 
-  const incomingSlot = active ? toListMediaSlot(active) : null;
-
-  useEffect(() => {
-    if (!incomingSlot) {
-      setShownSlot(null);
-      return;
-    }
-    if (incomingSlot.kind === "image") {
-      setShownSlot(incomingSlot);
-    }
-  }, [incomingSlot?.id, incomingSlot?.kind, incomingSlot?.url]);
-
-  const mediaSlots = useMemo(() => {
-    const slots: ListMediaSlot[] = [];
-    if (shownSlot) slots.push(shownSlot);
-    if (incomingSlot && incomingSlot.id !== shownSlot?.id) {
-      slots.push(incomingSlot);
-    }
-    return slots;
-  }, [incomingSlot, shownSlot]);
-
-  function renderListMedia(slot: ListMediaSlot) {
-    const onReady = () => {
-      setShownSlot(slot);
-      markVideoUrlPreloaded(slot.url, slot.startTime);
-      if (slot.id === active?.id) markActivePreloaded();
-    };
-
-    if (slot.kind === "vimeo") {
-      return (
-        <VimeoBackground
-          src={slot.url}
-          title={slot.title}
-          startTime={slot.startTime}
-          className="h-full w-full"
-          onReady={onReady}
-        />
-      );
-    }
-
-    if (slot.kind === "video") {
-      return (
-        <MutedLoopVideo
-          src={slot.url}
-          startTime={slot.startTime}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-          }}
-          className="transition-opacity duration-500"
-          onReady={onReady}
-        />
-      );
-    }
-
-    return (
-      <img
-        src={slot.url}
-        alt=""
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-        }}
-        className="transition-opacity duration-500"
-      />
-    );
-  }
+  const activeMediaUrl = active?.image;
+  const activeIsVideo = isVideoMediaUrl(activeMediaUrl);
 
   const backgroundMedia =
-    mediaSlots.length > 0 ? (
+    active && activeMediaUrl ? (
       <>
         <div
           className={`absolute inset-0 ${
@@ -342,15 +253,27 @@ export function ListView({ projects }: ListViewProps) {
           }`}
           style={{ zIndex: 0 }}
         >
-          {mediaSlots.map((slot) => (
-            <div
-              key={slot.id}
-              className="absolute inset-0"
-              style={{ zIndex: slot.id === shownSlot?.id ? 10 : 0 }}
-            >
-              {renderListMedia(slot)}
-            </div>
-          ))}
+          {activeIsVideo ? (
+            <WarmHoverVideo
+              src={activeMediaUrl}
+              startTime={previewStart}
+              playing
+              className="h-full w-full"
+              onPreviewReady={(ready) => {
+                if (ready) markActivePreloaded();
+              }}
+            />
+          ) : (
+            <img
+              src={activeMediaUrl}
+              alt=""
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+            />
+          )}
         </div>
         {isMobile ? null : (
           <div className="talent-media-scrim" aria-hidden="true" />
@@ -373,9 +296,9 @@ export function ListView({ projects }: ListViewProps) {
 
   function selectProject(id: string) {
     if (id === activeId) return;
+    setActiveId(id);
     setDescVisible(false);
     window.setTimeout(() => {
-      setActiveId(id);
       setDescVisible(true);
     }, 160);
   }

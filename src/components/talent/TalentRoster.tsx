@@ -25,11 +25,10 @@ import {
   STAGE_LOGO_TOP_PADDING,
   STAGE_NAV_CLEARANCE,
 } from "@/lib/stage";
-import { isVideoMediaUrl, isVimeoUrl } from "@/lib/vimeo";
+import { isVideoMediaUrl } from "@/lib/vimeo";
 import { parseTimeToSeconds } from "@/lib/parse-time";
 import type { PostDiscipline, PostWorker } from "@/sanity/types";
-import { MutedLoopVideo } from "@/components/MutedLoopVideo";
-import { VimeoBackground } from "@/components/VimeoBackground";
+import { WarmHoverVideo } from "@/components/WarmHoverVideo";
 
 const ITEM_MIN_HEIGHT = "min-h-[calc(21pt*1)]";
 
@@ -289,12 +288,10 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
 
   function showPerson(person: PostWorker) {
     if (person._id === selected?._id) return;
-
+    setSelected(person);
     setBioVisible(false);
     setTitleVisible(false);
-
     window.setTimeout(() => {
-      setSelected(person);
       setBioVisible(true);
       setTitleVisible(true);
     }, 180);
@@ -364,20 +361,15 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
     selected && mediaUrl ? (
       <>
         <div className="talent-media" aria-hidden="true">
-          {isVideo && mediaUrl && isVimeoUrl(mediaUrl) ? (
-            <VimeoBackground
-              key={`${selected._id}-${discipline}`}
-              src={mediaUrl}
-              title={featured?.title ?? selected.name}
-              startTime={previewStart}
-              onReady={markActivePreloaded}
-            />
-          ) : isVideo ? (
-            <MutedLoopVideo
-              key={`${selected._id}-${discipline}`}
+          {isVideo ? (
+            <WarmHoverVideo
               src={mediaUrl}
               startTime={previewStart}
-              onReady={markActivePreloaded}
+              playing
+              className="h-full w-full"
+              onPreviewReady={(ready) => {
+                if (ready) markActivePreloaded();
+              }}
             />
           ) : (
             <img

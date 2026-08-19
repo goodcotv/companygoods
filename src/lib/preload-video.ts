@@ -1,16 +1,19 @@
 import { buildVimeoEmbedSrc, parseVimeoUrl } from "@/lib/vimeo";
 
-/** Hard cap — always resolve so one bad URL can't freeze the list. */
-const PRELOAD_TIMEOUT_MS = 8000;
-/** Accept canplay immediately — keep buffering in the background after reveal. */
-const CANPLAY_FALLBACK_MS = 0;
+const PRELOAD_TIMEOUT_MS = 15000;
+const SEEK_TIMEOUT_MS = 4000;
+const MAX_WARM_VIDEOS = 16;
 const VIMEO_ORIGIN = "https://player.vimeo.com";
 
-/** Session cache so category remounts don't re-wait on already-warmed URLs. */
-const preloadCache = new Map<string, Promise<void>>();
+export function warmClipKey(url: string, startTime = 0) {
+  return `${url}@@${startTime}`;
+}
 
-function cacheKey(url: string, startTime = 0) {
-  return startTime > 0 ? `${url}#t=${startTime}` : url;
+function mediaSrcWithStart(src: string, startSeconds: number): string {
+  if (startSeconds <= 0 || src.includes("#t=")) return src;
+  const hashIndex = src.indexOf("#");
+  const base = hashIndex >= 0 ? src.slice(0, hashIndex) : src;
+  return `${base}#t=${startSeconds}`;
 }
 
 function parseVimeoEvent(data: unknown): Record<string, unknown> | null {
@@ -25,125 +28,228 @@ function parseVimeoEvent(data: unknown): Record<string, unknown> | null {
   }
 }
 
-function postVimeoMessage(
-  iframe: HTMLIFrameElement,
-  message: Record<string, unknown>,
-) {
+function postVimeo(iframe: HTMLIFrameElement, message: Record<string, unknown>) {
   iframe.contentWindow?.postMessage(message, "*");
 }
 
-/**
- * Warm an MP4 until enough data is buffered for smooth playback.
- * Always resolves (error / timeout / partial buffer) so the list never hangs.
- * Keeps a hidden <video> in the DOM so the download is not aborted on resolve.
- */
-function preloadMp4(url: string, startTime = 0): Promise<void> {
+/** Session cache so category remounts don't re-wait on already-warmed clips. */
+const preloadCache = new Map<string, Promise<void>>();
+
+const warmMp4s = new Map<string, HTMLVideoElement>();
+const warmVimeos = new Map<string, HTMLIFrameElement>();
+const warmOrder: string[] = [];
+const pinnedKeys = new Set<string>();
+const displayedKeys = new Set<string>();
+
+function touchWarm(key: string) {
+  const index = warmOrder.indexOf(key);
+  if (index >= 0) warmOrder.splice(index, 1);
+  warmOrder.push(key);
+}
+
+function parkVideo(video: HTMLVideoElement) {
+  video.pause();
+  video.style.cssText =
+    "position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;bottom:0;border:0";
+  if (video.parentElement !== document.body) {
+    document.body.appendChild(video);
+  }
+}
+
+function destroyVideo(video: HTMLVideoElement) {
+  video.pause();
+  video.removeAttribute("src");
+  video.load();
+  video.remove();
+}
+
+function destroyWarm(key: string) {
+  const video = warmMp4s.get(key);
+  if (video) {
+    warmMp4s.delete(key);
+    destroyVideo(video);
+  }
+  const iframe = warmVimeos.get(key);
+  if (iframe) {
+    warmVimeos.delete(key);
+    postVimeo(iframe, { method: "pause" });
+    iframe.remove();
+  }
+}
+
+function evictWarmIfNeeded() {
+  while (warmOrder.length > MAX_WARM_VIDEOS) {
+    const oldest = warmOrder.find((key) => !pinnedKeys.has(key));
+    if (!oldest) break;
+    const index = warmOrder.indexOf(oldest);
+    if (index >= 0) warmOrder.splice(index, 1);
+    destroyWarm(oldest);
+  }
+}
+
+function createParkedVideo(): HTMLVideoElement {
+  const video = document.createElement("video");
+  video.preload = "auto";
+  video.muted = true;
+  video.defaultMuted = true;
+  video.playsInline = true;
+  video.setAttribute("muted", "");
+  video.setAttribute("playsinline", "");
+  video.setAttribute("webkit-playsinline", "");
+  parkVideo(video);
+  return video;
+}
+
+function ensureWarmVideo(url: string, startTime = 0): HTMLVideoElement {
+  const key = warmClipKey(url, startTime);
+  const existing = warmMp4s.get(key);
+  if (existing) {
+    touchWarm(key);
+    return existing;
+  }
+
+  const video = createParkedVideo();
+  video.src = mediaSrcWithStart(url, startTime);
+  video.load();
+  warmMp4s.set(key, video);
+  touchWarm(key);
+  evictWarmIfNeeded();
+  return video;
+}
+
+function waitForVideoEvent(
+  video: HTMLVideoElement,
+  event: "loadedmetadata" | "loadeddata" | "seeked",
+  timeoutMs: number,
+): Promise<void> {
+  const readyStateForEvent = {
+    loadedmetadata: HTMLMediaElement.HAVE_METADATA,
+    loadeddata: HTMLMediaElement.HAVE_CURRENT_DATA,
+  } as const;
+
+  if (event !== "seeked" && video.readyState >= readyStateForEvent[event]) {
+    return Promise.resolve();
+  }
+
   return new Promise((resolve) => {
-    const video = document.createElement("video");
-    video.preload = "auto";
-    video.muted = true;
-    video.playsInline = true;
-    video.setAttribute("muted", "");
-    video.setAttribute("playsinline", "");
-    video.style.cssText =
-      "position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;bottom:0";
-
-    let settled = false;
-    let canplayFallback: number | undefined;
-
     const finish = () => {
-      if (settled) return;
-      settled = true;
       clearTimeout(timeout);
-      if (canplayFallback !== undefined) clearTimeout(canplayFallback);
-      video.removeEventListener("canplaythrough", onCanPlayThrough);
-      video.removeEventListener("canplay", onCanPlay);
-      video.removeEventListener("seeked", onSeeked);
-      video.removeEventListener("loadedmetadata", onLoadedMetadata);
-      video.removeEventListener("error", onError);
-      // Leave the element attached so the browser keeps the buffer warm.
-      // Do not clear src / call load() — that aborts the download.
+      video.removeEventListener(event, onEvent);
+      video.removeEventListener("error", onEvent);
       resolve();
     };
+    const onEvent = () => finish();
+    const timeout = setTimeout(finish, timeoutMs);
+    video.addEventListener(event, onEvent, { once: true });
+    video.addEventListener("error", onEvent, { once: true });
+  });
+}
 
-    const onCanPlayThrough = () => finish();
-    const onCanPlay = () => {
-      // Good enough to reveal — keep buffering in the background.
-      if (CANPLAY_FALLBACK_MS <= 0) {
-        finish();
-        return;
-      }
-      if (canplayFallback === undefined) {
-        canplayFallback = window.setTimeout(finish, CANPLAY_FALLBACK_MS);
-      }
-    };
-    const onError = () => finish();
+async function prepareWarmMp4(url: string, startTime: number): Promise<void> {
+  const key = warmClipKey(url, startTime);
+  pinnedKeys.add(key);
 
-    const onSeeked = () => {
-      if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
-        finish();
-        return;
-      }
-      video.addEventListener("canplaythrough", onCanPlayThrough, { once: true });
-      video.addEventListener("canplay", onCanPlay, { once: true });
-    };
+  try {
+    const video = ensureWarmVideo(url, startTime);
+    await waitForVideoEvent(video, "loadedmetadata", PRELOAD_TIMEOUT_MS);
 
-    const onLoadedMetadata = () => {
-      if (startTime <= 0) return;
+    if (startTime > 0) {
       const duration = video.duration;
       const target = Number.isFinite(duration)
         ? Math.min(startTime, Math.max(0, duration - 0.05))
         : startTime;
-      try {
+      if (Math.abs(video.currentTime - target) > 0.35) {
         video.currentTime = target;
-      } catch {
-        finish();
+        await waitForVideoEvent(video, "seeked", SEEK_TIMEOUT_MS);
       }
-    };
-
-    const timeout = setTimeout(finish, PRELOAD_TIMEOUT_MS);
-
-    video.addEventListener("error", onError, { once: true });
-
-    if (startTime > 0) {
-      video.addEventListener("loadedmetadata", onLoadedMetadata, { once: true });
-      video.addEventListener("seeked", onSeeked, { once: true });
-    } else {
-      video.addEventListener("canplaythrough", onCanPlayThrough, { once: true });
-      video.addEventListener("canplay", onCanPlay, { once: true });
     }
 
-    document.body.appendChild(video);
-    video.src = url;
-    video.load();
-  });
+    if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      await waitForVideoEvent(video, "loadeddata", PRELOAD_TIMEOUT_MS);
+    }
+  } finally {
+    if (!displayedKeys.has(key)) pinnedKeys.delete(key);
+  }
 }
 
-/** Warm a Vimeo embed until the player reports play (not just iframe load). */
-function preloadVimeoIframe(url: string, startTime = 0): Promise<void> {
+/**
+ * Full-viewport, opacity 0. Zero-size iframes never actually buffer; moving
+ * them later reloads the player. Hover only toggles opacity and play/pause.
+ * z-index 0 sits above the page fill and under list chrome (z-10).
+ */
+function styleWarmVimeo(
+  iframe: HTMLIFrameElement,
+  fit: "cover" | "contain",
+  visible: boolean,
+) {
+  const opacity = visible ? "1" : "0";
+  if (fit === "cover") {
+    iframe.style.cssText = `position:fixed;left:50%;top:50%;height:56.25vw;min-height:100%;width:177.78vh;min-width:100%;transform:translate(-50%,-50%);opacity:${opacity};pointer-events:none;border:0;z-index:0;background:#000`;
+  } else {
+    iframe.style.cssText = `position:fixed;inset:0;width:100%;height:100%;opacity:${opacity};pointer-events:none;border:0;z-index:0;background:#000`;
+  }
+}
+
+function warmVimeoSrc(url: string, startTime: number): string | null {
+  const vimeo = parseVimeoUrl(url);
+  if (!vimeo) return null;
+  const src = buildVimeoEmbedSrc(vimeo, "background", startTime);
+  try {
+    const parsed = new URL(src);
+    parsed.searchParams.set("api", "1");
+    parsed.searchParams.set("autoplay", "1");
+    parsed.searchParams.set("muted", "1");
+    parsed.searchParams.set("autopause", "0");
+    return parsed.toString();
+  } catch {
+    return src;
+  }
+}
+
+function ensureWarmVimeo(url: string, startTime = 0): HTMLIFrameElement {
+  const key = warmClipKey(url, startTime);
+  const existing = warmVimeos.get(key);
+  if (existing) {
+    touchWarm(key);
+    return existing;
+  }
+
+  const iframe = document.createElement("iframe");
+  iframe.allow = "autoplay; fullscreen; picture-in-picture; encrypted-media";
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.title = "";
+  iframe.src = warmVimeoSrc(url, startTime) ?? url;
+  styleWarmVimeo(iframe, "cover", false);
+  document.body.appendChild(iframe);
+
+  warmVimeos.set(key, iframe);
+  touchWarm(key);
+  evictWarmIfNeeded();
+  return iframe;
+}
+
+function subscribeVimeo(iframe: HTMLIFrameElement) {
+  postVimeo(iframe, { method: "addEventListener", value: "ready" });
+  postVimeo(iframe, { method: "addEventListener", value: "play" });
+  postVimeo(iframe, { method: "addEventListener", value: "timeupdate" });
+}
+
+function prepareWarmVimeo(url: string, startTime: number): Promise<void> {
+  const key = warmClipKey(url, startTime);
+  pinnedKeys.add(key);
+  const iframe = ensureWarmVimeo(url, startTime);
+
   return new Promise((resolve) => {
-    const vimeo = parseVimeoUrl(url);
-    if (!vimeo) {
-      resolve();
-      return;
-    }
-
-    const iframe = document.createElement("iframe");
-    iframe.style.cssText =
-      "position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;border:0;left:-9999px;bottom:0";
-    iframe.src = buildVimeoEmbedSrc(vimeo, "background", startTime);
-    iframe.allow = "autoplay; fullscreen";
-
-    let settled = false;
-
+    let done = false;
     const finish = () => {
-      if (settled) return;
-      settled = true;
+      if (done) return;
+      done = true;
       clearTimeout(timeout);
-      window.removeEventListener("message", onMessage);
       iframe.removeEventListener("load", onLoad);
-      // Keep iframe mounted briefly so CDN edge cache stays warm, then remove.
-      window.setTimeout(() => iframe.remove(), 2500);
+      window.removeEventListener("message", onMessage);
+      if (!displayedKeys.has(key)) {
+        pinnedKeys.delete(key);
+      }
       resolve();
     };
 
@@ -154,22 +260,19 @@ function preloadVimeoIframe(url: string, startTime = 0): Promise<void> {
       if (!data) return;
 
       if (data.event === "ready") {
+        subscribeVimeo(iframe);
         if (startTime > 0) {
-          postVimeoMessage(iframe, {
-            method: "setCurrentTime",
-            value: startTime,
-          });
+          postVimeo(iframe, { method: "setCurrentTime", value: startTime });
         }
-        postVimeoMessage(iframe, { method: "play" });
-        return;
+        postVimeo(iframe, { method: "play" });
+        if (startTime <= 0) return;
       }
 
-      if (data.event === "play" || data.event === "playing") {
+      if (data.event === "play" && startTime <= 0) {
         finish();
         return;
       }
 
-      // With a custom start, treat near-start timeupdate as ready enough.
       if (
         startTime > 0 &&
         data.event === "timeupdate" &&
@@ -177,59 +280,105 @@ function preloadVimeoIframe(url: string, startTime = 0): Promise<void> {
         typeof data.data === "object"
       ) {
         const seconds = (data.data as { seconds?: number }).seconds ?? 0;
-        if (Math.abs(seconds - startTime) < 2) finish();
+        if (Math.abs(seconds - startTime) < 2) {
+          finish();
+        }
       }
     };
 
     const onLoad = () => {
-      postVimeoMessage(iframe, { method: "addEventListener", value: "ready" });
-      postVimeoMessage(iframe, { method: "addEventListener", value: "play" });
-      postVimeoMessage(iframe, { method: "addEventListener", value: "playing" });
+      subscribeVimeo(iframe);
       if (startTime > 0) {
-        postVimeoMessage(iframe, {
-          method: "addEventListener",
-          value: "timeupdate",
-        });
+        postVimeo(iframe, { method: "setCurrentTime", value: startTime });
       }
+      postVimeo(iframe, { method: "play" });
     };
 
     const timeout = setTimeout(finish, PRELOAD_TIMEOUT_MS);
-
     window.addEventListener("message", onMessage);
     iframe.addEventListener("load", onLoad, { once: true });
-    document.body.appendChild(iframe);
   });
 }
 
+/** Preload until the hover clip can start (including Sanity preview start time). */
 export function preloadVideoUrl(url: string, startTime = 0): Promise<void> {
-  const key = cacheKey(url, startTime);
+  const key = warmClipKey(url, startTime);
   const cached = preloadCache.get(key);
   if (cached) return cached;
 
   const vimeo = parseVimeoUrl(url);
   const promise = vimeo
-    ? preloadVimeoIframe(url, startTime)
-    : preloadMp4(url, startTime);
+    ? prepareWarmVimeo(url, startTime)
+    : prepareWarmMp4(url, startTime);
 
   preloadCache.set(key, promise);
-  // Also mark the bare URL so remounts without startTime can skip.
-  if (startTime > 0 && !preloadCache.has(url)) {
-    preloadCache.set(
-      url,
-      promise.then(() => undefined),
-    );
-  }
   return promise;
 }
 
-/** Mark a URL as already warmed (e.g. backdrop finished loading it). */
+/** Mark a URL as already warmed (e.g. idle backdrop is playing it). */
 export function markVideoUrlPreloaded(url: string, startTime = 0): void {
   if (!url) return;
-  const key = cacheKey(url, startTime);
-  if (!preloadCache.has(key)) {
-    preloadCache.set(key, Promise.resolve());
+  const key = warmClipKey(url, startTime);
+  if (preloadCache.has(key)) return;
+  preloadCache.set(key, Promise.resolve());
+}
+
+/** Take the preloaded MP4 element so hover can play it without a remount. */
+export function adoptWarmVideo(url: string, startTime = 0): HTMLVideoElement {
+  const key = warmClipKey(url, startTime);
+  displayedKeys.add(key);
+  pinnedKeys.add(key);
+  return ensureWarmVideo(url, startTime);
+}
+
+/** Park the hover MP4 so the next reveal of this title is instant. */
+export function releaseWarmVideo(
+  url: string,
+  startTime = 0,
+  video: HTMLVideoElement,
+): void {
+  const key = warmClipKey(url, startTime);
+  displayedKeys.delete(key);
+  pinnedKeys.delete(key);
+  if (warmMp4s.get(key) === video) {
+    parkVideo(video);
+    return;
   }
-  if (startTime > 0 && !preloadCache.has(url)) {
-    preloadCache.set(url, Promise.resolve());
+  destroyVideo(video);
+}
+
+export function adoptWarmVimeo(
+  url: string,
+  startTime = 0,
+): HTMLIFrameElement {
+  const key = warmClipKey(url, startTime);
+  displayedKeys.add(key);
+  pinnedKeys.add(key);
+  return ensureWarmVimeo(url, startTime);
+}
+
+export function releaseWarmVimeo(
+  url: string,
+  startTime = 0,
+  iframe: HTMLIFrameElement,
+  fit: "cover" | "contain" = "cover",
+): void {
+  const key = warmClipKey(url, startTime);
+  displayedKeys.delete(key);
+  pinnedKeys.delete(key);
+  postVimeo(iframe, { method: "pause" });
+  if (warmVimeos.get(key) === iframe) {
+    styleWarmVimeo(iframe, fit, false);
+    return;
   }
+  iframe.remove();
+}
+
+export function setWarmVimeoVisible(
+  iframe: HTMLIFrameElement,
+  fit: "cover" | "contain",
+  visible: boolean,
+) {
+  styleWarmVimeo(iframe, fit, visible);
+  postVimeo(iframe, { method: visible ? "play" : "pause" });
 }

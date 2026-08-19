@@ -21,11 +21,10 @@ import { useSequentialMediaPreload } from "@/hooks/useSequentialMediaPreload";
 import { isListOverflowing } from "@/lib/cursor-hover";
 import { markVideoUrlPreloaded } from "@/lib/preload-video";
 import { STAGE_LOGO_TOP_PADDING, STAGE_NAV_CLEARANCE } from "@/lib/stage";
-import { isVideoMediaUrl, isVimeoUrl } from "@/lib/vimeo";
+import { isVideoMediaUrl } from "@/lib/vimeo";
 import { parseTimeToSeconds } from "@/lib/parse-time";
 import type { Project, TalentDetailData } from "@/sanity/types";
-import { MutedLoopVideo } from "@/components/MutedLoopVideo";
-import { VimeoBackground } from "@/components/VimeoBackground";
+import { WarmHoverVideo } from "@/components/WarmHoverVideo";
 
 const ITEM_MIN_HEIGHT =
   "min-h-[calc(15pt*1.05+0.125rem+11pt)] md:min-h-[calc(19pt*1.05+0.125rem+13pt)]";
@@ -239,29 +238,15 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
   const backgroundMedia = (
     <>
       <div className="talent-media">
-        {mediaVideoUrl && isVimeoUrl(mediaVideoUrl) ? (
-          <VimeoBackground
-            key={activeProject?._id}
-            src={mediaVideoUrl}
-            title={
-              activeProject
-                ? `${activeProject.title} video`
-                : `${talent.name} project video`
-            }
-            startTime={previewStart}
-            onReady={markActivePreloaded}
-          />
-        ) : mediaVideoUrl ? (
-          <MutedLoopVideo
-            key={activeProject?._id}
+        {mediaVideoUrl ? (
+          <WarmHoverVideo
             src={mediaVideoUrl}
             startTime={previewStart}
-            onReady={markActivePreloaded}
-            aria-label={
-              activeProject
-                ? `${activeProject.title} video`
-                : `${talent.name} project video`
-            }
+            playing
+            className="h-full w-full"
+            onPreviewReady={(ready) => {
+              if (ready) markActivePreloaded();
+            }}
           />
         ) : mediaImageUrl ? (
           <Image
