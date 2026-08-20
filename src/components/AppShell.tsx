@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import { BottomChrome } from "./BottomChrome";
-import { GoHomeProvider } from "./GoHomeContext";
+import { consumeGoHomeNavigation, GoHomeProvider, peekGoHomeNavigation } from "./GoHomeContext";
 import { HomePage } from "./HomePage";
 import TalentRoster from "./talent/TalentRoster";
 import { InfoShell } from "./info/InfoShell";
@@ -27,10 +27,13 @@ function parseSection(value: string | null): Section {
 }
 
 export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const isMobile = useMobileBrowseLayout();
   const [section, setSection] = useState<Section>(() =>
-    parseSection(searchParams.get("section")),
+    peekGoHomeNavigation()
+      ? "work"
+      : parseSection(searchParams.get("section")),
   );
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -45,11 +48,22 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
 
   // Track view state for Work section (scroll/list toggle)
   const [workView, setWorkView] = useState<"scroll" | "list">(() =>
-    searchParams.get("view") === "list" ? "list" : "scroll",
+    peekGoHomeNavigation()
+      ? "scroll"
+      : searchParams.get("view") === "list"
+        ? "list"
+        : "scroll",
   );
 
   // Sync section state with URL changes
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (consumeGoHomeNavigation()) {
+      setSection("work");
+      setWorkView("scroll");
+      setMenuOpen(false);
+      router.replace("/");
+      return;
+    }
     setSection(parseSection(searchParams.get("section")));
     if (
       searchParams.get("section") === null ||
@@ -57,7 +71,7 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
     ) {
       setWorkView(searchParams.get("view") === "list" ? "list" : "scroll");
     }
-  }, [searchParams]);
+  }, [router, searchParams]);
 
   // Navigate to a section by updating URL and state
   function handleNavigate(nextSection: Section) {
@@ -110,6 +124,7 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
   // Handle browser back/forward
   useEffect(() => {
     function handlePopState() {
+      if (peekGoHomeNavigation()) return;
       const params = new URLSearchParams(window.location.search);
       setSection(parseSection(params.get("section")));
     }

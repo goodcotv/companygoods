@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useGoHome } from "./GoHomeContext";
+import { markGoHomeNavigation, useGoHome } from "./GoHomeContext";
 
 type BrandHeaderProps = {
   /** `work` = small mark; `display` = large wordmark */
@@ -133,6 +133,17 @@ export function BrandHeader({
         ) : (
           <MotionLink
             href="/"
+            onClick={(event) => {
+              if (
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey
+              ) {
+                return;
+              }
+              markGoHomeNavigation();
+            }}
             layoutId={resolvedLayoutId}
             transition={LOGO_LAYOUT_TRANSITION}
             className={markClass}

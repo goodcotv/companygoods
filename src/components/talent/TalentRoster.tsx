@@ -17,6 +17,7 @@ import { MobileBrandBar } from "@/components/MobileBrandBar";
 import { CATEGORIES, type TalentCategory } from "@/data/talent";
 import { useCoarsePointerDevice } from "@/hooks/useCoarsePointerDevice";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
+import { useScrollHoverItem } from "@/hooks/useScrollHoverItem";
 import { useSequentialMediaPreload } from "@/hooks/useSequentialMediaPreload";
 import { isListOverflowing } from "@/lib/cursor-hover";
 import { markVideoUrlPreloaded, hideWarmMediaOverlays } from "@/lib/preload-video";
@@ -148,6 +149,26 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
     () => new Set(roster.map((person) => person._id)),
     [roster],
   );
+
+  const listItemIds = useMemo(
+    () => roster.map((person) => person._id),
+    [roster],
+  );
+
+  const activateFromScroll = useCallback((id: string) => {
+    setSelected((prev) => {
+      if (prev?._id === id) return prev;
+      return roster.find((person) => person._id === id) ?? prev;
+    });
+  }, [roster]);
+
+  useScrollHoverItem({
+    enabled: isMobile,
+    scrollRef,
+    itemRefs,
+    itemIds: listItemIds,
+    onActivate: activateFromScroll,
+  });
 
   const effectiveVisibleIds = useMemo(() => {
     if (!waitForVideos) return allIds;
@@ -497,8 +518,9 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
               onMouseEnter={() => {
                 if (!isMobile) showPerson(person);
               }}
-              onTouchStart={() => showPerson(person)}
-              onFocus={() => showPerson(person)}
+              onFocus={() => {
+                if (!isMobile) showPerson(person);
+              }}
             >
               {person.name}
             </Link>

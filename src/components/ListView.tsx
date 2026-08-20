@@ -28,6 +28,7 @@ import { markVideoUrlPreloaded, hideWarmMediaOverlays } from "@/lib/preload-vide
 import { isVideoMediaUrl } from "@/lib/vimeo";
 import { useCoarsePointerDevice } from "@/hooks/useCoarsePointerDevice";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
+import { useScrollHoverItem } from "@/hooks/useScrollHoverItem";
 import { useSequentialMediaPreload } from "@/hooks/useSequentialMediaPreload";
 import { BrandHeader } from "./BrandHeader";
 import { AnimatedCornerBrackets } from "./AnimatedCornerBrackets";
@@ -73,7 +74,9 @@ export function ListView({ projects }: ListViewProps) {
   });
   const [activeId, setActiveId] = useState(projects[0]?.id);
   const [descVisible, setDescVisible] = useState(true);
-  const [specialtyExpanded, setSpecialtyExpanded] = useState(false);
+  const [specialtyExpanded, setSpecialtyExpanded] = useState(
+    () => discipline !== null,
+  );
   const scrollRef = useRef<HTMLUListElement>(null);
   const itemRefs = useRef(new Map<string, HTMLLIElement>());
   const [visibleProjectIds, setVisibleProjectIds] = useState(
@@ -134,6 +137,23 @@ export function ListView({ projects }: ListViewProps) {
     () => new Set(filtered.map((project) => project.id)),
     [filtered],
   );
+
+  const listItemIds = useMemo(
+    () => filtered.map((project) => project.id),
+    [filtered],
+  );
+
+  const activateFromScroll = useCallback((id: string) => {
+    setActiveId((prev) => (prev === id ? prev : id));
+  }, []);
+
+  useScrollHoverItem({
+    enabled: isMobile,
+    scrollRef,
+    itemRefs,
+    itemIds: listItemIds,
+    onActivate: activateFromScroll,
+  });
 
   const effectiveVisibleIds = useMemo(() => {
     if (!waitForVideos) return allProjectIds;
@@ -249,14 +269,7 @@ export function ListView({ projects }: ListViewProps) {
   const backgroundMedia =
     active && activeMediaUrl ? (
       <>
-        <div
-          className={`absolute inset-0 ${
-            isMobile
-              ? "scale-110 opacity-90 [filter:blur(48px)_brightness(0.85)]"
-              : ""
-          }`}
-          style={{ zIndex: 0 }}
-        >
+        <div className="absolute inset-0" style={{ zIndex: 0 }}>
           {activeIsVideo ? (
             <WarmHoverVideo
               src={activeMediaUrl}
@@ -465,12 +478,15 @@ export function ListView({ projects }: ListViewProps) {
               onMouseEnter={() => {
                 if (!isMobile) selectProject(project.id);
               }}
-              onTouchStart={() => selectProject(project.id)}
-              onFocus={() => selectProject(project.id)}
+              onFocus={() => {
+                if (!isMobile) selectProject(project.id);
+              }}
               className={`group block w-fit max-w-full text-left transition-colors ${
                 isActive
                   ? "text-foreground"
-                  : "text-white/35 hover:text-foreground"
+                  : isMobile
+                    ? "text-white/35"
+                    : "text-white/35 hover:text-foreground"
               }`}
             >
               <span className="block font-heading text-[15pt] leading-[1.05] md:text-[19pt]">

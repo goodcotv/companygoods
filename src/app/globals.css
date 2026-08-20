@@ -367,9 +367,14 @@ body {
   white-space: nowrap;
 }
 
-.talent-list__name:hover,
 .talent-list__name.is-active {
   color: #fff;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .talent-list__name:hover {
+    color: #fff;
+  }
 }
 
 .talent-stage {

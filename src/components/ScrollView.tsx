@@ -54,20 +54,19 @@ function LatestLabel({ className = "" }: { className?: string }) {
 }
 
 function SubtitleLink({ href, children }: { href: string; children: ReactNode }) {
-  const className = "underline underline-offset-4 decoration-white/70";
+  // Span, not <a>: global/Preflight link styles zero out text-decoration on anchors.
+  const className =
+    "underline decoration-foreground underline-offset-[3px] [text-decoration-skip-ink:none] [-webkit-text-decoration-line:underline]";
   const isInternal = href.startsWith("/");
+  const label = <span className={className}>{children}</span>;
 
   if (isInternal) {
-    return (
-      <Link href={href} className={className}>
-        {children}
-      </Link>
-    );
+    return <Link href={href}>{label}</Link>;
   }
 
   return (
-    <a href={href} className={className} target="_blank" rel="noopener noreferrer">
-      {children}
+    <a href={href} target="_blank" rel="noopener noreferrer">
+      {label}
     </a>
   );
 }
@@ -108,7 +107,7 @@ function ProjectCredits({
         </Link>
       </h2>
       {customLines && customLines.length > 0 ? (
-        <div className="mt-3 space-y-0.5 font-sans text-[12px] leading-snug tracking-[0.06em] uppercase [&_a]:pointer-events-auto">
+        <div className="mt-3 space-y-1 font-sans text-[12px] leading-relaxed tracking-[0.06em] uppercase [&_a]:pointer-events-auto">
           {customLines.map((spans, index) => (
             <SubtitleLine key={index} spans={spans} />
           ))}

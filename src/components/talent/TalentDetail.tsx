@@ -15,8 +15,10 @@ import { BrandHeader } from "@/components/BrandHeader";
 import { BottomChrome } from "@/components/BottomChrome";
 import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
 import { MobileBrandBar } from "@/components/MobileBrandBar";
+import { markGoHomeNavigation } from "@/components/GoHomeContext";
 import { useCoarsePointerDevice } from "@/hooks/useCoarsePointerDevice";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
+import { useScrollHoverItem } from "@/hooks/useScrollHoverItem";
 import { useSequentialMediaPreload } from "@/hooks/useSequentialMediaPreload";
 import { isListOverflowing } from "@/lib/cursor-hover";
 import { markVideoUrlPreloaded, hideWarmMediaOverlays } from "@/lib/preload-video";
@@ -88,6 +90,23 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
     () => new Set(projects.map((project) => project._id)),
     [projects],
   );
+
+  const listItemIds = useMemo(
+    () => projects.map((project) => project._id),
+    [projects],
+  );
+
+  const activateFromScroll = useCallback((id: string) => {
+    setActiveProjectId((prev) => (prev === id ? prev : id));
+  }, []);
+
+  useScrollHoverItem({
+    enabled: isMobile,
+    scrollRef,
+    itemRefs,
+    itemIds: listItemIds,
+    onActivate: activateFromScroll,
+  });
 
   const effectiveVisibleIds = useMemo(() => {
     if (!waitForVideos) return allProjectIds;
@@ -353,13 +372,16 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
               className={`group block w-fit max-w-full text-left transition-colors ${
                 isActive
                   ? "text-foreground"
-                  : "text-white/35 hover:text-foreground"
+                  : isMobile
+                    ? "text-white/35"
+                    : "text-white/35 hover:text-foreground"
               }`}
               onMouseEnter={() => {
                 if (!isMobile) setActiveProjectId(project._id);
               }}
-              onTouchStart={() => setActiveProjectId(project._id)}
-              onFocus={() => setActiveProjectId(project._id)}
+              onFocus={() => {
+                if (!isMobile) setActiveProjectId(project._id);
+              }}
             >
               <span className="block font-heading text-[15pt] leading-[1.05] md:text-[19pt]">
                 {primary}
@@ -381,13 +403,18 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
     router.push("/?section=talent");
   }
 
+  function goToHome() {
+    markGoHomeNavigation();
+    router.push("/");
+  }
+
   if (isMobile) {
     return (
       <div className="fixed inset-0 overflow-hidden bg-transparent text-foreground">
         {backgroundMedia}
 
         <div className="relative z-10 flex h-full min-h-0 flex-col pb-[calc(3.25rem+env(safe-area-inset-bottom,0px))]">
-          <MobileBrandBar />
+          <MobileBrandBar onClick={goToHome} />
 
           <div className="flex min-h-0 flex-1 flex-col px-5">
             <div className="mb-4 flex shrink-0 items-baseline justify-between gap-4">
@@ -479,8 +506,9 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
         style={{ paddingTop: STAGE_LOGO_TOP_PADDING }}
       >
         <BrandHeader
-          variant="display"
+          variant="work"
           widthClass="w-[30rem] max-w-full"
+          onClick={goToHome}
         />
       </div>
 
