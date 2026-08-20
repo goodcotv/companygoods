@@ -102,7 +102,7 @@ export function BottomChrome({
         <button
           type="button"
           onClick={onMenuOpen}
-          className={`pointer-events-auto rounded-md bg-white/10 px-3 py-1.5 uppercase ${typeClass} text-foreground transition-opacity hover:opacity-70`}
+          className={`pointer-events-auto uppercase ${typeClass} text-foreground transition-opacity hover:opacity-70`}
           aria-haspopup="dialog"
         >
           MENU

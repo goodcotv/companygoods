@@ -1,6 +1,9 @@
 const linkClass =
   "underline underline-offset-2 transition-opacity hover:opacity-70";
 
+const creditsType =
+  "font-display text-[calc(11pt-2px)] font-medium uppercase leading-none md:text-[calc(13pt-2px)]";
+
 type InfoCreditsProps = {
   className?: string;
 };
@@ -8,9 +11,9 @@ type InfoCreditsProps = {
 export function InfoCredits({ className = "" }: InfoCreditsProps) {
   return (
     <p
-      className={`max-w-md uppercase leading-relaxed tracking-[0.06em] text-foreground ${
-        className.includes("text-[") ? className : `text-[10px] ${className}`
-      }`}
+      className={[creditsType, "max-w-none whitespace-nowrap text-foreground", className]
+        .filter(Boolean)
+        .join(" ")}
     >
       Website Design + Production:{" "}
       <a

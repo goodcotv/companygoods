@@ -13,3 +13,10 @@ export const STAGE_NAV_LINE = 16;
  * Scroll camera bottom sits on this line.
  */
 export const STAGE_NAV_CLEARANCE = STAGE_NAV_PADDING + STAGE_NAV_LINE;
+
+/** BottomChrome pill (`py-1.5` + 11px type) plus a small gap above it. */
+export const STAGE_NAV_PILL = 40;
+/**
+ * Bottom inset so a full-bleed frame sits above the BottomChrome pill.
+ */
+export const STAGE_FRAME_BOTTOM = STAGE_NAV_PADDING + STAGE_NAV_PILL;

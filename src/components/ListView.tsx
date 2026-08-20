@@ -257,6 +257,15 @@ export function ListView({ projects }: ListViewProps) {
     if (active.id !== activeId) setActiveId(active.id);
   }, [active, activeId]);
 
+  // Filter changes should always land on the default (first) project in the
+  // new list — not keep a video from a tighter filter that is still present.
+  useEffect(() => {
+    const first = filtered[0];
+    if (first) setActiveId(first.id);
+    scrollRef.current?.scrollTo(0, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when filters change
+  }, [category, discipline]);
+
   const markActivePreloaded = useCallback(() => {
     if (priorityVideoUrl) {
       markVideoUrlPreloaded(priorityVideoUrl, previewStart);
@@ -307,8 +316,22 @@ export function ListView({ projects }: ListViewProps) {
         )?.id
       : undefined;
 
+  function selectCategory(cat: Category) {
+    if (category === cat) {
+      setDiscipline(null);
+      setSpecialtyExpanded(false);
+      return;
+    }
+    setCategory(cat);
+  }
+
   function selectDiscipline(d: Discipline) {
-    setDiscipline((prev) => (prev === d ? null : d));
+    if (discipline === d) {
+      setDiscipline(null);
+      setSpecialtyExpanded(false);
+      return;
+    }
+    setDiscipline(d);
   }
 
   function selectProject(id: string) {
@@ -363,13 +386,15 @@ export function ListView({ projects }: ListViewProps) {
 
   const categoryNav = (
     <nav
-      className={`flex flex-wrap items-center gap-x-1 gap-y-2 tracking-[0.1em] uppercase ${
-        isMobile ? "mt-4 text-[13px]" : `${STAGE_LOGO_NAV_GAP_CLASS} text-[12px]`
+      className={`flex items-center gap-x-1 tracking-[0.1em] uppercase ${
+        isMobile
+          ? "mt-4 flex-nowrap overflow-x-auto whitespace-nowrap text-[13px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          : `flex-wrap gap-y-2 ${STAGE_LOGO_NAV_GAP_CLASS} text-[12px]`
       }`}
       aria-label="Work categories"
     >
       {CATEGORIES.map((cat, i) => (
-        <span key={cat} className="inline-flex items-center gap-1">
+        <span key={cat} className="inline-flex shrink-0 items-center gap-1">
           {i > 0 ? (
             <span className="text-white/55" aria-hidden>
               /
@@ -377,7 +402,7 @@ export function ListView({ projects }: ListViewProps) {
           ) : null}
           <button
             type="button"
-            onClick={() => setCategory((prev) => (prev === cat ? null : cat))}
+            onClick={() => selectCategory(cat)}
             className={`transition-opacity ${
               category === cat
                 ? "font-bold text-foreground opacity-100"

@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
+import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
-import { STAGE_LOGO_TOP_PADDING } from "@/lib/stage";
+import { STAGE_FRAME_BOTTOM, STAGE_LOGO_TOP_PADDING } from "@/lib/stage";
 import type { PostSiteSettings } from "@/sanity/types";
 import { BrandHeader } from "./BrandHeader";
 import { MobileBrandBar } from "@/components/MobileBrandBar";
@@ -32,12 +32,30 @@ function formatContactEmailDisplay(email: string): string {
   return `${local.charAt(0).toUpperCase()}${local.slice(1)} @${domain}`;
 }
 
+function toTitleCase(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\b([a-z])/g, (char) => char.toUpperCase());
+}
+
 function phoneHref(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   if (!digits) return `tel:${phone}`;
   if (digits.length === 10) return `tel:+1${digits}`;
   return `tel:+${digits}`;
 }
+
+/** Mint ExtraBold — same sizes as web1 info headings / about. */
+const textInfoHeading =
+  "font-heading text-[calc(17pt-2px)] font-extrabold normal-case leading-[1.05] md:text-[calc(21pt-2px)]";
+
+/** Tekio Medium — email / titles (uppercase). */
+const textInfoUi =
+  "font-display text-[calc(11pt-2px)] font-medium uppercase leading-none md:text-[calc(13pt-2px)]";
+
+/** Tekio Medium — addresses & phone (as stored, not all-caps). */
+const textInfoBody =
+  "font-display text-[calc(11pt-2px)] font-medium normal-case leading-relaxed md:text-[calc(13pt-2px)]";
 
 function InfoSubNav({
   activeSubRoute,
@@ -51,33 +69,42 @@ function InfoSubNav({
   mobile?: boolean;
 }) {
   return (
-    <nav
-      className={`flex flex-wrap items-center gap-x-1 uppercase tracking-[0.08em] ${
-        mobile ? "text-[13px]" : "text-[11px]"
-      } ${className}`}
-      aria-label="Info navigation"
-    >
-      {INFO_SUBNAV.map((item, index) => {
-        const isActive = activeSubRoute === item.id;
-        return (
-          <span key={item.id} className="inline-flex items-center gap-x-1">
-            {index > 0 && <span className="text-foreground/80">/</span>}
-            <button
-              type="button"
-              onClick={() => onNavigate(item.id)}
-              className={
-                isActive
-                  ? "text-foreground underline decoration-foreground underline-offset-[5px]"
-                  : "text-muted hover:text-foreground"
-              }
-              aria-current={isActive ? "page" : undefined}
-            >
-              {item.label}
-            </button>
-          </span>
-        );
-      })}
-    </nav>
+    <LayoutGroup>
+      <nav
+        className={`flex flex-wrap items-center gap-x-1 uppercase tracking-[0.08em] ${
+          mobile ? "text-[13px]" : "text-[11px]"
+        } ${className}`}
+        aria-label="Info navigation"
+      >
+        {INFO_SUBNAV.map((item, index) => {
+          const isActive = activeSubRoute === item.id;
+          return (
+            <span key={item.id} className="inline-flex items-center gap-x-1">
+              {index > 0 && <span className="text-foreground/80">/</span>}
+              <button
+                type="button"
+                onClick={() => onNavigate(item.id)}
+                className={`relative pb-[5px] transition-colors duration-200 ${
+                  isActive
+                    ? "text-foreground"
+                    : "text-muted hover:text-foreground"
+                }`}
+                aria-current={isActive ? "page" : undefined}
+              >
+                {item.label}
+                {isActive && (
+                  <motion.span
+                    layoutId="info-subnav-underline"
+                    className="absolute inset-x-0 bottom-0 h-px bg-foreground"
+                    transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                )}
+              </button>
+            </span>
+          );
+        })}
+      </nav>
+    </LayoutGroup>
   );
 }
 
@@ -90,31 +117,22 @@ function InfoBody({
   settings?: PostSiteSettings;
   mobile?: boolean;
 }) {
-  const aboutSize = mobile
-    ? "text-[clamp(1.2rem,4.8vw,1.55rem)]"
-    : "text-[clamp(1rem,2.1vw,1.35rem)]";
-  const headingSize = mobile
-    ? "text-[clamp(1.3rem,4.8vw,1.65rem)]"
-    : "text-[clamp(1.1rem,2vw,1.35rem)]";
-  const nameSize = mobile
-    ? "text-[clamp(1.35rem,5vw,1.65rem)]"
-    : "text-[clamp(1.15rem,2.2vw,1.45rem)]";
-  const metaSize = mobile ? "text-[13px]" : "text-[11px]";
-
   if (activeSubRoute === "about") {
     const paragraphs = settings?.aboutParagraphs?.filter(Boolean) ?? [];
-    if (paragraphs.length === 0) return null;
 
     return (
-      <div className="flex flex-col gap-6">
+      <div
+        className={`flex flex-col gap-8 ${mobile ? "min-h-full" : "h-full"}`}
+      >
         {paragraphs.map((paragraph) => (
           <p
             key={paragraph}
-            className={`font-heading ${aboutSize} font-extrabold leading-[1.35] tracking-[-0.01em] text-foreground`}
+            className={`${textInfoHeading} text-foreground`}
           >
             {paragraph}
           </p>
         ))}
+        <InfoCredits className={mobile ? "mt-auto pt-8" : "mt-auto pt-10"} />
       </div>
     );
   }
@@ -126,17 +144,13 @@ function InfoBody({
     if (!contactEmail && offices.length === 0) return null;
 
     return (
-      <div className="flex flex-col gap-8 text-foreground">
+      <div className="flex flex-col gap-10 text-foreground">
         {contactEmail && (
-          <section className="space-y-1">
-            <h2
-              className={`font-heading ${headingSize} font-extrabold uppercase tracking-[-0.01em]`}
-            >
-              CONTACT
-            </h2>
+          <section>
+            <h2 className={textInfoHeading}>Contact</h2>
             <a
               href={`mailto:${contactEmail}`}
-              className={`block font-sans ${metaSize} uppercase tracking-[0.06em]`}
+              className={`mt-3 block ${textInfoUi}`}
             >
               {formatContactEmailDisplay(contactEmail)}
             </a>
@@ -144,23 +158,17 @@ function InfoBody({
         )}
 
         {offices.map((office) => (
-          <section key={office.label} className="space-y-1">
-            <h2
-              className={`font-heading ${headingSize} font-extrabold uppercase tracking-[-0.01em]`}
-            >
-              {office.label}
-            </h2>
+          <section key={office.label}>
+            <h2 className={textInfoHeading}>{toTitleCase(office.label)}</h2>
             {office.address && (
-              <p
-                className={`font-sans ${metaSize} uppercase leading-relaxed tracking-[0.06em]`}
-              >
+              <p className={`mt-3 whitespace-pre-line ${textInfoBody}`}>
                 {office.address}
               </p>
             )}
             {office.phone && (
               <a
                 href={phoneHref(office.phone)}
-                className={`block font-sans ${metaSize} uppercase tracking-[0.06em]`}
+                className={`mt-2 block ${textInfoBody}`}
               >
                 {office.phone}
               </a>
@@ -177,23 +185,19 @@ function InfoBody({
   return (
     <ul className="flex flex-col gap-10">
       {management.map((person) => (
-        <li key={person.email || person.name} className="space-y-0.5">
-          <h2
-            className={`font-heading ${nameSize} font-extrabold tracking-[-0.01em] text-foreground`}
-          >
+        <li key={person.email || person.name}>
+          <h2 className={`${textInfoHeading} text-foreground`}>
             {person.name}
           </h2>
           {person.title && (
-            <p
-              className={`font-sans ${metaSize} uppercase tracking-[0.06em] text-foreground`}
-            >
+            <p className={`mt-2 ${textInfoUi} text-foreground`}>
               {person.title}
             </p>
           )}
           {person.email && (
             <a
               href={`mailto:${person.email}`}
-              className={`block font-sans ${metaSize} uppercase tracking-[0.06em] text-foreground`}
+              className={`mt-2 inline-block text-foreground/80 transition-opacity hover:opacity-70 ${textInfoUi}`}
             >
               {person.email}
             </a>
@@ -258,26 +262,34 @@ export function InfoShell({ settings }: InfoShellProps) {
         <div className="relative mx-2 mt-5 min-h-0 flex-1">
           <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
           <div className="h-full overflow-y-auto px-4 py-5">
-            <InfoBody
-              activeSubRoute={activeSubRoute}
-              settings={settings}
-              mobile
-            />
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={activeSubRoute}
+                className="h-full"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeInOut" }}
+              >
+                <InfoBody
+                  activeSubRoute={activeSubRoute}
+                  settings={settings}
+                  mobile
+                />
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
-
-        <footer className="shrink-0 px-3 pt-4 pb-2">
-          <InfoCredits className="text-[12px]" />
-        </footer>
       </motion.div>
     );
   }
 
   return (
     <motion.div
-      className="absolute inset-0 flex flex-col bg-background px-8 pb-7 text-foreground"
+      className="absolute inset-0 flex flex-col bg-background px-8 text-foreground"
       style={{
         paddingTop: STAGE_LOGO_TOP_PADDING,
+        paddingBottom: STAGE_FRAME_BOTTOM,
       }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -293,8 +305,22 @@ export function InfoShell({ settings }: InfoShellProps) {
         <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
 
         <div className="flex h-full items-start gap-16 px-5 py-5">
-          <div className="max-w-[30rem]">
-            <InfoBody activeSubRoute={activeSubRoute} settings={settings} />
+          <div className="flex h-full min-h-0 max-w-[30rem] flex-col">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={activeSubRoute}
+                className="flex h-full min-h-0 flex-col"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeInOut" }}
+              >
+                <InfoBody
+                  activeSubRoute={activeSubRoute}
+                  settings={settings}
+                />
+              </motion.div>
+            </AnimatePresence>
           </div>
 
           <div className="ml-auto shrink-0 pt-1">
@@ -306,9 +332,6 @@ export function InfoShell({ settings }: InfoShellProps) {
         </div>
       </div>
 
-      <footer className="mt-5 flex shrink-0 items-end justify-between gap-8">
-        <InfoCredits />
-      </footer>
     </motion.div>
   );
 }

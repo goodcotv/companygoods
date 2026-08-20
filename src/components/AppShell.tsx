@@ -75,6 +75,22 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
 
   // Navigate to a section by updating URL and state
   function handleNavigate(nextSection: Section) {
+    // Mobile: Menu > Work always opens list (logo / landing stays scroll).
+    if (isMobile && nextSection === "work") {
+      if (section === "work" && workView === "list") return;
+
+      const params = new URLSearchParams(window.location.search);
+      params.delete("section");
+      params.set("view", "list");
+      params.delete("role");
+      params.delete("sub");
+      const url = `/?${params.toString()}`;
+      window.history.pushState(null, "", url);
+      setSection("work");
+      setWorkView("list");
+      return;
+    }
+
     if (nextSection === section) return;
 
     const params = new URLSearchParams(window.location.search);
@@ -127,6 +143,9 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
       if (peekGoHomeNavigation()) return;
       const params = new URLSearchParams(window.location.search);
       setSection(parseSection(params.get("section")));
+      if (params.get("section") === null || params.get("section") === "work") {
+        setWorkView(params.get("view") === "list" ? "list" : "scroll");
+      }
     }
 
     window.addEventListener("popstate", handlePopState);
@@ -173,8 +192,10 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
       position="inline"
       activeSection={section}
       onNavigate={handleNavigate}
-      view={section === "work" ? workView : undefined}
-      onViewChange={section === "work" ? handleWorkViewChange : undefined}
+      view={section === "work" && !isMobile ? workView : undefined}
+      onViewChange={
+        section === "work" && !isMobile ? handleWorkViewChange : undefined
+      }
       onMenuOpen={isMobile ? () => setMenuOpen(true) : undefined}
       className={
         isMobile ? "pointer-events-auto w-full" : "pointer-events-auto"

@@ -16,7 +16,7 @@ type MobileMenuProps = {
   open: boolean;
   onClose: () => void;
   onNavigate: (section: Section) => void;
-  /** Logo tap — Work scroll home, then close. */
+  /** Logo tap — Work scroll landing, then close. Menu > Work opens list. */
   onGoHome: () => void;
   activeSection: Section;
   /** Intro / backdrop media URL (video or image). */
