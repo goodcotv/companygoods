@@ -18,7 +18,7 @@ import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { BrandHeader } from "./BrandHeader";
 import { MediaViewport } from "./MediaViewport";
 import { MobileBrandBar } from "./MobileBrandBar";
-import { isVideoMediaUrl } from "@/lib/vimeo";
+import { isVideoMediaUrl, isVimeoUrl } from "@/lib/vimeo";
 
 type ScrollViewProps = {
   projects: Project[];
@@ -266,9 +266,14 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
         const mediaSrc = project.image;
         const mediaType = isVideoMediaUrl(mediaSrc) ? "video" : "image";
         const on = !isIntro && i === activeIndex;
+        // Keep prev/next mounted so the next clip is already buffering.
+        // Vimeo iframes need a longer runway than MP4s — warm those +2 as well.
+        // activeIndex is -1 on the intro, so i === 0 is the first project.
         const nearby =
           on ||
-          (!isIntro && (i === activeIndex + 1 || i === activeIndex - 1));
+          i === activeIndex + 1 ||
+          (!isIntro && i === activeIndex - 1) ||
+          (i === activeIndex + 2 && isVimeoUrl(mediaSrc));
 
         if (!nearby) return null;
 

@@ -96,24 +96,35 @@ function VimeoBackgroundEmbed({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const onReadyRef = useRef(onReady);
   const readyNotifiedRef = useRef(false);
+  const previewReadyRef = useRef(false);
+  const activeRef = useRef(active);
   const [previewReady, setPreviewReady] = useState(false);
   const embedSrc = buildVimeoEmbedSrc(video, "background", startTime);
 
   onReadyRef.current = onReady;
+  activeRef.current = active;
 
   useEffect(() => {
     readyNotifiedRef.current = false;
+    previewReadyRef.current = false;
     setPreviewReady(false);
   }, [video.id, video.hash, startTime]);
 
   const markReady = () => {
+    previewReadyRef.current = true;
     setPreviewReady(true);
+    if (!activeRef.current) {
+      const iframe = iframeRef.current;
+      if (iframe) postVimeoMessage(iframe, { method: "pause" });
+    }
     if (readyNotifiedRef.current) return;
     readyNotifiedRef.current = true;
     markVideoUrlPreloaded(src, startTime);
     onReadyRef.current?.();
   };
 
+  // Player setup is independent of `active`. Nearby (hidden) slides must play
+  // until a real frame exists — pausing first is why Vimeo felt slower than MP4.
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
@@ -134,10 +145,6 @@ function VimeoBackgroundEmbed({
     };
 
     const kickPlayback = () => {
-      if (!active) {
-        postVimeoMessage(iframe, { method: "pause" });
-        return;
-      }
       if (startTime > 0) {
         postVimeoMessage(iframe, {
           method: "setCurrentTime",
@@ -169,18 +176,12 @@ function VimeoBackgroundEmbed({
         const seconds = payload.seconds ?? 0;
         if (startTime > 0 && Math.abs(seconds - startTime) < 2) {
           markReady();
-          if (!active) {
-            postVimeoMessage(iframe, { method: "pause" });
-          }
         } else if (startTime <= 0 && seconds > 0.05) {
           markReady();
-          if (!active) {
-            postVimeoMessage(iframe, { method: "pause" });
-          }
         }
         // Natural end / loop jumped back to 0 — restart from preview start
         if (startTime > 0 && lastSeconds > 1 && seconds < 1) {
-          kickPlayback();
+          if (activeRef.current) kickPlayback();
         }
         lastSeconds = seconds;
       }
@@ -197,7 +198,13 @@ function VimeoBackgroundEmbed({
       window.removeEventListener("message", onMessage);
       iframe.removeEventListener("load", subscribe);
     };
-  }, [active, src, startTime, video.hash, video.id]);
+  }, [src, startTime, video.hash, video.id]);
+
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || !previewReady) return;
+    postVimeoMessage(iframe, { method: active ? "play" : "pause" });
+  }, [active, previewReady]);
 
   const iframeClass = cover
     ? "pointer-events-none absolute left-1/2 top-1/2 h-[56.25vw] min-h-full w-[177.78vh] min-w-full -translate-x-1/2 -translate-y-1/2 border-0"

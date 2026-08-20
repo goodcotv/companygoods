@@ -206,10 +206,6 @@ body {
   align-items: center;
   flex-shrink: 0;
   gap: 0.25rem 0.25rem;
-  /* Match ListView slash nav */
-  font-size: 12px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   /* Nav → list gap (logo → nav gap comes from STAGE_LOGO_NAV_GAP_CLASS) */
   margin-bottom: 1.5rem;
 }
@@ -218,7 +214,6 @@ body {
   .talent-categories {
     margin-bottom: 0.75rem;
     margin-top: 1rem;
-    font-size: 14px;
   }
 }
 

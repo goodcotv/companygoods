@@ -7,6 +7,7 @@ import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { STAGE_FRAME_BOTTOM, STAGE_LOGO_TOP_PADDING } from "@/lib/stage";
 import type { PostSiteSettings } from "@/sanity/types";
+import { textNav } from "@/lib/typography";
 import { BrandHeader } from "./BrandHeader";
 import { MobileBrandBar } from "@/components/MobileBrandBar";
 import { InfoCredits } from "./InfoCredits";
@@ -45,35 +46,56 @@ function phoneHref(phone: string): string {
   return `tel:+${digits}`;
 }
 
+/** All-caps address with city/state on its own line (e.g. NEW YORK, NY 10013). */
+function formatOfficeAddress(address: string): string {
+  const lines = address
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 1) {
+    const cityMatch = lines[0].match(
+      /^(.*?)(?:,\s*|\s+)([A-Za-z][A-Za-z .]*?,\s*[A-Z]{2}(?:\s+\d{5}(?:-\d{4})?)?)\s*$/i,
+    );
+    if (cityMatch) {
+      lines[0] = cityMatch[1].replace(/,\s*$/, "").trim();
+      lines.push(cityMatch[2].trim());
+    }
+  }
+
+  return lines.map((line) => line.toUpperCase()).join("\n");
+}
+
 /** Mint ExtraBold — same sizes as web1 info headings / about. */
 const textInfoHeading =
   "font-heading text-[calc(17pt-2px)] font-extrabold normal-case leading-[1.05] md:text-[calc(21pt-2px)]";
+
+/** Tighter leading for contact labels and management names. */
+const textInfoHeadingCompact =
+  "font-heading text-[calc(17pt-2px)] font-extrabold normal-case leading-none md:text-[calc(21pt-2px)]";
 
 /** Tekio Medium — email / titles (uppercase). */
 const textInfoUi =
   "font-display text-[calc(11pt-2px)] font-medium uppercase leading-none md:text-[calc(13pt-2px)]";
 
-/** Tekio Medium — addresses & phone (as stored, not all-caps). */
+/** Tekio Medium — addresses & phone; addresses are uppercased in the contact view. */
 const textInfoBody =
-  "font-display text-[calc(11pt-2px)] font-medium normal-case leading-relaxed md:text-[calc(13pt-2px)]";
+  "font-display text-[calc(11pt-2px)] font-medium normal-case leading-[1.35] md:text-[calc(13pt-2px)]";
 
 function InfoSubNav({
   activeSubRoute,
   onNavigate,
   className = "",
-  mobile = false,
 }: {
   activeSubRoute: InfoSubRoute;
   onNavigate: (subRoute: InfoSubRoute) => void;
   className?: string;
-  mobile?: boolean;
 }) {
   return (
     <LayoutGroup>
       <nav
-        className={`flex flex-wrap items-center gap-x-1 uppercase tracking-[0.08em] ${
-          mobile ? "text-[13px]" : "text-[11px]"
-        } ${className}`}
+        className={`flex flex-wrap items-center gap-x-1 ${textNav} ${className}`}
         aria-label="Info navigation"
       >
         {INFO_SUBNAV.map((item, index) => {
@@ -111,19 +133,15 @@ function InfoSubNav({
 function InfoBody({
   activeSubRoute,
   settings,
-  mobile = false,
 }: {
   activeSubRoute: InfoSubRoute;
   settings?: PostSiteSettings;
-  mobile?: boolean;
 }) {
   if (activeSubRoute === "about") {
     const paragraphs = settings?.aboutParagraphs?.filter(Boolean) ?? [];
 
     return (
-      <div
-        className={`flex flex-col gap-8 ${mobile ? "min-h-full" : "h-full"}`}
-      >
+      <div className="flex flex-col gap-8">
         {paragraphs.map((paragraph) => (
           <p
             key={paragraph}
@@ -132,7 +150,6 @@ function InfoBody({
             {paragraph}
           </p>
         ))}
-        <InfoCredits className={mobile ? "mt-auto pt-8" : "mt-auto pt-10"} />
       </div>
     );
   }
@@ -147,7 +164,7 @@ function InfoBody({
       <div className="flex flex-col gap-10 text-foreground">
         {contactEmail && (
           <section>
-            <h2 className={textInfoHeading}>Contact</h2>
+            <h2 className={textInfoHeadingCompact}>Contact</h2>
             <a
               href={`mailto:${contactEmail}`}
               className={`mt-3 block ${textInfoUi}`}
@@ -159,10 +176,10 @@ function InfoBody({
 
         {offices.map((office) => (
           <section key={office.label}>
-            <h2 className={textInfoHeading}>{toTitleCase(office.label)}</h2>
+            <h2 className={textInfoHeadingCompact}>{toTitleCase(office.label)}</h2>
             {office.address && (
-              <p className={`mt-3 whitespace-pre-line ${textInfoBody}`}>
-                {office.address}
+              <p className={`mt-3 whitespace-pre-line uppercase ${textInfoBody}`}>
+                {formatOfficeAddress(office.address)}
               </p>
             )}
             {office.phone && (
@@ -186,7 +203,7 @@ function InfoBody({
     <ul className="flex flex-col gap-10">
       {management.map((person) => (
         <li key={person.email || person.name}>
-          <h2 className={`${textInfoHeading} text-foreground`}>
+          <h2 className={`${textInfoHeadingCompact} text-foreground`}>
             {person.name}
           </h2>
           {person.title && (
@@ -255,7 +272,6 @@ export function InfoShell({ settings }: InfoShellProps) {
             activeSubRoute={activeSubRoute}
             onNavigate={handleSubNav}
             className="mt-4"
-            mobile
           />
         </div>
 
@@ -274,12 +290,15 @@ export function InfoShell({ settings }: InfoShellProps) {
                 <InfoBody
                   activeSubRoute={activeSubRoute}
                   settings={settings}
-                  mobile
                 />
               </motion.div>
             </AnimatePresence>
           </div>
         </div>
+
+        <footer className="shrink-0 px-3 pt-4 pb-2">
+          <InfoCredits />
+        </footer>
       </motion.div>
     );
   }
@@ -331,7 +350,6 @@ export function InfoShell({ settings }: InfoShellProps) {
           </div>
         </div>
       </div>
-
     </motion.div>
   );
 }

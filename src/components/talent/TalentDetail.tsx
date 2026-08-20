@@ -23,6 +23,7 @@ import { useSequentialMediaPreload } from "@/hooks/useSequentialMediaPreload";
 import { isListOverflowing } from "@/lib/cursor-hover";
 import { markVideoUrlPreloaded, hideWarmMediaOverlays } from "@/lib/preload-video";
 import { STAGE_LOGO_TOP_PADDING, STAGE_NAV_CLEARANCE } from "@/lib/stage";
+import { textNav, textUi } from "@/lib/typography";
 import { isVideoMediaUrl } from "@/lib/vimeo";
 import { parseTimeToSeconds } from "@/lib/parse-time";
 import type { Project, TalentDetailData } from "@/sanity/types";
@@ -387,7 +388,7 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
                 {primary}
               </span>
               {secondary ? (
-                <span className="mt-0.5 block font-display text-[11pt] font-medium uppercase leading-none md:text-[13pt]">
+                <span className={`mt-0.5 block ${textUi}`}>
                   {secondary}
                 </span>
               ) : null}
@@ -418,7 +419,7 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
 
           <div className="flex min-h-0 flex-1 flex-col px-5">
             <div className="mb-4 flex shrink-0 items-baseline justify-between gap-4">
-              <h1 className="font-sans text-[13px] font-normal tracking-[0.18em] uppercase text-white">
+              <h1 className={`${textNav} text-white`}>
                 {talent.name}
               </h1>
               <button
@@ -517,7 +518,7 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
         style={{ bottom: STAGE_NAV_CLEARANCE }}
       >
         <div className="mb-6 flex shrink-0 items-baseline gap-4">
-          <h1 className="font-sans text-[11px] font-normal tracking-[0.18em] uppercase text-white">
+          <h1 className={`${textNav} text-white`}>
             {talent.name}
           </h1>
           <button

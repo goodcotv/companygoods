@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { textNav } from "@/lib/typography";
 
 export type ViewMode = "scroll" | "list";
 export type Section = "work" | "talent" | "info";
@@ -42,12 +43,6 @@ export function BottomChrome({
   
   const showViewToggle = currentSection === "work" && view && onViewChange;
   const showMenuButton = Boolean(onMenuOpen);
-  // Mobile menu chrome reads larger; desktop stays on the tighter type scale.
-  const typeClass = showMenuButton
-    ? "text-[15px] tracking-[0.12em]"
-    : position === "inline"
-      ? "text-[11px] tracking-[0.12em]"
-      : "text-[12px] tracking-[0.14em]";
 
   function navClass(section: Section) {
     return `${currentSection === section ? active : muted} transition-colors hover:text-foreground`;
@@ -74,7 +69,7 @@ export function BottomChrome({
     <div className={`${shell} ${className}`}>
       {showViewToggle && (
         <div
-          className={`pointer-events-auto flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-1.5 uppercase ${typeClass}`}
+          className={`pointer-events-auto flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-1.5 uppercase ${textNav}`}
         >
           <button
             type="button"
@@ -102,14 +97,14 @@ export function BottomChrome({
         <button
           type="button"
           onClick={onMenuOpen}
-          className={`pointer-events-auto uppercase ${typeClass} text-foreground transition-opacity hover:opacity-70`}
+          className={`pointer-events-auto uppercase ${textNav} text-foreground transition-opacity hover:opacity-70`}
           aria-haspopup="dialog"
         >
           MENU
         </button>
       ) : (
         <nav
-          className={`pointer-events-auto flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-1.5 uppercase ${typeClass}`}
+          className={`pointer-events-auto flex items-center gap-1.5 rounded-md bg-white/10 px-3 py-1.5 uppercase ${textNav}`}
           aria-label="Primary"
         >
           {onNavigate ? (

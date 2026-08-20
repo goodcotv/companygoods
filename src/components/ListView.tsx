@@ -30,6 +30,7 @@ import { useCoarsePointerDevice } from "@/hooks/useCoarsePointerDevice";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { useScrollHoverItem } from "@/hooks/useScrollHoverItem";
 import { useSequentialMediaPreload } from "@/hooks/useSequentialMediaPreload";
+import { textNav, textUi } from "@/lib/typography";
 import { BrandHeader } from "./BrandHeader";
 import { AnimatedCornerBrackets } from "./AnimatedCornerBrackets";
 import { MobileBrandBar } from "./MobileBrandBar";
@@ -258,7 +259,7 @@ export function ListView({ projects }: ListViewProps) {
   }, [active, activeId]);
 
   // Filter changes should always land on the default (first) project in the
-  // new list — not keep a video from a tighter filter that is still present.
+  // new list - not keep a video from a tighter filter that is still present.
   useEffect(() => {
     const first = filtered[0];
     if (first) setActiveId(first.id);
@@ -386,10 +387,10 @@ export function ListView({ projects }: ListViewProps) {
 
   const categoryNav = (
     <nav
-      className={`flex items-center gap-x-1 tracking-[0.1em] uppercase ${
+      className={`flex items-center gap-x-1 ${textNav} ${
         isMobile
-          ? "mt-4 flex-nowrap overflow-x-auto whitespace-nowrap text-[13px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          : `flex-wrap gap-y-2 ${STAGE_LOGO_NAV_GAP_CLASS} text-[12px]`
+          ? "mt-4 flex-nowrap overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          : `flex-wrap gap-y-2 ${STAGE_LOGO_NAV_GAP_CLASS}`
       }`}
       aria-label="Work categories"
     >
@@ -481,7 +482,7 @@ export function ListView({ projects }: ListViewProps) {
         }
 
         const isActive = project.id === active?.id;
-        // Mobile mock: client hero + title subtitle (Grindr / CONFESSIONS…)
+        // Mobile mock: client hero + title subtitle (Grindr / CONFESSIONS)
         const primary = isMobile
           ? project.client || project.title
           : project.title;
@@ -518,7 +519,7 @@ export function ListView({ projects }: ListViewProps) {
                 {primary}
               </span>
               {secondary ? (
-                <span className="mt-0.5 block font-display text-[11pt] font-medium uppercase leading-none md:text-[13pt]">
+                <span className={`mt-0.5 block ${textUi}`}>
                   {secondary}
                 </span>
               ) : null}
@@ -625,7 +626,7 @@ export function ListView({ projects }: ListViewProps) {
               <button
                 type="button"
                 onClick={() => setSpecialtyExpanded(true)}
-                className="rounded-md bg-white/10 px-3 py-1.5 text-[11px] tracking-[0.12em] uppercase text-white/90 transition-colors hover:bg-white/18"
+                className={`rounded-md bg-white/10 px-3 py-1.5 ${textNav} text-white/90 transition-colors hover:bg-white/18`}
               >
                 SPECIALTY <span className="ml-1">+</span>
               </button>
@@ -641,7 +642,7 @@ export function ListView({ projects }: ListViewProps) {
                       type="button"
                       onClick={() => selectDiscipline(d)}
                       aria-pressed={on}
-                      className={`rounded-md px-3 py-1.5 text-[11px] tracking-[0.12em] uppercase transition-colors ${
+                      className={`rounded-md px-3 py-1.5 ${textNav} transition-colors ${
                         on
                           ? "bg-white/25 text-foreground"
                           : "bg-white/10 text-white/90 hover:bg-white/18"
@@ -658,9 +659,9 @@ export function ListView({ projects }: ListViewProps) {
                     setSpecialtyExpanded(false);
                   }}
                   aria-label="Clear and close specialty filters"
-                  className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-[13px] text-white/90 transition-colors hover:bg-white/18"
+                  className={`flex h-7 w-7 items-center justify-center rounded-md bg-white/10 ${textNav} text-white/90 transition-colors hover:bg-white/18`}
                 >
-                  ×
+                  {"\u00d7"}
                 </button>
               </>
             )}

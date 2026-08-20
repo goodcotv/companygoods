@@ -29,6 +29,7 @@ import {
 import { isVideoMediaUrl } from "@/lib/vimeo";
 import { parseTimeToSeconds } from "@/lib/parse-time";
 import type { PostDiscipline, PostWorker } from "@/sanity/types";
+import { textNav } from "@/lib/typography";
 import { WarmHoverVideo } from "@/components/WarmHoverVideo";
 
 const ITEM_MIN_HEIGHT = "min-h-[calc(21pt*1)]";
@@ -413,7 +414,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
 
   const categoryNav = (
     <nav
-      className={`talent-categories ${isMobile ? "" : STAGE_LOGO_NAV_GAP_CLASS}`}
+      className={`talent-categories ${textNav} ${isMobile ? "" : STAGE_LOGO_NAV_GAP_CLASS}`}
       aria-label="Talent categories"
     >
       {CATEGORIES.map((item, index) => (

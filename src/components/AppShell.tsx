@@ -8,6 +8,7 @@ import { consumeGoHomeNavigation, GoHomeProvider, peekGoHomeNavigation } from ".
 import { HomePage } from "./HomePage";
 import TalentRoster from "./talent/TalentRoster";
 import { InfoShell } from "./info/InfoShell";
+import { InfoCredits } from "./info/InfoCredits";
 import { MobileMenu } from "./MobileMenu";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { STAGE_NAV_PADDING } from "@/lib/stage";
@@ -219,10 +220,15 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
       <div className="fixed inset-0 z-0 overflow-hidden bg-transparent text-foreground">
         <div className="absolute inset-0 z-0 overflow-hidden">{sections}</div>
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex items-end justify-end px-8"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-50 flex items-center px-8"
           style={{ paddingBottom: STAGE_NAV_PADDING }}
         >
-          {chrome}
+          {section === "info" && (
+            <div className="pointer-events-auto min-w-0">
+              <InfoCredits />
+            </div>
+          )}
+          <div className="ml-auto">{chrome}</div>
         </div>
       </div>
     );

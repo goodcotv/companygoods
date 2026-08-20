@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { textNav } from "@/lib/typography";
 
 type NavItem = {
   label: string;
@@ -14,7 +15,7 @@ type SlashNavProps = {
 export function SlashNav({ items, activeHref, className = "" }: SlashNavProps) {
   return (
     <nav
-      className={`flex flex-wrap items-center gap-x-1 text-[11px] uppercase tracking-[0.08em] ${className}`}
+      className={`flex flex-wrap items-center gap-x-1 ${textNav} ${className}`}
       aria-label="Navigation"
     >
       {items.map((item, index) => {
