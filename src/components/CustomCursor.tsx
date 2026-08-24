@@ -39,7 +39,7 @@ export function CustomCursor() {
             className="rounded-full bg-gray-400 transition-colors duration-150"
           />
         ) : isHoveringScrollableList ? (
-          <div className="whitespace-nowrap font-sans text-[12pt] font-medium uppercase leading-none text-white md:text-[13pt]">
+          <div className="whitespace-nowrap font-sans text-[10pt] font-medium uppercase leading-none text-white md:text-[11pt]">
             [ scroll ]
           </div>
         ) : (

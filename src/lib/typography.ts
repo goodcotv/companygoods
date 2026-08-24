@@ -1,6 +1,6 @@
 /** Neue Haas Grotesk Roman — same small type as web1 vertical nav */
 export const textNav =
-  "font-sans text-[9pt] font-normal uppercase leading-none tracking-normal md:text-[11pt]";
+  "font-sans text-[9pt] font-normal uppercase leading-none tracking-normal md:text-[10pt]";
 
 /** Tekio Grotesk Medium — list subtitles / metadata (13pt desktop, uppercase) */
 export const textUi =

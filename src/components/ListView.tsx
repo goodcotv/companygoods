@@ -392,6 +392,7 @@ export function ListView({ projects }: ListViewProps) {
           ? "mt-4 flex-nowrap overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           : `flex-wrap gap-y-2 ${STAGE_LOGO_NAV_GAP_CLASS}`
       }`}
+      style={isMobile ? undefined : { paddingLeft: 8 }}
       aria-label="Work categories"
     >
       {CATEGORIES.map((cat, i) => (
@@ -406,7 +407,7 @@ export function ListView({ projects }: ListViewProps) {
             onClick={() => selectCategory(cat)}
             className={`transition-opacity ${
               category === cat
-                ? "font-bold text-foreground opacity-100"
+                ? "text-foreground opacity-100"
                 : "text-foreground opacity-65 hover:opacity-100"
             }`}
           >

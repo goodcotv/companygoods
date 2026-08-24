@@ -238,7 +238,7 @@ body {
 }
 
 .talent-categories__btn.is-active {
-  font-weight: 700;
+  font-weight: 400;
   opacity: 1;
 }
 

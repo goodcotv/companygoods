@@ -370,7 +370,7 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
         Latest Projects + credits share the sidebar's left edge.
       */}
       <div
-        className="mt-3 flex min-h-0 flex-1 items-start gap-8"
+        className="mt-3 flex min-h-0 flex-1 items-start gap-6"
         style={{ containerType: "size" }}
       >
         <div
