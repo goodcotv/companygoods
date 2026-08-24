@@ -6,6 +6,9 @@ import { preloadVideoUrl, warmClipKey } from "@/lib/preload-video";
 /** Keeps a visible cascade even when videos resolve from cache instantly. */
 const MIN_REVEAL_GAP_MS = 55;
 
+/** How many hover clips to warm at once while revealing in list order. */
+const WARM_CONCURRENCY = 3;
+
 export type PreloadMediaItem = {
   id: string;
   /** Hover video URL; omit/empty to reveal immediately. */
@@ -33,8 +36,8 @@ function wait(ms: number) {
 }
 
 /**
- * Warms visible hover clips one at a time (same player the hover will adopt),
- * then reveals titles in order with a short cascade gap.
+ * Warms visible hover clips with a small concurrency window (same players
+ * hover will adopt), then reveals titles in list order with a short cascade gap.
  */
 export function useSequentialMediaPreload(
   items: PreloadMediaItem[],
@@ -93,38 +96,69 @@ export function useSequentialMediaPreload(
 
     let cancelled = false;
 
+    function markUrlReady(url: string, startTime: number) {
+      const urlKey = warmClipKey(url, startTime);
+      readyUrlsRef.current.add(urlKey);
+      readyUrlsRef.current.add(url);
+    }
+
+    /** Start a warm without blocking; shares work via preloadVideoUrl's cache. */
+    function kickWarm(url: string, startTime: number) {
+      const urlKey = warmClipKey(url, startTime);
+      if (readyUrlsRef.current.has(urlKey)) return;
+      void preloadVideoUrl(url, startTime).then(() => {
+        if (cancelled) return;
+        markUrlReady(url, startTime);
+      });
+    }
+
+    async function awaitWarm(url: string, startTime: number) {
+      const urlKey = warmClipKey(url, startTime);
+      if (readyUrlsRef.current.has(urlKey)) return;
+      await preloadVideoUrl(url, startTime);
+      if (cancelled) return;
+      markUrlReady(url, startTime);
+    }
+
     async function pump() {
       if (readyIdsRef.current.size > 0) {
         setReadyIds(new Set(readyIdsRef.current));
       }
 
+      const pending = itemsRef.current.filter(
+        (item) =>
+          visibleIdsRef.current.has(item.id) &&
+          !readyIdsRef.current.has(item.id),
+      );
+
+      // Active/hovered clip gets a head start before the window fills.
       if (priorityUrl) {
-        const priorityKey = warmClipKey(priorityUrl, priorityStartTime);
-        void preloadVideoUrl(priorityUrl, priorityStartTime).then(() => {
-          readyUrlsRef.current.add(priorityKey);
-          readyUrlsRef.current.add(priorityUrl);
-        });
+        kickWarm(priorityUrl, priorityStartTime);
       }
 
       let lastRevealAt = 0;
 
-      for (const item of itemsRef.current) {
+      for (let i = 0; i < pending.length; i++) {
         if (cancelled) return;
-        if (!visibleIdsRef.current.has(item.id)) continue;
-        if (readyIdsRef.current.has(item.id)) continue;
 
+        // Prefetch current + upcoming clips up to WARM_CONCURRENCY.
+        for (
+          let j = i;
+          j < Math.min(i + WARM_CONCURRENCY, pending.length);
+          j++
+        ) {
+          const ahead = pending[j];
+          if (ahead.videoUrl) {
+            kickWarm(ahead.videoUrl, ahead.startTime ?? 0);
+          }
+        }
+
+        const item = pending[i];
         const url = item.videoUrl;
         const startTime = item.startTime ?? 0;
-        if (!url) {
-          readyIdsRef.current.add(item.id);
-        } else {
-          const urlKey = warmClipKey(url, startTime);
-          if (!readyUrlsRef.current.has(urlKey)) {
-            await preloadVideoUrl(url, startTime);
-            if (cancelled) return;
-            readyUrlsRef.current.add(urlKey);
-            readyUrlsRef.current.add(url);
-          }
+        if (url) {
+          await awaitWarm(url, startTime);
+          if (cancelled) return;
         }
 
         const elapsed = performance.now() - lastRevealAt;
