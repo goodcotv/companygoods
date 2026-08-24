@@ -7,7 +7,7 @@ import { preloadVideoUrl, warmClipKey } from "@/lib/preload-video";
 const MIN_REVEAL_GAP_MS = 55;
 
 /** How many hover clips to warm at once while revealing in list order. */
-const WARM_CONCURRENCY = 3;
+const WARM_CONCURRENCY = 5;
 
 export type PreloadMediaItem = {
   id: string;
