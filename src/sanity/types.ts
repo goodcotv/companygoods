@@ -86,7 +86,7 @@ type MediaSectionBase = {
 
 export type SingleMediaSection = MediaSectionBase & {
   layout?: "single";
-  mediaType?: "image" | "video" | "videoUrl";
+  mediaType?: "image" | "video" | "videoUrl" | "mux";
   imageUrl?: string;
   videoUrl?: string;
 };

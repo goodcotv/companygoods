@@ -2,6 +2,19 @@
  * GROQ queries for fetching data from Sanity CMS
  */
 
+/** GROQ: Mux static MP4 URL for a mux.video field, else null. */
+const muxPlaybackUrlGroq = (field: string) =>
+  `select(defined(${field}.asset->playbackId) => "https://stream.mux.com/" + ${field}.asset->playbackId + "/highest.mp4")`;
+
+const muxHeroVideoUrlGroq = muxPlaybackUrlGroq("muxVideo");
+
+/** GROQ: Mux first, then external URL, then Sanity file. */
+export const resolvedHeroVideoUrlGroq = `coalesce(
+  ${muxHeroVideoUrlGroq},
+  videoUrl,
+  video.asset->url
+)`;
+
 /**
  * Homepage Query
  * Fetches site settings with intro video and featured projects
@@ -9,6 +22,7 @@
 export const homepageQuery = `{
   "settings": *[_type == "postSiteSettings"][0] {
     "introVideoUrl": coalesce(
+      ${muxPlaybackUrlGroq("introMuxVideo")},
       introVideo.asset->url,
       introVideoUrl
     ),
@@ -31,10 +45,7 @@ export const homepageQuery = `{
       "slug": slug.current,
       "postCategoryTitle": postCategory->title,
       "postCategorySlug": postCategory->slug.current,
-      "videoUrl": coalesce(
-        video.asset->url,
-        videoUrl
-      ),
+      "videoUrl": ${resolvedHeroVideoUrlGroq},
       videoPreviewStart,
       "imageUrl": heroImage.asset->url,
       postWorkDescription,
@@ -58,10 +69,7 @@ export const homepageQuery = `{
     "postCategoryTitle": postCategory->title,
     "postCategorySlug": postCategory->slug.current,
     postSortOrder,
-    "videoUrl": coalesce(
-      video.asset->url,
-      videoUrl
-    ),
+    "videoUrl": ${resolvedHeroVideoUrlGroq},
     videoPreviewStart,
     "imageUrl": heroImage.asset->url,
     postWorkDescription,
@@ -94,7 +102,7 @@ const featuredProjectByDiscipline = (discipline: string) => `*[
 ] | order(coalesce(postCredits[worker._ref == ^.^._id && discipline == "${discipline}"][0].order, 999999) asc, _createdAt desc) [0] {
   _id,
   title,
-  "videoUrl": coalesce(video.asset->url, videoUrl),
+  "videoUrl": ${resolvedHeroVideoUrlGroq},
   videoPreviewStart,
   "imageUrl": heroImage.asset->url
 }`;
@@ -155,10 +163,7 @@ export const talentDetailQuery = `*[_type == "postWorker" && slug.current == $sl
     "slug": slug.current,
     "postCategoryTitle": postCategory->title,
     "postCategorySlug": postCategory->slug.current,
-    "videoUrl": coalesce(
-      video.asset->url,
-      videoUrl
-    ),
+    "videoUrl": ${resolvedHeroVideoUrlGroq},
     videoPreviewStart,
     "imageUrl": heroImage.asset->url,
     postWorkerDescription,
