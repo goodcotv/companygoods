@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { client } from "@/sanity/lib/client";
-import { resolvedHeroVideoUrlGroq } from "@/sanity/queries";
+import { resolvedDetailVideoUrlGroq } from "@/sanity/queries";
 import type { Project } from "@/sanity/types";
 import { ProjectPlayer } from "@/components/project/ProjectPlayer";
 
@@ -33,7 +33,7 @@ export default async function ProjectDetailPage({
       "slug": slug.current,
       "postCategoryTitle": postCategory->title,
       "postCategorySlug": postCategory->slug.current,
-      "videoUrl": ${resolvedHeroVideoUrlGroq},
+      "videoUrl": ${resolvedDetailVideoUrlGroq},
       "imageUrl": heroImage.asset->url,
       "posterImageUrl": posterImage.asset->url,
       postWorkDescription,
@@ -51,7 +51,7 @@ export default async function ProjectDetailPage({
         withMargins,
         mediaType,
         "imageUrl": image.asset->url,
-        "videoUrl": ${resolvedHeroVideoUrlGroq},
+        "videoUrl": ${resolvedDetailVideoUrlGroq},
         columnCount,
         "imageUrls": images[].asset->url,
         caption,

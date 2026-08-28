@@ -8,11 +8,18 @@ const muxPlaybackUrlGroq = (field: string) =>
 
 const muxHeroVideoUrlGroq = muxPlaybackUrlGroq("muxVideo");
 
-/** GROQ: Mux first, then external URL, then Sanity file. */
+/** GROQ: Mux upload first, then external URL, then Sanity file (list / hover). */
 export const resolvedHeroVideoUrlGroq = `coalesce(
   ${muxHeroVideoUrlGroq},
   videoUrl,
   video.asset->url
+)`;
+
+/** GROQ: Mux upload first, then Sanity file, then videoUrl (project detail). */
+export const resolvedDetailVideoUrlGroq = `coalesce(
+  ${muxHeroVideoUrlGroq},
+  video.asset->url,
+  videoUrl
 )`;
 
 /**
