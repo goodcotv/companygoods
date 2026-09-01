@@ -81,9 +81,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={`h-full antialiased ${mintGrotesk.variable} ${neueHaas.variable} ${tekioGrotesk.variable}`}>
       <body className="min-h-full bg-background text-foreground">
+        {/*
+          Must stay between the warm player z-indexes in preload-video.ts:
+          hidden clips park at -11 (occluded), visible ones at -9 (shown).
+        */}
         <div
           id="warm-video-layer"
-          className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-black"
+          className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-black"
           aria-hidden
         />
         <div className="relative z-[1] min-h-full">

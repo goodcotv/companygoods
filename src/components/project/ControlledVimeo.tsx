@@ -274,7 +274,7 @@ export function ControlledVimeo({
         <div
           className={
             isTheaterOpen
-              ? "relative flex max-h-[calc(100dvh-4.5rem)] max-w-[100vw] items-center justify-center"
+              ? "relative flex h-full w-full items-center justify-center"
               : "absolute inset-0 overflow-hidden"
           }
         >
@@ -289,7 +289,7 @@ export function ControlledVimeo({
               onLoad={() => setIframeLoaded(true)}
               className={
                 isTheaterOpen
-                  ? "pointer-events-none mx-auto aspect-video h-auto max-h-[calc(100dvh-4.5rem)] w-full max-w-[100vw] border-0"
+                  ? "pointer-events-none aspect-video h-auto w-full max-h-[calc(100dvh-4.5rem)] max-w-[calc((100dvh-4.5rem)*16/9)] border-0"
                   : "pointer-events-none absolute left-1/2 top-1/2 h-[56.25vw] min-h-full w-[177.78vh] min-w-full -translate-x-1/2 -translate-y-1/2 border-0"
               }
             />
