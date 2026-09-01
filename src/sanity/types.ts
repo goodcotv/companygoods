@@ -9,6 +9,9 @@ export interface FeaturedProjectMedia {
   title: string;
   videoUrl?: string;
   imageUrl?: string;
+  posterImageUrl?: string;
+  /** Mux static MP4 URL when the project has a muxVideo upload. */
+  muxVideoUrl?: string;
   /** Sanity string like "1:30" or "90"; parsed client-side when needed. */
   videoPreviewStart?: string;
   /** Parsed seconds for muted list/talent preview playback. */
@@ -89,6 +92,7 @@ export type SingleMediaSection = MediaSectionBase & {
   mediaType?: "image" | "video" | "videoUrl" | "mux";
   imageUrl?: string;
   videoUrl?: string;
+  muxVideoUrl?: string;
 };
 
 export type ImageRowMediaSection = MediaSectionBase & {
@@ -118,7 +122,10 @@ export interface Project {
   sortOrder?: number;
   videoUrl?: string;
   imageUrl?: string;
+  /** Poster image (thumbnail) for video previews and social sharing */
   posterImageUrl?: string;
+  /** Mux static MP4 URL when the project has a muxVideo upload. */
+  muxVideoUrl?: string;
   /** Sanity string like "1:30" or "90" for list/talent muted previews. */
   videoPreviewStart?: string;
   /** Parsed seconds for muted list/talent preview playback. */

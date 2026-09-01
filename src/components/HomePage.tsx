@@ -97,6 +97,8 @@ function transformSanityProject(project: SanityProject): LocalProject {
     description: project.postWorkDescription?.trim() || "",
     image: project.videoUrl || project.imageUrl || "/projects/hero-placeholder.jpg",
     imageAlt: `${project.title} project`,
+    imageUrl: project.imageUrl,
+    posterImageUrl: project.posterImageUrl,
     videoPreviewStartSeconds: parseTimeToSeconds(project.videoPreviewStart),
   };
 }

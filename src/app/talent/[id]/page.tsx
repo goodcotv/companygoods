@@ -1,8 +1,11 @@
+import { cache } from "react";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { client } from "@/sanity/lib/client";
 import { talentDetailQuery } from "@/sanity/queries";
 import type { TalentDetailData } from "@/sanity/types";
 import { TalentDetail } from "@/components/talent/TalentDetail";
+import { createMetadata } from "@/lib/metadata";
 
 /** Map roster category (or worker category slug) → post credit discipline. */
 const categoryToDiscipline: Record<string, string> = {
@@ -12,18 +15,8 @@ const categoryToDiscipline: Record<string, string> = {
   vfx: "vfx",
 };
 
-export default async function TalentDetailPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ role?: string }>;
-}) {
-  const { id } = await params;
-  const { role } = await searchParams;
-
-  // First, fetch the talent without projects to get their categories
-  const talentBasic = await client.fetch<TalentDetailData>(
+const getTalentBasic = cache(async (slug: string) => {
+  return client.fetch<TalentDetailData | null>(
     `*[_type == "postWorker" && slug.current == $slug][0] {
       _id,
       name,
@@ -34,8 +27,47 @@ export default async function TalentDetailPage({
       "imageUrl": image.asset->url,
       featuredWorkTitle
     }`,
-    { slug: id },
+    { slug },
   );
+});
+
+type TalentDetailPageProps = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ role?: string }>;
+};
+
+export async function generateMetadata({
+  params,
+}: TalentDetailPageProps): Promise<Metadata> {
+  const { id } = await params;
+  const talent = await getTalentBasic(id);
+
+  if (!talent) {
+    return { title: "Talent Not Found" };
+  }
+
+  const description =
+    talent.bio?.trim() ||
+    (talent.categoryTitle
+      ? `${talent.name} — ${talent.categoryTitle} at Company Goods.`
+      : `${talent.name} is part of the Company Goods post production roster.`);
+
+  return createMetadata({
+    title: talent.name,
+    description,
+    path: `/talent/${id}`,
+    image: talent.imageUrl,
+  });
+}
+
+export default async function TalentDetailPage({
+  params,
+  searchParams,
+}: TalentDetailPageProps) {
+  const { id } = await params;
+  const { role } = await searchParams;
+
+  const talentBasic = await getTalentBasic(id);
 
   if (!talentBasic) {
     notFound();
@@ -66,7 +98,9 @@ export async function generateStaticParams() {
     `*[_type == "postWorker"] { "slug": slug.current }`,
   );
 
-  return workers.map((worker) => ({
-    id: worker.slug,
-  }));
+  return workers
+    .filter((worker) => worker.slug)
+    .map((worker) => ({
+      id: worker.slug,
+    }));
 }

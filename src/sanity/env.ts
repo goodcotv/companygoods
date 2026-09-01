@@ -11,8 +11,9 @@ export const projectId = assertValue(
   "Missing environment variable: NEXT_PUBLIC_SANITY_PROJECT_ID",
 );
 
-export const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+export const siteUrl = (
+  process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3003"
+).replace(/\/$/, "");
 
 function assertValue<T>(v: T | undefined, errorMessage: string): T {
   if (v === undefined) {

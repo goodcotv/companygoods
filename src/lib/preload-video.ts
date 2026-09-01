@@ -5,14 +5,8 @@ const SEEK_TIMEOUT_MS = 4000;
 const MAX_WARM_VIDEOS = 16;
 const VIMEO_ORIGIN = "https://player.vimeo.com";
 
-export const WARM_VIDEO_LAYER_ID = "warm-video-layer";
-
-export function warmClipKey(url: string, startTime = 0) {
+function clipKey(url: string, startTime = 0) {
   return `${url}@@${startTime}`;
-}
-
-function warmVideoLayer(): HTMLElement {
-  return document.getElementById(WARM_VIDEO_LAYER_ID) ?? document.body;
 }
 
 function mediaSrcWithStart(src: string, startSeconds: number): string {
@@ -107,7 +101,7 @@ function createParkedVideo(): HTMLVideoElement {
 }
 
 function ensureWarmVideo(url: string, startTime = 0): HTMLVideoElement {
-  const key = warmClipKey(url, startTime);
+  const key = clipKey(url, startTime);
   const existing = warmMp4s.get(key);
   if (existing) {
     touchWarm(key);
@@ -152,7 +146,7 @@ function waitForVideoEvent(
 }
 
 async function prepareWarmMp4(url: string, startTime: number): Promise<void> {
-  const key = warmClipKey(url, startTime);
+  const key = clipKey(url, startTime);
   pinnedKeys.add(key);
 
   try {
@@ -183,16 +177,21 @@ async function prepareWarmMp4(url: string, startTime: number): Promise<void> {
  * The React app sits at z-1 so chrome always paints above this frame.
  * Zero-size iframes never actually buffer; hover only toggles opacity and play.
  */
+function warmVideoLayer(): HTMLElement {
+  return document.getElementById("warm-video-layer") ?? document.body;
+}
+
 function styleWarmVimeo(
   iframe: HTMLIFrameElement,
   fit: "cover" | "contain",
   visible: boolean,
 ) {
   const opacity = visible ? "1" : "0";
+  const visibility = visible ? "visible" : "hidden";
   if (fit === "cover") {
-    iframe.style.cssText = `position:absolute;left:50%;top:50%;height:56.25vw;min-height:100%;width:177.78vh;min-width:100%;transform:translate(-50%,-50%);opacity:${opacity};pointer-events:none;border:0;background:#000`;
+    iframe.style.cssText = `position:absolute;left:50%;top:50%;height:56.25vw;min-height:100%;width:177.78vh;min-width:100%;transform:translate(-50%,-50%);opacity:${opacity};visibility:${visibility};pointer-events:none;border:0;background:#000`;
   } else {
-    iframe.style.cssText = `position:absolute;inset:0;width:100%;height:100%;opacity:${opacity};pointer-events:none;border:0;background:#000`;
+    iframe.style.cssText = `position:absolute;inset:0;width:100%;height:100%;opacity:${opacity};visibility:${visibility};pointer-events:none;border:0;background:#000`;
   }
 }
 
@@ -213,7 +212,7 @@ function warmVimeoSrc(url: string, startTime: number): string | null {
 }
 
 function ensureWarmVimeo(url: string, startTime = 0): HTMLIFrameElement {
-  const key = warmClipKey(url, startTime);
+  const key = clipKey(url, startTime);
   const existing = warmVimeos.get(key);
   if (existing) {
     touchWarm(key);
@@ -241,7 +240,7 @@ function subscribeVimeo(iframe: HTMLIFrameElement) {
 }
 
 function prepareWarmVimeo(url: string, startTime: number): Promise<void> {
-  const key = warmClipKey(url, startTime);
+  const key = clipKey(url, startTime);
   pinnedKeys.add(key);
   const iframe = ensureWarmVimeo(url, startTime);
 
@@ -312,7 +311,7 @@ function prepareWarmVimeo(url: string, startTime: number): Promise<void> {
 
 /** Preload until the hover clip can start (including Sanity preview start time). */
 export function preloadVideoUrl(url: string, startTime = 0): Promise<void> {
-  const key = warmClipKey(url, startTime);
+  const key = clipKey(url, startTime);
   const cached = preloadCache.get(key);
   if (cached) return cached;
 
@@ -328,14 +327,14 @@ export function preloadVideoUrl(url: string, startTime = 0): Promise<void> {
 /** Mark a URL as already warmed (e.g. idle backdrop is playing it). */
 export function markVideoUrlPreloaded(url: string, startTime = 0): void {
   if (!url) return;
-  const key = warmClipKey(url, startTime);
+  const key = clipKey(url, startTime);
   if (preloadCache.has(key)) return;
   preloadCache.set(key, Promise.resolve());
 }
 
 /** Take the preloaded MP4 element so hover can play it without a remount. */
 export function adoptWarmVideo(url: string, startTime = 0): HTMLVideoElement {
-  const key = warmClipKey(url, startTime);
+  const key = clipKey(url, startTime);
   displayedKeys.add(key);
   pinnedKeys.add(key);
   return ensureWarmVideo(url, startTime);
@@ -347,7 +346,7 @@ export function releaseWarmVideo(
   startTime = 0,
   video: HTMLVideoElement,
 ): void {
-  const key = warmClipKey(url, startTime);
+  const key = clipKey(url, startTime);
   displayedKeys.delete(key);
   pinnedKeys.delete(key);
   if (warmMp4s.get(key) === video) {
@@ -361,7 +360,7 @@ export function adoptWarmVimeo(
   url: string,
   startTime = 0,
 ): HTMLIFrameElement {
-  const key = warmClipKey(url, startTime);
+  const key = clipKey(url, startTime);
   displayedKeys.add(key);
   pinnedKeys.add(key);
   return ensureWarmVimeo(url, startTime);
@@ -373,7 +372,7 @@ export function releaseWarmVimeo(
   iframe: HTMLIFrameElement,
   fit: "cover" | "contain" = "cover",
 ): void {
-  const key = warmClipKey(url, startTime);
+  const key = clipKey(url, startTime);
   displayedKeys.delete(key);
   pinnedKeys.delete(key);
   postVimeo(iframe, { method: "pause" });

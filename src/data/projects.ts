@@ -16,8 +16,13 @@ export type Project = {
   /** Manually set Latest Projects credit lines (from Sanity postScrollSubtitles). */
   scrollSubtitles?: ScrollSubtitleSpan[][];
   description: string;
+  /** Hover video URL, or a still when the project has no clip. */
   image: string;
   imageAlt: string;
+  /** Sanity hero still; used under hover video until playback starts. */
+  imageUrl?: string;
+  /** Sanity poster still; preferred over hero while hover video is warming. */
+  posterImageUrl?: string;
   /** Seconds for muted list/scroll/talent preview playback (from Sanity). */
   videoPreviewStartSeconds?: number;
 };

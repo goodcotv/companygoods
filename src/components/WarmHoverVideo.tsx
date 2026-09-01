@@ -59,23 +59,17 @@ export function WarmHoverVideo({
     video.setAttribute("muted", "");
     video.setAttribute("playsinline", "");
 
-    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-      onReadyRef.current?.(true);
-    }
-
     const start = async () => {
       try {
         if (startTime > 0 && Math.abs(video.currentTime - startTime) > 1) {
           video.currentTime = startTime;
         }
         if (!playingRef.current) {
-          if (!released) onReadyRef.current?.(true);
           return;
         }
         await video.play();
         if (!playingRef.current) {
           video.pause();
-          if (!released) onReadyRef.current?.(true);
           return;
         }
         if (startTime > 0 && Math.abs(video.currentTime - startTime) > 1) {
@@ -101,7 +95,14 @@ export function WarmHoverVideo({
     const video = videoRef.current;
     if (!video) return;
     if (playing) {
-      if (video.paused) void video.play().catch(() => {});
+      if (video.paused) {
+        void video
+          .play()
+          .then(() => onReadyRef.current?.(true))
+          .catch(() => onReadyRef.current?.(false));
+        return;
+      }
+      onReadyRef.current?.(true);
       return;
     }
     video.pause();
@@ -113,10 +114,12 @@ export function WarmHoverVideo({
     let released = false;
     const iframe = adoptWarmVimeo(src, startTime);
     iframeRef.current = iframe;
-    setWarmVimeoVisible(iframe, fit, playingRef.current);
+    const alreadyReady = iframe.dataset.hoverReady === "true";
+    setWarmVimeoVisible(iframe, fit, alreadyReady && playingRef.current);
 
     void preloadVideoUrl(src, startTime).then(() => {
       if (released) return;
+      iframe.dataset.hoverReady = "true";
       if (playingRef.current) {
         setWarmVimeoVisible(iframe, fit, true);
       }
@@ -134,7 +137,8 @@ export function WarmHoverVideo({
     if (!isVimeo) return;
     const iframe = iframeRef.current;
     if (!iframe) return;
-    setWarmVimeoVisible(iframe, fit, playing);
+    const warmed = iframe.dataset.hoverReady === "true";
+    setWarmVimeoVisible(iframe, fit, playing && warmed);
   }, [playing, fit, isVimeo]);
 
   if (isVimeo) {

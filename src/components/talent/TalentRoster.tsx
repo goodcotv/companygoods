@@ -30,7 +30,7 @@ import { isVideoMediaUrl } from "@/lib/vimeo";
 import { parseTimeToSeconds } from "@/lib/parse-time";
 import type { PostDiscipline, PostWorker } from "@/sanity/types";
 import { textNav } from "@/lib/typography";
-import { WarmHoverVideo } from "@/components/WarmHoverVideo";
+import { HoverStillBackdrop } from "@/components/HoverStillBackdrop";
 
 const ITEM_MIN_HEIGHT = "min-h-[calc(21pt*1)]";
 
@@ -141,6 +141,9 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
             hover?.videoPreviewStartSeconds ??
             parseTimeToSeconds(hover?.videoPreviewStart) ??
             0,
+          posterImageUrl: hover?.posterImageUrl,
+          imageUrl: hover?.imageUrl,
+          muxVideoUrl: hover?.muxVideoUrl ?? hover?.videoUrl,
         };
       }),
     [roster, discipline],
@@ -387,23 +390,13 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
     selected && mediaUrl ? (
       <>
         <div className="talent-media" aria-hidden="true">
-          {isVideo ? (
-            <WarmHoverVideo
-              src={mediaUrl}
-              startTime={previewStart}
-              playing
-              className="h-full w-full"
-              onPreviewReady={(ready) => {
-                if (ready) markActivePreloaded();
-              }}
-            />
-          ) : (
-            <img
-              key={`${selected._id}-${discipline}`}
-              src={mediaUrl}
-              alt=""
-            />
-          )}
+          <HoverStillBackdrop
+            key={`${selected._id}-${discipline}`}
+            videoUrl={isVideo ? mediaUrl : undefined}
+            stillProject={featured}
+            startTime={previewStart}
+            onVideoReady={markActivePreloaded}
+          />
         </div>
         {/* Left scrim is desktop-only — mobile keeps the photo clear */}
         {!isMobile ? (

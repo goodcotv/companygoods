@@ -55,6 +55,7 @@ export const homepageQuery = `{
       "videoUrl": ${resolvedHeroVideoUrlGroq},
       videoPreviewStart,
       "imageUrl": heroImage.asset->url,
+      "posterImageUrl": posterImage.asset->url,
       postWorkDescription,
       description,
       postScrollSubtitles,
@@ -79,6 +80,7 @@ export const homepageQuery = `{
     "videoUrl": ${resolvedHeroVideoUrlGroq},
     videoPreviewStart,
     "imageUrl": heroImage.asset->url,
+    "posterImageUrl": posterImage.asset->url,
     postWorkDescription,
     description,
     postScrollSubtitles,
@@ -111,7 +113,8 @@ const featuredProjectByDiscipline = (discipline: string) => `*[
   title,
   "videoUrl": ${resolvedHeroVideoUrlGroq},
   videoPreviewStart,
-  "imageUrl": heroImage.asset->url
+  "imageUrl": heroImage.asset->url,
+  "posterImageUrl": posterImage.asset->url
 }`;
 
 /**
@@ -173,6 +176,7 @@ export const talentDetailQuery = `*[_type == "postWorker" && slug.current == $sl
     "videoUrl": ${resolvedHeroVideoUrlGroq},
     videoPreviewStart,
     "imageUrl": heroImage.asset->url,
+    "posterImageUrl": posterImage.asset->url,
     postWorkerDescription,
     "sortOrder": postCredits[worker._ref == ^.^._id && discipline == $discipline][0].order
   }

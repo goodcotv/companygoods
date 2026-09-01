@@ -33,8 +33,8 @@ import { useSequentialMediaPreload } from "@/hooks/useSequentialMediaPreload";
 import { textNav, textUi } from "@/lib/typography";
 import { BrandHeader } from "./BrandHeader";
 import { AnimatedCornerBrackets } from "./AnimatedCornerBrackets";
+import { HoverStillBackdrop } from "./HoverStillBackdrop";
 import { MobileBrandBar } from "./MobileBrandBar";
-import { WarmHoverVideo } from "./WarmHoverVideo";
 
 const ITEM_MIN_HEIGHT =
   "min-h-[calc(15pt*1.05+0.125rem+11pt)] md:min-h-[calc(19pt*1.05+0.125rem+13pt)]";
@@ -126,11 +126,18 @@ export function ListView({ projects }: ListViewProps) {
 
   const preloadItems = useMemo(
     () =>
-      filtered.map((project) => ({
-        id: project.id,
-        videoUrl: isVideoMediaUrl(project.image) ? project.image : undefined,
-        startTime: project.videoPreviewStartSeconds ?? 0,
-      })),
+      filtered.map((project) => {
+        const videoUrl = isVideoMediaUrl(project.image)
+          ? project.image
+          : undefined;
+        return {
+          id: project.id,
+          videoUrl,
+          startTime: project.videoPreviewStartSeconds ?? 0,
+          posterImageUrl: project.posterImageUrl,
+          imageUrl: project.imageUrl || (videoUrl ? undefined : project.image),
+        };
+      }),
     [filtered],
   );
 
@@ -280,27 +287,21 @@ export function ListView({ projects }: ListViewProps) {
     active && activeMediaUrl ? (
       <>
         <div className="absolute inset-0" style={{ zIndex: 0 }}>
-          {activeIsVideo ? (
-            <WarmHoverVideo
-              src={activeMediaUrl}
-              startTime={previewStart}
-              playing
-              className="h-full w-full"
-              onPreviewReady={(ready) => {
-                if (ready) markActivePreloaded();
-              }}
-            />
-          ) : (
-            <img
-              src={activeMediaUrl}
-              alt=""
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-              }}
-            />
-          )}
+          <HoverStillBackdrop
+            key={active.id}
+            videoUrl={activeIsVideo ? activeMediaUrl : undefined}
+            stillProject={{
+              videoUrl: activeIsVideo ? activeMediaUrl : undefined,
+              posterImageUrl: active.posterImageUrl,
+              imageUrl:
+                active.imageUrl ||
+                (activeIsVideo ? undefined : activeMediaUrl),
+              muxVideoUrl: activeIsVideo ? activeMediaUrl : undefined,
+              videoPreviewStartSeconds: previewStart,
+            }}
+            startTime={previewStart}
+            onVideoReady={markActivePreloaded}
+          />
         </div>
         {isMobile ? null : (
           <div className="talent-media-scrim" aria-hidden="true" />

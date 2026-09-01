@@ -27,7 +27,7 @@ import { textNav, textUi } from "@/lib/typography";
 import { isVideoMediaUrl } from "@/lib/vimeo";
 import { parseTimeToSeconds } from "@/lib/parse-time";
 import type { Project, TalentDetailData } from "@/sanity/types";
-import { WarmHoverVideo } from "@/components/WarmHoverVideo";
+import { HoverStillBackdrop } from "@/components/HoverStillBackdrop";
 
 const ITEM_MIN_HEIGHT =
   "min-h-[calc(15pt*1.05+0.125rem+11pt)] md:min-h-[calc(19pt*1.05+0.125rem+13pt)]";
@@ -83,6 +83,9 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
           project.videoPreviewStartSeconds ??
           parseTimeToSeconds(project.videoPreviewStart) ??
           0,
+        posterImageUrl: project.posterImageUrl,
+        imageUrl: project.imageUrl,
+        muxVideoUrl: project.muxVideoUrl ?? project.videoUrl,
       })),
     [projects],
   );
@@ -263,14 +266,12 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
     <>
       <div className="talent-media">
         {mediaVideoUrl ? (
-          <WarmHoverVideo
-            src={mediaVideoUrl}
+          <HoverStillBackdrop
+            key={activeProject?._id ?? "video"}
+            videoUrl={mediaVideoUrl}
+            stillProject={activeProject}
             startTime={previewStart}
-            playing
-            className="h-full w-full"
-            onPreviewReady={(ready) => {
-              if (ready) markActivePreloaded();
-            }}
+            onVideoReady={markActivePreloaded}
           />
         ) : mediaImageUrl ? (
           <Image
