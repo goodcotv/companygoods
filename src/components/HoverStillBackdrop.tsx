@@ -27,27 +27,58 @@ export function HoverStillBackdrop({
 }: HoverStillBackdropProps) {
   const stillFromProject = getProjectHoverStillUrl(stillProject);
   const [videoReady, setVideoReady] = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(false);
   const [vimeoStillUrl, setVimeoStillUrl] = useState<string | undefined>();
   const resolvedStill = stillFromProject || vimeoStillUrl;
   const isVimeo = Boolean(videoUrl && isVimeoUrl(videoUrl));
 
   useLayoutEffect(() => {
     setVideoReady(false);
+    setVideoPlaying(false);
     setVimeoStillUrl(undefined);
   }, [videoUrl, stillFromProject, startTime]);
 
+  // Fetch Vimeo thumbnail eagerly as a fallback
   useEffect(() => {
-    if (stillFromProject || !videoUrl || !isVimeoUrl(videoUrl)) return;
+    if (!videoUrl || !isVimeoUrl(videoUrl)) return;
+    
+    // If we already have a still, preload the Vimeo thumbnail as backup but don't show it
+    // If we don't have a still, fetch and show the Vimeo thumbnail
     let cancelled = false;
     void resolveVimeoThumbnail(videoUrl).then((url) => {
       if (cancelled || !url) return;
       preloadHoverStill(url);
-      setVimeoStillUrl(url);
+      
+      // Only set as the visible thumbnail if we don't have another still
+      if (!stillFromProject) {
+        setVimeoStillUrl(url);
+      }
     });
     return () => {
       cancelled = true;
     };
   }, [stillFromProject, videoUrl]);
+
+  // Delay hiding the thumbnail until video is actually playing
+  useEffect(() => {
+    if (!videoReady) {
+      setVideoPlaying(false);
+      return;
+    }
+    
+    // For Vimeo, trust the ready state immediately
+    if (isVimeo) {
+      setVideoPlaying(true);
+      return;
+    }
+    
+    // For regular videos, add a small delay to ensure video is rendering
+    const timer = setTimeout(() => {
+      setVideoPlaying(true);
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [videoReady, isVimeo]);
 
   if (!videoUrl && !resolvedStill) return null;
 
@@ -60,14 +91,14 @@ export function HoverStillBackdrop({
           draggable={false}
           decoding="async"
           className={`absolute inset-0 z-10 h-full w-full object-cover transition-opacity duration-300 ${
-            videoReady ? "opacity-0" : "opacity-100"
+            videoPlaying ? "opacity-0" : "opacity-100"
           }`}
         />
       ) : null}
       {videoUrl ? (
         <div
           className={`absolute inset-0 transition-opacity duration-300 ${
-            videoReady && !isVimeo ? "z-20 opacity-100" : "z-0 opacity-0"
+            videoPlaying && !isVimeo ? "z-20 opacity-100" : "z-0 opacity-0"
           }`}
         >
           <WarmHoverVideo
