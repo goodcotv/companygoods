@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
@@ -11,6 +11,7 @@ import { textNav } from "@/lib/typography";
 import { BrandHeader } from "./BrandHeader";
 import { MobileBrandBar } from "@/components/MobileBrandBar";
 import { InfoCredits } from "./InfoCredits";
+import { isListOverflowing } from "@/lib/cursor-hover";
 
 const INFO_SUBNAV = [
   { id: "about", label: "ABOUT" },
@@ -232,6 +233,8 @@ type InfoShellProps = {
 export function InfoShell({ settings }: InfoShellProps) {
   const searchParams = useSearchParams();
   const isMobile = useMobileBrowseLayout();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScroll, setCanScroll] = useState(false);
   const [activeSubRoute, setActiveSubRoute] = useState<InfoSubRoute>(() =>
     parseSubRoute(searchParams.get("sub")),
   );
@@ -239,6 +242,36 @@ export function InfoShell({ settings }: InfoShellProps) {
   useEffect(() => {
     setActiveSubRoute(parseSubRoute(searchParams.get("sub")));
   }, [searchParams]);
+
+  // Detect when content overflows and enable scroll cursor
+  useEffect(() => {
+    const scrollEl = scrollRef.current;
+    if (!scrollEl || isMobile) return;
+
+    function checkScroll() {
+      if (!scrollEl) return;
+      const nextCanScroll = isListOverflowing(scrollEl);
+      setCanScroll(nextCanScroll);
+    }
+
+    checkScroll();
+    void document.fonts?.ready.then(checkScroll);
+
+    scrollEl.addEventListener("scroll", checkScroll, { passive: true });
+    window.addEventListener("resize", checkScroll);
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(checkScroll)
+        : null;
+    resizeObserver?.observe(scrollEl);
+
+    return () => {
+      scrollEl.removeEventListener("scroll", checkScroll);
+      window.removeEventListener("resize", checkScroll);
+      resizeObserver?.disconnect();
+    };
+  }, [activeSubRoute, isMobile]);
 
   function handleSubNav(subRoute: InfoSubRoute) {
     if (subRoute === activeSubRoute) return;
@@ -323,30 +356,37 @@ export function InfoShell({ settings }: InfoShellProps) {
       <div className="relative mt-5 min-h-0 flex-1">
         <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
 
-        <div className="flex h-full items-start gap-16 px-5 py-5">
-          <div className="flex h-full min-h-0 max-w-[30rem] flex-col">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={activeSubRoute}
-                className="flex h-full min-h-0 flex-col"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25, ease: "easeInOut" }}
-              >
-                <InfoBody
-                  activeSubRoute={activeSubRoute}
-                  settings={settings}
-                />
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          <div className="ml-auto shrink-0 pt-1">
+        <div className="relative flex h-full flex-col">
+          {/* Fixed navigation at top right */}
+          <div className="absolute right-5 top-5 z-10 shrink-0">
             <InfoSubNav
               activeSubRoute={activeSubRoute}
               onNavigate={handleSubNav}
             />
+          </div>
+
+          {/* Scrollable content area */}
+          <div
+            ref={scrollRef}
+            {...(canScroll ? { "data-scrollable-list": true } : {})}
+            className="h-full overflow-y-auto px-5 py-5 [scrollbar-width:thin] [scrollbar-color:theme(colors.foreground/0.3)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-foreground/50"
+          >
+            <div className="max-w-[70%] pr-8">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={activeSubRoute}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25, ease: "easeInOut" }}
+                >
+                  <InfoBody
+                    activeSubRoute={activeSubRoute}
+                    settings={settings}
+                  />
+                </motion.div>
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       </div>
