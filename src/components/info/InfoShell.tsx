@@ -271,7 +271,10 @@ export function InfoShell({ settings }: InfoShellProps) {
   const searchParams = useSearchParams();
   const isMobile = useMobileBrowseLayout();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const mobileScrollRef = useRef<HTMLDivElement>(null);
   const [canScroll, setCanScroll] = useState(false);
+  const [showTopGradient, setShowTopGradient] = useState(false);
+  const [showBottomGradient, setShowBottomGradient] = useState(false);
   const [activeSubRoute, setActiveSubRoute] = useState<InfoSubRoute>(() =>
     parseSubRoute(searchParams.get("sub")),
   );
@@ -280,7 +283,7 @@ export function InfoShell({ settings }: InfoShellProps) {
     setActiveSubRoute(parseSubRoute(searchParams.get("sub")));
   }, [searchParams]);
 
-  // Detect when content overflows and enable scroll cursor
+  // Detect when content overflows and enable scroll cursor + gradient fades (desktop)
   useEffect(() => {
     const scrollEl = scrollRef.current;
     if (!scrollEl || isMobile) return;
@@ -289,6 +292,55 @@ export function InfoShell({ settings }: InfoShellProps) {
       if (!scrollEl) return;
       const nextCanScroll = isListOverflowing(scrollEl);
       setCanScroll(nextCanScroll);
+
+      // Check if we should show gradients
+      const scrollTop = scrollEl.scrollTop;
+      const scrollHeight = scrollEl.scrollHeight;
+      const clientHeight = scrollEl.clientHeight;
+      
+      // Show top gradient if scrolled down more than 20px
+      setShowTopGradient(scrollTop > 20);
+      
+      // Show bottom gradient if there's more than 20px of content below
+      setShowBottomGradient(scrollTop + clientHeight < scrollHeight - 20);
+    }
+
+    checkScroll();
+    void document.fonts?.ready.then(checkScroll);
+
+    scrollEl.addEventListener("scroll", checkScroll, { passive: true });
+    window.addEventListener("resize", checkScroll);
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(checkScroll)
+        : null;
+    resizeObserver?.observe(scrollEl);
+
+    return () => {
+      scrollEl.removeEventListener("scroll", checkScroll);
+      window.removeEventListener("resize", checkScroll);
+      resizeObserver?.disconnect();
+    };
+  }, [activeSubRoute, isMobile]);
+
+  // Gradient fades for mobile
+  useEffect(() => {
+    const scrollEl = mobileScrollRef.current;
+    if (!scrollEl || !isMobile) return;
+
+    function checkScroll() {
+      if (!scrollEl) return;
+
+      const scrollTop = scrollEl.scrollTop;
+      const scrollHeight = scrollEl.scrollHeight;
+      const clientHeight = scrollEl.clientHeight;
+      
+      // Show top gradient if scrolled down more than 20px
+      setShowTopGradient(scrollTop > 20);
+      
+      // Show bottom gradient if there's more than 20px of content below
+      setShowBottomGradient(scrollTop + clientHeight < scrollHeight - 20);
     }
 
     checkScroll();
@@ -347,7 +399,15 @@ export function InfoShell({ settings }: InfoShellProps) {
 
         <div className="relative mx-2 mt-5 min-h-0 flex-1">
           <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
-          <div className="h-full overflow-y-auto px-4 py-5">
+          
+          {/* Top gradient fade */}
+          <div
+            className={`pointer-events-none absolute left-0 right-0 top-0 z-20 h-12 bg-gradient-to-b from-background to-transparent transition-opacity duration-300 ${
+              showTopGradient ? "opacity-100" : "opacity-0"
+            }`}
+          />
+
+          <div ref={mobileScrollRef} className="h-full overflow-y-auto px-4 py-5">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={activeSubRoute}
@@ -364,6 +424,13 @@ export function InfoShell({ settings }: InfoShellProps) {
               </motion.div>
             </AnimatePresence>
           </div>
+
+          {/* Bottom gradient fade */}
+          <div
+            className={`pointer-events-none absolute bottom-0 left-0 right-0 z-20 h-12 bg-gradient-to-t from-background to-transparent transition-opacity duration-300 ${
+              showBottomGradient ? "opacity-100" : "opacity-0"
+            }`}
+          />
         </div>
 
         <footer className="shrink-0 px-3 pt-4 pb-2">
@@ -403,27 +470,43 @@ export function InfoShell({ settings }: InfoShellProps) {
           </div>
 
           {/* Scrollable content area */}
-          <div
-            ref={scrollRef}
-            {...(canScroll ? { "data-scrollable-list": true } : {})}
-            className="h-full overflow-y-auto px-5 py-5 [scrollbar-width:thin] [scrollbar-color:theme(colors.foreground/0.3)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-foreground/50"
-          >
-            <div className="max-w-[70%] pr-8">
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={activeSubRoute}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25, ease: "easeInOut" }}
-                >
-                  <InfoBody
-                    activeSubRoute={activeSubRoute}
-                    settings={settings}
-                  />
-                </motion.div>
-              </AnimatePresence>
+          <div className="relative h-full">
+            {/* Top gradient fade */}
+            <div
+              className={`pointer-events-none absolute left-0 right-0 top-0 z-20 h-16 bg-gradient-to-b from-background to-transparent transition-opacity duration-300 ${
+                showTopGradient ? "opacity-100" : "opacity-0"
+              }`}
+            />
+
+            <div
+              ref={scrollRef}
+              {...(canScroll ? { "data-scrollable-list": true } : {})}
+              className="h-full overflow-y-auto px-5 py-5 [scrollbar-width:thin] [scrollbar-color:theme(colors.foreground/0.3)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-foreground/50"
+            >
+              <div className="max-w-[70%] pr-8">
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={activeSubRoute}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.25, ease: "easeInOut" }}
+                  >
+                    <InfoBody
+                      activeSubRoute={activeSubRoute}
+                      settings={settings}
+                    />
+                  </motion.div>
+                </AnimatePresence>
+              </div>
             </div>
+
+            {/* Bottom gradient fade */}
+            <div
+              className={`pointer-events-none absolute bottom-0 left-0 right-0 z-20 h-16 bg-gradient-to-t from-background to-transparent transition-opacity duration-300 ${
+                showBottomGradient ? "opacity-100" : "opacity-0"
+              }`}
+            />
           </div>
         </div>
       </div>
