@@ -17,11 +17,13 @@ const INFO_SUBNAV = [
   { id: "about", label: "ABOUT" },
   { id: "contact", label: "CONTACT" },
   { id: "management", label: "MANAGEMENT" },
+  { id: "capabilities", label: "CAPABILITIES" },
 ] as const;
 
 type InfoSubRoute = (typeof INFO_SUBNAV)[number]["id"];
 
 function parseSubRoute(value: string | null): InfoSubRoute {
+  if (value === "capabilities") return "capabilities";
   if (value === "contact") return "contact";
   if (value === "management") return "management";
   return "about";
@@ -150,6 +152,41 @@ function InfoBody({
           >
             {paragraph}
           </p>
+        ))}
+      </div>
+    );
+  }
+
+  if (activeSubRoute === "capabilities") {
+    const capabilities = settings?.capabilities?.filter((c) => c.text) ?? [];
+
+    if (capabilities.length === 0) return null;
+
+    return (
+      <div className="flex flex-col gap-8">
+        {capabilities.map((capability, index) => (
+          <div
+            key={index}
+            className="flex items-start gap-6"
+          >
+            <p
+              className={`${textInfoHeading} flex-1 text-foreground`}
+            >
+              {capability.text}
+            </p>
+            {capability.imageUrl && (
+              <div className="flex-shrink-0">
+                <img
+                  src={capability.imageUrl}
+                  alt=""
+                  className="h-auto w-auto max-w-[300px] object-contain"
+                  style={{
+                    maxHeight: "calc(100% + 2rem)",
+                  }}
+                />
+              </div>
+            )}
+          </div>
         ))}
       </div>
     );

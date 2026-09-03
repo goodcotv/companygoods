@@ -34,6 +34,10 @@ export const homepageQuery = `{
       introVideoUrl
     ),
     aboutParagraphs,
+    capabilities[] {
+      text,
+      "imageUrl": image.asset->url
+    },
     contactEmail,
     offices[] {
       label,
@@ -199,6 +203,10 @@ export const postCategoriesQuery = `*[_type == "postCategory"] | order(order asc
  */
 export const siteSettingsQuery = `*[_type == "postSiteSettings"][0] {
   aboutParagraphs,
+  capabilities[] {
+    text,
+    "imageUrl": image.asset->url
+  },
   contactEmail,
   offices[] {
     label,

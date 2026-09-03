@@ -152,6 +152,10 @@ export interface PostSiteSettings {
   introVideoUrl?: string;
   featuredProjects?: Project[];
   aboutParagraphs?: string[];
+  capabilities?: {
+    text: string;
+    imageUrl?: string;
+  }[];
   contactEmail?: string;
   offices?: {
     label: string;
