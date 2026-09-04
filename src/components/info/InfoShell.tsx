@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
@@ -131,6 +131,18 @@ function InfoSubNav({
       </nav>
     </LayoutGroup>
   );
+}
+
+const INFO_EDGE_FADE_PX = 64;
+const INFO_EDGE_FADE_MOBILE_PX = 48;
+
+function applyInfoScrollFades(el: HTMLElement, maxFade: number) {
+  const fade = Math.min(maxFade, el.clientHeight / 3);
+  const top = Math.min(Math.max(el.scrollTop, 0), fade);
+  const remaining = el.scrollHeight - el.clientHeight - el.scrollTop;
+  const bottom = Math.min(Math.max(remaining, 0), fade);
+  el.style.setProperty("--fade-top", `${top}px`);
+  el.style.setProperty("--fade-bottom", `${bottom}px`);
 }
 
 function InfoBody({
@@ -273,8 +285,6 @@ export function InfoShell({ settings }: InfoShellProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const mobileScrollRef = useRef<HTMLDivElement>(null);
   const [canScroll, setCanScroll] = useState(false);
-  const [showTopGradient, setShowTopGradient] = useState(false);
-  const [showBottomGradient, setShowBottomGradient] = useState(false);
   const [activeSubRoute, setActiveSubRoute] = useState<InfoSubRoute>(() =>
     parseSubRoute(searchParams.get("sub")),
   );
@@ -283,81 +293,38 @@ export function InfoShell({ settings }: InfoShellProps) {
     setActiveSubRoute(parseSubRoute(searchParams.get("sub")));
   }, [searchParams]);
 
-  // Detect when content overflows and enable scroll cursor + gradient fades (desktop)
-  useEffect(() => {
-    const scrollEl = scrollRef.current;
-    if (!scrollEl || isMobile) return;
+  // Scroll-synced edge fades + overflow cursor (desktop + mobile)
+  useLayoutEffect(() => {
+    const scrollEl = isMobile ? mobileScrollRef.current : scrollRef.current;
+    if (!scrollEl) return;
 
-    function checkScroll() {
+    const maxFade = isMobile ? INFO_EDGE_FADE_MOBILE_PX : INFO_EDGE_FADE_PX;
+
+    function sync() {
       if (!scrollEl) return;
-      const nextCanScroll = isListOverflowing(scrollEl);
-      setCanScroll(nextCanScroll);
-
-      // Check if we should show gradients
-      const scrollTop = scrollEl.scrollTop;
-      const scrollHeight = scrollEl.scrollHeight;
-      const clientHeight = scrollEl.clientHeight;
-      
-      // Show top gradient if scrolled down more than 20px
-      setShowTopGradient(scrollTop > 20);
-      
-      // Show bottom gradient if there's more than 20px of content below
-      setShowBottomGradient(scrollTop + clientHeight < scrollHeight - 20);
+      applyInfoScrollFades(scrollEl, maxFade);
+      if (!isMobile) {
+        const nextCanScroll = isListOverflowing(scrollEl);
+        setCanScroll((prev) => (prev === nextCanScroll ? prev : nextCanScroll));
+      }
     }
 
-    checkScroll();
-    void document.fonts?.ready.then(checkScroll);
+    sync();
+    void document.fonts?.ready.then(sync);
 
-    scrollEl.addEventListener("scroll", checkScroll, { passive: true });
-    window.addEventListener("resize", checkScroll);
+    scrollEl.addEventListener("scroll", sync, { passive: true });
+    window.addEventListener("resize", sync);
 
     const resizeObserver =
       typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(checkScroll)
+        ? new ResizeObserver(sync)
         : null;
-    resizeObserver?.observe(scrollEl);
+    const inner = scrollEl.firstElementChild;
+    if (inner instanceof HTMLElement) resizeObserver?.observe(inner);
 
     return () => {
-      scrollEl.removeEventListener("scroll", checkScroll);
-      window.removeEventListener("resize", checkScroll);
-      resizeObserver?.disconnect();
-    };
-  }, [activeSubRoute, isMobile]);
-
-  // Gradient fades for mobile
-  useEffect(() => {
-    const scrollEl = mobileScrollRef.current;
-    if (!scrollEl || !isMobile) return;
-
-    function checkScroll() {
-      if (!scrollEl) return;
-
-      const scrollTop = scrollEl.scrollTop;
-      const scrollHeight = scrollEl.scrollHeight;
-      const clientHeight = scrollEl.clientHeight;
-      
-      // Show top gradient if scrolled down more than 20px
-      setShowTopGradient(scrollTop > 20);
-      
-      // Show bottom gradient if there's more than 20px of content below
-      setShowBottomGradient(scrollTop + clientHeight < scrollHeight - 20);
-    }
-
-    checkScroll();
-    void document.fonts?.ready.then(checkScroll);
-
-    scrollEl.addEventListener("scroll", checkScroll, { passive: true });
-    window.addEventListener("resize", checkScroll);
-
-    const resizeObserver =
-      typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(checkScroll)
-        : null;
-    resizeObserver?.observe(scrollEl);
-
-    return () => {
-      scrollEl.removeEventListener("scroll", checkScroll);
-      window.removeEventListener("resize", checkScroll);
+      scrollEl.removeEventListener("scroll", sync);
+      window.removeEventListener("resize", sync);
       resizeObserver?.disconnect();
     };
   }, [activeSubRoute, isMobile]);
@@ -398,16 +365,10 @@ export function InfoShell({ settings }: InfoShellProps) {
         </div>
 
         <div className="relative mx-2 mt-5 min-h-0 flex-1">
-          <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
-          
-          {/* Top gradient fade */}
           <div
-            className={`pointer-events-none absolute left-0 right-0 top-0 z-20 h-12 bg-gradient-to-b from-background to-transparent transition-opacity duration-300 ${
-              showTopGradient ? "opacity-100" : "opacity-0"
-            }`}
-          />
-
-          <div ref={mobileScrollRef} className="h-full overflow-y-auto px-4 py-5">
+            ref={mobileScrollRef}
+            className="info-scroll-fade h-full overflow-y-auto px-4 py-5"
+          >
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={activeSubRoute}
@@ -425,12 +386,7 @@ export function InfoShell({ settings }: InfoShellProps) {
             </AnimatePresence>
           </div>
 
-          {/* Bottom gradient fade */}
-          <div
-            className={`pointer-events-none absolute bottom-0 left-0 right-0 z-20 h-12 bg-gradient-to-t from-background to-transparent transition-opacity duration-300 ${
-              showBottomGradient ? "opacity-100" : "opacity-0"
-            }`}
-          />
+          <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
         </div>
 
         <footer className="shrink-0 px-3 pt-4 pb-2">
@@ -458,11 +414,9 @@ export function InfoShell({ settings }: InfoShellProps) {
       <BrandHeader variant="display" muted />
 
       <div className="relative mt-5 min-h-0 flex-1">
-        <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
-
         <div className="relative flex h-full flex-col">
-          {/* Fixed navigation at top right */}
-          <div className="absolute right-5 top-5 z-10 shrink-0">
+          {/* In-flow so body copy always starts below the subnav */}
+          <div className="flex shrink-0 justify-end px-5 pt-5">
             <InfoSubNav
               activeSubRoute={activeSubRoute}
               onNavigate={handleSubNav}
@@ -470,18 +424,11 @@ export function InfoShell({ settings }: InfoShellProps) {
           </div>
 
           {/* Scrollable content area */}
-          <div className="relative h-full">
-            {/* Top gradient fade */}
-            <div
-              className={`pointer-events-none absolute left-0 right-0 top-0 z-20 h-16 bg-gradient-to-b from-background to-transparent transition-opacity duration-300 ${
-                showTopGradient ? "opacity-100" : "opacity-0"
-              }`}
-            />
-
+          <div className="relative min-h-0 flex-1">
             <div
               ref={scrollRef}
               {...(canScroll ? { "data-scrollable-list": true } : {})}
-              className="h-full overflow-y-auto px-5 py-5 [scrollbar-width:thin] [scrollbar-color:theme(colors.foreground/0.3)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-foreground/50"
+              className="info-scroll-fade h-full overflow-y-auto px-5 pb-5 pt-6 [scrollbar-width:thin] [scrollbar-color:theme(colors.foreground/0.3)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-foreground/50"
             >
               <div className="max-w-[70%] pr-8">
                 <AnimatePresence mode="wait" initial={false}>
@@ -500,15 +447,10 @@ export function InfoShell({ settings }: InfoShellProps) {
                 </AnimatePresence>
               </div>
             </div>
-
-            {/* Bottom gradient fade */}
-            <div
-              className={`pointer-events-none absolute bottom-0 left-0 right-0 z-20 h-16 bg-gradient-to-t from-background to-transparent transition-opacity duration-300 ${
-                showBottomGradient ? "opacity-100" : "opacity-0"
-              }`}
-            />
           </div>
         </div>
+
+        <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
       </div>
     </motion.div>
   );

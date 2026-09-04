@@ -617,6 +617,29 @@ body {
 }
 
 /*
+ * Info page: edge dissolve tracks scroll so copy fades as it enters the
+ * frame edge, instead of an overlay popping in after you scroll.
+ */
+.info-scroll-fade {
+  --fade-top: 0px;
+  --fade-bottom: 0px;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--fade-top),
+    #000 calc(100% - var(--fade-bottom)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--fade-top),
+    #000 calc(100% - var(--fade-bottom)),
+    transparent 100%
+  );
+}
+
+/*
  * Soft edge fades via mask on the scrollable list.
  * Text dissolves into the media behind — no opaque black bars over the photo.
  */
