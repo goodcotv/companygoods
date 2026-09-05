@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -9,10 +8,14 @@ import {
 } from "react";
 import { motion } from "framer-motion";
 import type { Project, ScrollSubtitleSpan } from "@/data/projects";
+import {
+  preloadProjectHoverStill,
+  type HoverStillProject,
+} from "@/lib/hover-still";
 import { hideWarmMediaOverlays } from "@/lib/preload-video";
 import {
+  STAGE_FRAME_BOTTOM,
   STAGE_LOGO_TOP_PADDING,
-  STAGE_NAV_CLEARANCE,
 } from "@/lib/stage";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { BrandHeader } from "./BrandHeader";
@@ -27,11 +30,60 @@ type ScrollViewProps = {
 
 /** Sentinel index for the site intro / main video (from Post Site Settings). */
 const INTRO_INDEX = -1;
-const INTRO_KEY = "__intro__";
 /** Ignore further wheel/touch input while a step is in progress. */
 const STEP_LOCK_MS = 650;
 const WHEEL_THRESHOLD = 12;
 const TOUCH_THRESHOLD = 36;
+/** Sidebar + gap reserved beside the camera (`15rem` in the old cq formula). */
+const CAMERA_SIDEBAR_REM = 15;
+
+function useScrollCameraWidth() {
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    function measure() {
+      const w = stage.clientWidth;
+      const h = stage.clientHeight;
+      if (w <= 0 || h <= 0) return;
+      const rem =
+        parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const next = Math.min(
+        Math.max(0, w - CAMERA_SIDEBAR_REM * rem),
+        (h * 16) / 9,
+      );
+      setWidth((prev) => (prev === next ? prev : next));
+    }
+
+    measure();
+    const frame = requestAnimationFrame(measure);
+    const observer = new ResizeObserver(measure);
+    observer.observe(stage);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, []);
+
+  return { stageRef, cameraWidth: width };
+}
+
+function stillProjectFromMedia(
+  src: string | undefined,
+  extras?: Pick<Project, "posterImageUrl" | "imageUrl" | "videoPreviewStartSeconds">,
+): HoverStillProject {
+  const isVideo = isVideoMediaUrl(src);
+  return {
+    videoUrl: isVideo ? src : undefined,
+    muxVideoUrl: isVideo ? src : undefined,
+    posterImageUrl: extras?.posterImageUrl,
+    imageUrl: extras?.imageUrl || (isVideo ? undefined : src),
+    videoPreviewStartSeconds: extras?.videoPreviewStartSeconds,
+  };
+}
 
 function LatestLabel({ className = "" }: { className?: string }) {
   return (
@@ -119,24 +171,19 @@ function ProjectCredits({
 
 export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
   const isMobile = useMobileBrowseLayout();
+  const { stageRef, cameraWidth } = useScrollCameraWidth();
   const [activeIndex, setActiveIndex] = useState(INTRO_INDEX);
   const indexRef = useRef(INTRO_INDEX);
   const lockedRef = useRef(false);
   const touchStartY = useRef<number | null>(null);
+  const cameraReady = cameraWidth > 0;
 
   const lastIndex = projects.length - 1;
   const isIntro = activeIndex === INTRO_INDEX;
   const active = isIntro ? null : (projects[activeIndex] ?? projects[0]);
-  const [readyKeys, setReadyKeys] = useState(() => new Set<string>());
-
-  const markMediaReady = useCallback((key: string) => {
-    setReadyKeys((prev) => {
-      if (prev.has(key)) return prev;
-      const next = new Set(prev);
-      next.add(key);
-      return next;
-    });
-  }, []);
+  // Once a slide has been warmed, keep its player mounted so scroll-away
+  // only pauses — remounting is what restarts the clip from the beginning.
+  const mountedIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     indexRef.current = activeIndex;
@@ -145,6 +192,21 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
   useLayoutEffect(() => {
     hideWarmMediaOverlays();
   }, []);
+
+  useEffect(() => {
+    for (const project of projects) {
+      preloadProjectHoverStill(
+        stillProjectFromMedia(project.image, {
+          posterImageUrl: project.posterImageUrl,
+          imageUrl: project.imageUrl,
+          videoPreviewStartSeconds: project.videoPreviewStartSeconds,
+        }),
+      );
+    }
+    if (introVideoUrl) {
+      preloadProjectHoverStill(stillProjectFromMedia(introVideoUrl));
+    }
+  }, [projects, introVideoUrl]);
 
   useEffect(() => {
     const html = document.documentElement;
@@ -256,9 +318,8 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
           type="video"
           active={isIntro}
           cornersLayoutId="page-corners"
-          corners={!isMobile && isIntro}
+          corners={!isMobile && isIntro && cameraReady}
           radius={isMobile ? 24 : 16}
-          onReady={() => markMediaReady(INTRO_KEY)}
         />
       </div>
 
@@ -275,7 +336,8 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
           (!isIntro && i === activeIndex - 1) ||
           (i === activeIndex + 2 && isVimeoUrl(mediaSrc));
 
-        if (!nearby) return null;
+        if (nearby) mountedIdsRef.current.add(project.id);
+        if (!nearby && !mountedIdsRef.current.has(project.id)) return null;
 
         return (
           <Link
@@ -293,12 +355,12 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
               className="h-full w-full"
               src={mediaSrc}
               type={mediaType}
+              poster={project.posterImageUrl || project.imageUrl}
               startTime={project.videoPreviewStartSeconds ?? 0}
               active={on}
               cornersLayoutId="page-corners"
-              corners={!isMobile && on}
+              corners={!isMobile && on && cameraReady}
               radius={isMobile ? 24 : 16}
-              onReady={() => markMediaReady(project.id)}
             />
             {/* Catch clicks above video/iframe so navigation always works */}
             <span className="absolute inset-0 z-10" aria-hidden />
@@ -326,7 +388,7 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
             <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-4 pt-4">
               <LatestLabel className="text-[14px] text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.55)]" />
             </div>
-            {!isIntro && active && readyKeys.has(active.id) ? (
+            {!isIntro && active ? (
               <div className="pointer-events-none absolute inset-y-0 left-0 z-20 flex max-w-[min(100%,22rem)] items-center px-4">
                 <ProjectCredits
                   key={active.id}
@@ -347,8 +409,8 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
       className="absolute inset-0 flex flex-col bg-background px-8 text-foreground"
       style={{
         paddingTop: STAGE_LOGO_TOP_PADDING,
-        // Camera bottom sits on the nav's top edge
-        paddingBottom: STAGE_NAV_CLEARANCE,
+        // Camera bottom sits just above the BottomChrome pill
+        paddingBottom: STAGE_FRAME_BOTTOM,
       }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -370,16 +432,15 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
         Latest Projects + credits share the sidebar's left edge.
       */}
       <div
+        ref={stageRef}
         className="mt-3 flex min-h-0 flex-1 items-start gap-6"
-        style={{ containerType: "size" }}
       >
         <div
           className="relative h-full min-w-0 shrink-0"
           style={{
-            // Cap at 16:9 for the available height; otherwise take remaining
-            // width (minus sidebar) and keep full height.
-            width:
-              "min(max(0px, calc(100cqi - 15rem)), calc(100cqh * 16 / 9))",
+            // Same rule as before (16:9 of height, else leftover width), but
+            // measured after layout so the first frame can't be 0×0.
+            width: cameraReady ? cameraWidth : "min(100%, calc(100% - 15rem))",
           }}
         >
           {mediaLayers}
@@ -387,7 +448,7 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
 
         <div className="flex min-w-0 flex-1 flex-col items-start self-start overflow-hidden">
           <LatestLabel />
-          {!isIntro && active && readyKeys.has(active.id) ? (
+          {!isIntro && active ? (
             <ProjectCredits key={active.id} project={active} className="mt-4" />
           ) : null}
         </div>

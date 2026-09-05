@@ -8,6 +8,8 @@ type MutedLoopVideoProps = {
   style?: CSSProperties;
   /** Seconds into the video to begin muted looping preview. */
   startTime?: number;
+  /** Pause without seeking when the slide is off-screen. */
+  active?: boolean;
   "aria-label"?: string;
   onReady?: () => void;
 };
@@ -29,11 +31,16 @@ export function MutedLoopVideo({
   className,
   style,
   startTime = 0,
+  active = true,
   "aria-label": ariaLabel,
   onReady,
 }: MutedLoopVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const loopSeekingRef = useRef(false);
+  const onReadyRef = useRef(onReady);
+  const activeRef = useRef(active);
+  onReadyRef.current = onReady;
+  activeRef.current = active;
 
   useEffect(() => {
     const video = videoRef.current;
@@ -49,7 +56,7 @@ export function MutedLoopVideo({
       loopSeekingRef.current = true;
       video.currentTime = target;
       await new Promise((resolve) => setTimeout(resolve, 50));
-      if (video.paused) {
+      if (video.paused && activeRef.current) {
         await video.play().catch(() => {});
       }
       loopSeekingRef.current = false;
@@ -65,8 +72,10 @@ export function MutedLoopVideo({
       if (startTime > 0) {
         await seekToStart();
       }
-      await video.play().catch(() => {});
-      onReady?.();
+      if (activeRef.current) {
+        await video.play().catch(() => {});
+      }
+      onReadyRef.current?.();
     };
 
     const onTimeUpdate = () => {
@@ -102,13 +111,24 @@ export function MutedLoopVideo({
     return () => {
       video.removeEventListener("timeupdate", onTimeUpdate);
     };
-  }, [src, startTime, onReady]);
+  }, [src, startTime]);
+
+  // Pause on scroll-away, resume on scroll-in — never re-seek.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (active) {
+      if (video.paused) void video.play().catch(() => {});
+      return;
+    }
+    video.pause();
+  }, [active]);
 
   return (
     <video
       ref={videoRef}
       src={src}
-      autoPlay={startTime <= 0}
+      autoPlay={startTime <= 0 && active}
       loop={startTime <= 0}
       muted
       playsInline

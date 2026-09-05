@@ -1,8 +1,7 @@
+import { textNav } from "@/lib/typography";
+
 const linkClass =
   "underline underline-offset-2 transition-opacity hover:opacity-70";
-
-const creditsType =
-  "font-display text-[calc(11pt-2px)] font-medium uppercase leading-none md:text-[calc(13pt-2px)]";
 
 type InfoCreditsProps = {
   className?: string;
@@ -11,7 +10,7 @@ type InfoCreditsProps = {
 export function InfoCredits({ className = "" }: InfoCreditsProps) {
   return (
     <p
-      className={[creditsType, "max-w-none whitespace-nowrap text-foreground", className]
+      className={[textNav, "max-w-none whitespace-nowrap text-foreground", className]
         .filter(Boolean)
         .join(" ")}
     >

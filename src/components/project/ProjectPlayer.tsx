@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import Image from "next/image";
+import Image, { type ImageProps } from "next/image";
 import { useRouter } from "next/navigation";
 import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
 import { ControlledVideo } from "@/components/project/ControlledVideo";
@@ -15,6 +15,7 @@ import type {
   PortableTextBlock,
   Project,
 } from "@/sanity/types";
+import { isGifUrl } from "@/sanity/lib/image";
 import { isImageRowSection } from "@/sanity/types";
 
 type ProjectPlayerProps = {
@@ -68,6 +69,17 @@ function getCaptionPositionClasses(position = "bottom-left") {
 
 function captionToText(caption?: PortableTextBlock[]): string {
   return portableTextToPlainText(caption);
+}
+
+function ProjectImage({ src, unoptimized, ...props }: ImageProps) {
+  const url = typeof src === "string" ? src : undefined;
+  return (
+    <Image
+      src={src}
+      unoptimized={unoptimized ?? isGifUrl(url)}
+      {...props}
+    />
+  );
 }
 
 /**
@@ -182,7 +194,7 @@ function HeroSection({
           priority
         />
       ) : poster ? (
-        <Image
+        <ProjectImage
           src={poster}
           alt={project.title}
           fill
@@ -336,7 +348,7 @@ function SingleMediaSectionComponent({ section }: { section: MediaSection }) {
     <MediaSectionShell section={section}>
       {isImage && imageSrc ? (
         contained ? (
-          <Image
+          <ProjectImage
             src={imageSrc}
             alt=""
             width={1600}
@@ -345,7 +357,7 @@ function SingleMediaSectionComponent({ section }: { section: MediaSection }) {
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1600px"
           />
         ) : (
-          <Image
+          <ProjectImage
             src={imageSrc}
             alt=""
             fill
@@ -377,7 +389,7 @@ function ImageRowMediaSectionComponent({ section }: { section: MediaSection }) {
       >
         {section.imageUrls.map((url) =>
           contained ? (
-            <Image
+            <ProjectImage
               key={url}
               src={url}
               alt=""
@@ -392,7 +404,7 @@ function ImageRowMediaSectionComponent({ section }: { section: MediaSection }) {
             />
           ) : (
             <div key={url} className="relative h-full w-full">
-              <Image
+              <ProjectImage
                 src={url}
                 alt=""
                 fill

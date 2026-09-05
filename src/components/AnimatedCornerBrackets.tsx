@@ -13,6 +13,8 @@ type AnimatedCornerBracketsProps = {
   className?: string;
   inset?: number;
   layoutId?: string;
+  /** Use `"position"` when a parent already interpolates size (avoids scale projection). */
+  layout?: boolean | "position" | "size";
   geometry?: CornerBracketGeometry;
 };
 
@@ -24,6 +26,7 @@ export function AnimatedCornerBrackets({
   className = "",
   inset = 10,
   layoutId = "camera-corners",
+  layout,
   geometry = FRAME_BRACKET,
 }: AnimatedCornerBracketsProps) {
   const { size, corners } = buildCornerBrackets(geometry);
@@ -31,6 +34,7 @@ export function AnimatedCornerBrackets({
   return (
     <motion.div
       layoutId={layoutId}
+      layout={layout}
       className={`pointer-events-none absolute inset-0 z-10 ${className}`}
       aria-hidden
       transition={{

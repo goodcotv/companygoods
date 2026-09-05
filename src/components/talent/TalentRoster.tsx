@@ -12,8 +12,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { BrandHeader } from "@/components/BrandHeader";
-import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
 import { MobileBrandBar } from "@/components/MobileBrandBar";
+import { TalentListSlot } from "@/components/talent/TalentListSlot";
 import { CATEGORIES, type TalentCategory } from "@/data/talent";
 import { useCoarsePointerDevice } from "@/hooks/useCoarsePointerDevice";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
@@ -542,15 +542,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
             {categoryNav}
 
             {/* Hug-wrap brackets around the roster — matches the mobile mock */}
-            <div
-              className={[
-                "talent-list-slot",
-                canScroll ? "is-scrollable" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
+            <TalentListSlot canScroll={canScroll}>
               <div
                 className={[
                   "talent-list-frame scroll-indicator-wrapper",
@@ -594,7 +586,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
                   </svg>
                 </div>
               </div>
-            </div>
+            </TalentListSlot>
           </div>
         </div>
       </motion.div>
@@ -628,15 +620,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
 
         <div className="talent-body">
           <div className="talent-left">
-            <div
-              className={[
-                "talent-list-slot",
-                canScroll ? "is-scrollable" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
+            <TalentListSlot canScroll={canScroll}>
               <div
                 className={[
                   "talent-list-frame scroll-indicator-wrapper",
@@ -680,7 +664,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
                   </svg>
                 </div>
               </div>
-            </div>
+            </TalentListSlot>
           </div>
 
           <div

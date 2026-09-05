@@ -150,7 +150,13 @@ export function HomePage({ data, externalView }: HomePageProps) {
         ease: "easeInOut",
       }}
     >
-      <AnimatePresence mode="popLayout" initial={false}>
+      {/*
+        sync, not popLayout: both views are already absolute, and popLayout
+        races the shared page-corners / logo layoutId against the incoming
+        camera. If that box is measured at 0×0, the morph collapses and the
+        page stays blank.
+      */}
+      <AnimatePresence initial={false}>
         {view === "scroll" ? (
           <ScrollView
             key="scroll"

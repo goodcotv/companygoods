@@ -26,6 +26,7 @@ import { STAGE_LOGO_TOP_PADDING, STAGE_NAV_CLEARANCE } from "@/lib/stage";
 import { textNav, textUi } from "@/lib/typography";
 import { isVideoMediaUrl } from "@/lib/vimeo";
 import { parseTimeToSeconds } from "@/lib/parse-time";
+import { isGifUrl } from "@/sanity/lib/image";
 import type { Project, TalentDetailData } from "@/sanity/types";
 import { HoverStillBackdrop } from "@/components/HoverStillBackdrop";
 
@@ -281,6 +282,7 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
             fill
             style={{ objectFit: "cover" }}
             priority
+            unoptimized={isGifUrl(mediaImageUrl)}
           />
         ) : null}
       </div>
