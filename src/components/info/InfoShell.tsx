@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { STAGE_FRAME_BOTTOM, STAGE_LOGO_TOP_PADDING } from "@/lib/stage";
@@ -96,40 +96,31 @@ function InfoSubNav({
   className?: string;
 }) {
   return (
-    <LayoutGroup>
-      <nav
-        className={`flex flex-wrap items-center gap-x-1 ${textNav} ${className}`}
-        aria-label="Info navigation"
-      >
-        {INFO_SUBNAV.map((item, index) => {
-          const isActive = activeSubRoute === item.id;
-          return (
-            <span key={item.id} className="inline-flex items-center gap-x-1">
-              {index > 0 && <span className="text-foreground/80">/</span>}
-              <button
-                type="button"
-                onClick={() => onNavigate(item.id)}
-                className={`relative pb-[5px] transition-colors duration-200 ${
-                  isActive
-                    ? "text-foreground"
-                    : "text-muted hover:text-foreground"
-                }`}
-                aria-current={isActive ? "page" : undefined}
-              >
-                {item.label}
-                {isActive && (
-                  <motion.span
-                    layoutId="info-subnav-underline"
-                    className="absolute inset-x-0 bottom-0 h-px bg-foreground"
-                    transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                  />
-                )}
-              </button>
-            </span>
-          );
-        })}
-      </nav>
-    </LayoutGroup>
+    <nav
+      className={`flex flex-wrap items-center gap-x-1 ${textNav} ${className}`}
+      aria-label="Info navigation"
+    >
+      {INFO_SUBNAV.map((item, index) => {
+        const isActive = activeSubRoute === item.id;
+        return (
+          <span key={item.id} className="inline-flex items-center gap-x-1">
+            {index > 0 && <span className="text-foreground/80">/</span>}
+            <button
+              type="button"
+              onClick={() => onNavigate(item.id)}
+              className={`transition-colors duration-200 ${
+                isActive
+                  ? "text-foreground"
+                  : "text-muted hover:text-foreground"
+              }`}
+              aria-current={isActive ? "page" : undefined}
+            >
+              {item.label}
+            </button>
+          </span>
+        );
+      })}
+    </nav>
   );
 }
 

@@ -189,8 +189,13 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
     indexRef.current = activeIndex;
   }, [activeIndex]);
 
-  useLayoutEffect(() => {
-    hideWarmMediaOverlays();
+  // After the 250ms enter fade — hiding on the first paint cuts the
+  // outgoing list/talent video while this view is still opacity 0.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      hideWarmMediaOverlays();
+    }, 280);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {

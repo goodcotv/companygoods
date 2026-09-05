@@ -10,7 +10,7 @@ export const STAGE_NAV_PADDING = 28;
 export const STAGE_NAV_LINE = 16;
 /**
  * Distance from stage bottom to the top of the nav text.
- * Used by list/talent layouts that align to the type, not the pill.
+ * Used by talent layouts that align to the type, not the pill.
  */
 export const STAGE_NAV_CLEARANCE = STAGE_NAV_PADDING + STAGE_NAV_LINE;
 

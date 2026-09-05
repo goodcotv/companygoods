@@ -19,9 +19,9 @@ import {
   type Project,
 } from "@/data/projects";
 import {
+  STAGE_FRAME_BOTTOM,
   STAGE_LOGO_NAV_GAP_CLASS,
   STAGE_LOGO_TOP_PADDING,
-  STAGE_NAV_CLEARANCE,
 } from "@/lib/stage";
 import { isListOverflowing } from "@/lib/cursor-hover";
 import { markVideoUrlPreloaded, hideWarmMediaOverlays } from "@/lib/preload-video";
@@ -615,7 +615,7 @@ export function ListView({ projects }: ListViewProps) {
         style={{
           zIndex: 10,
           paddingTop: STAGE_LOGO_TOP_PADDING,
-          paddingBottom: STAGE_NAV_CLEARANCE,
+          paddingBottom: STAGE_FRAME_BOTTOM,
         }}
       >
         <div className="shrink-0">

@@ -173,7 +173,11 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
   const introVideoUrl = homepageData?.settings?.introVideoUrl;
 
   const sections = (
-    <AnimatePresence mode="popLayout" initial={false}>
+    // sync, not popLayout: sections are already absolute, and popLayout
+    // races the shared page-corners / logo layoutId against the incoming
+    // frame. If that box is measured at 0×0, the morph collapses and the
+    // page stays black (talent → info, list → scroll).
+    <AnimatePresence initial={false}>
       {section === "work" && (
         <HomePage key="work" data={homepageData} externalView={workView} />
       )}

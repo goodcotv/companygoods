@@ -27,7 +27,7 @@ export function SlashNav({ items, activeHref, className = "" }: SlashNavProps) {
               href={item.href}
               className={
                 isActive
-                  ? "text-foreground underline decoration-foreground underline-offset-[5px]"
+                  ? "text-foreground"
                   : "text-muted hover:text-foreground"
               }
               aria-current={isActive ? "page" : undefined}
