@@ -46,8 +46,10 @@ function useScrollCameraWidth() {
     if (!stage) return;
 
     function measure() {
-      const w = stage.clientWidth;
-      const h = stage.clientHeight;
+      const el = stageRef.current;
+      if (!el) return;
+      const w = el.clientWidth;
+      const h = el.clientHeight;
       if (w <= 0 || h <= 0) return;
       const rem =
         parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
