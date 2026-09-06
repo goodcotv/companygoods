@@ -99,11 +99,15 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
   const [bioVisible, setBioVisible] = useState(true);
   const [titleVisible, setTitleVisible] = useState(true);
   const scrollRef = useRef<HTMLUListElement>(null);
+  const bioRef = useRef<HTMLElement>(null);
   const itemRefs = useRef(new Map<string, HTMLLIElement>());
   const [visibleIds, setVisibleIds] = useState(() => new Set<string>());
   const [canScroll, setCanScroll] = useState(false);
   const [showTopIndicator, setShowTopIndicator] = useState(false);
   const [showBottomIndicator, setShowBottomIndicator] = useState(false);
+  const [bioCanScroll, setBioCanScroll] = useState(false);
+  const [showBioTopIndicator, setShowBioTopIndicator] = useState(false);
+  const [showBioBottomIndicator, setShowBioBottomIndicator] = useState(false);
 
   useLayoutEffect(() => {
     return () => hideWarmMediaOverlays();
@@ -300,6 +304,52 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
       body.style.overscrollBehavior = "";
     };
   }, []);
+
+  useLayoutEffect(() => {
+    if (bioRef.current) bioRef.current.scrollTop = 0;
+  }, [selected?._id]);
+
+  useLayoutEffect(() => {
+    const scrollEl = bioRef.current;
+    if (!scrollEl) return;
+
+    function checkScroll() {
+      if (!scrollEl) return;
+
+      const { scrollTop } = scrollEl;
+      const overflow = scrollEl.scrollHeight - scrollEl.clientHeight;
+      const nextCanScroll = isListOverflowing(scrollEl);
+      const threshold = 8;
+
+      setBioCanScroll(nextCanScroll);
+      setShowBioTopIndicator(nextCanScroll && scrollTop > threshold);
+      setShowBioBottomIndicator(
+        nextCanScroll && scrollTop < overflow - threshold,
+      );
+
+      if (!nextCanScroll && scrollTop !== 0) {
+        scrollEl.scrollTop = 0;
+      }
+    }
+
+    checkScroll();
+    void document.fonts?.ready.then(checkScroll);
+
+    scrollEl.addEventListener("scroll", checkScroll, { passive: true });
+    window.addEventListener("resize", checkScroll);
+
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(checkScroll)
+        : null;
+    resizeObserver?.observe(scrollEl);
+
+    return () => {
+      scrollEl.removeEventListener("scroll", checkScroll);
+      window.removeEventListener("resize", checkScroll);
+      resizeObserver?.disconnect();
+    };
+  }, [selected?._id, selected?.bio]);
 
   // Keep the role tab in the URL
   useEffect(() => {
@@ -681,11 +731,52 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
           </div>
 
           <aside
-            className={`talent-bio ${bioVisible && selected?.bio ? "is-visible" : ""}`}
+            className={[
+              "talent-bio hover-desc scroll-indicator-wrapper",
+              bioVisible && selected?.bio ? "is-visible" : "",
+              showBioTopIndicator ? "can-scroll-up" : "",
+              showBioBottomIndicator ? "can-scroll-down" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             aria-live="polite"
             aria-hidden={!selected?.bio}
           >
-            {selected?.bio ? <p>{selected.bio}</p> : null}
+            <div
+              className={`scroll-indicator top ${showBioTopIndicator ? "visible" : ""}`}
+            >
+              <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+                <path
+                  d="M2 8L8 2L14 8"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+
+            <div
+              ref={bioRef}
+              {...(bioCanScroll ? { "data-scrollable-list": true } : {})}
+              className="talent-bio__scroll"
+            >
+              {selected?.bio ? <p>{selected.bio}</p> : null}
+            </div>
+
+            <div
+              className={`scroll-indicator bottom ${showBioBottomIndicator ? "visible" : ""}`}
+            >
+              <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+                <path
+                  d="M2 2L8 8L14 2"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
           </aside>
         </div>
       </div>
