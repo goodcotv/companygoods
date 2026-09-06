@@ -99,7 +99,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
   const [bioVisible, setBioVisible] = useState(true);
   const [titleVisible, setTitleVisible] = useState(true);
   const scrollRef = useRef<HTMLUListElement>(null);
-  const bioRef = useRef<HTMLElement>(null);
+  const bioRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef(new Map<string, HTMLLIElement>());
   const [visibleIds, setVisibleIds] = useState(() => new Set<string>());
   const [canScroll, setCanScroll] = useState(false);
