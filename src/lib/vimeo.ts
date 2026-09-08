@@ -55,11 +55,13 @@ export function buildVimeoEmbedSrc(
   mode: "background" | "controlled" = "background",
   startSeconds?: number,
   origin?: string,
+  autoplay = true,
 ): string {
+  const autoplayFlag = autoplay ? "1" : "0";
   const params =
     mode === "controlled"
       ? new URLSearchParams({
-          autoplay: "1",
+          autoplay: autoplayFlag,
           muted: "1",
           loop: "0",
           background: "0",
@@ -72,7 +74,7 @@ export function buildVimeoEmbedSrc(
           api: "1",
         })
       : new URLSearchParams({
-          autoplay: "1",
+          autoplay: autoplayFlag,
           muted: "1",
           loop: "1",
           background: "1",

@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useRef, type CSSProperties } from "react";
+import {
+  applyMutedInline,
+  claimMediaSlot,
+  registerMediaSlot,
+  restoreMediaSlots,
+} from "@/lib/media-playback";
 
 type MutedLoopVideoProps = {
   src: string;
@@ -46,6 +52,20 @@ export function MutedLoopVideo({
     const video = videoRef.current;
     if (!video) return;
 
+    applyMutedInline(video);
+
+    const slot = {
+      pause: () => {
+        video.pause();
+      },
+      resume: () => {
+        if (!activeRef.current || !video.paused) return;
+        void video.play().catch(() => {});
+      },
+      shouldPlay: () => activeRef.current,
+    };
+    const unregister = registerMediaSlot(slot);
+
     let lastTime = 0;
     let started = false;
 
@@ -57,6 +77,7 @@ export function MutedLoopVideo({
       video.currentTime = target;
       await new Promise((resolve) => setTimeout(resolve, 50));
       if (video.paused && activeRef.current) {
+        claimMediaSlot(slot);
         await video.play().catch(() => {});
       }
       loopSeekingRef.current = false;
@@ -65,14 +86,13 @@ export function MutedLoopVideo({
     const start = async () => {
       if (started) return;
       started = true;
-      video.muted = true;
-      video.defaultMuted = true;
-      video.setAttribute("muted", "");
+      applyMutedInline(video);
 
       if (startTime > 0) {
         await seekToStart();
       }
       if (activeRef.current) {
+        claimMediaSlot(slot);
         await video.play().catch(() => {});
       }
       onReadyRef.current?.();
@@ -110,6 +130,8 @@ export function MutedLoopVideo({
     video.addEventListener("timeupdate", onTimeUpdate);
     return () => {
       video.removeEventListener("timeupdate", onTimeUpdate);
+      unregister();
+      restoreMediaSlots();
     };
   }, [src, startTime]);
 
@@ -118,7 +140,9 @@ export function MutedLoopVideo({
     const video = videoRef.current;
     if (!video) return;
     if (active) {
-      if (video.paused) void video.play().catch(() => {});
+      if (video.paused) {
+        void video.play().catch(() => {});
+      }
       return;
     }
     video.pause();

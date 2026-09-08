@@ -1,4 +1,5 @@
 import { buildVimeoEmbedSrc, parseVimeoUrl } from "@/lib/vimeo";
+import { isCoarsePointerDevice } from "@/lib/media-playback";
 
 const PRELOAD_TIMEOUT_MS = 15000;
 const SEEK_TIMEOUT_MS = 4000;
@@ -195,11 +196,17 @@ function styleWarmVimeo(
 function warmVimeoSrc(url: string, startTime: number): string | null {
   const vimeo = parseVimeoUrl(url);
   if (!vimeo) return null;
-  const src = buildVimeoEmbedSrc(vimeo, "background", startTime);
+  const src = buildVimeoEmbedSrc(
+    vimeo,
+    "background",
+    startTime,
+    undefined,
+    !isCoarsePointerDevice(),
+  );
   try {
     const parsed = new URL(src);
     parsed.searchParams.set("api", "1");
-    parsed.searchParams.set("autoplay", "1");
+    parsed.searchParams.set("autoplay", isCoarsePointerDevice() ? "0" : "1");
     parsed.searchParams.set("muted", "1");
     parsed.searchParams.set("autopause", "0");
     return parsed.toString();
@@ -263,6 +270,10 @@ function prepareWarmVimeo(url: string, startTime: number): Promise<void> {
 
       if (data.event === "ready") {
         subscribeVimeo(iframe);
+        if (isCoarsePointerDevice()) {
+          finish();
+          return;
+        }
         if (startTime > 0) {
           postVimeo(iframe, { method: "setCurrentTime", value: startTime });
         }
@@ -290,6 +301,10 @@ function prepareWarmVimeo(url: string, startTime: number): Promise<void> {
 
     const onLoad = () => {
       subscribeVimeo(iframe);
+      if (isCoarsePointerDevice()) {
+        finish();
+        return;
+      }
       if (startTime > 0) {
         postVimeo(iframe, { method: "setCurrentTime", value: startTime });
       }

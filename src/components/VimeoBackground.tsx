@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { isCoarsePointerDevice } from "@/lib/media-playback";
 import { markVideoUrlPreloaded } from "@/lib/preload-video";
 import {
   buildVimeoEmbedSrc,
@@ -145,6 +146,8 @@ function VimeoBackgroundEmbed({
     };
 
     const kickPlayback = () => {
+      // iOS will pause the visible clip if a hidden embed starts playing.
+      if (isCoarsePointerDevice() && !activeRef.current) return;
       if (startTime > 0) {
         postVimeoMessage(iframe, {
           method: "setCurrentTime",
@@ -181,7 +184,7 @@ function VimeoBackgroundEmbed({
         }
         // Natural end / loop jumped back to 0 — restart from preview start
         if (startTime > 0 && lastSeconds > 1 && seconds < 1) {
-          if (activeRef.current) kickPlayback();
+          kickPlayback();
         }
         lastSeconds = seconds;
       }

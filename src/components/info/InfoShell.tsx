@@ -421,7 +421,13 @@ export function InfoShell({ settings }: InfoShellProps) {
               {...(canScroll ? { "data-scrollable-list": true } : {})}
               className="info-scroll-fade h-full overflow-y-auto px-5 pb-5 pt-6 [scrollbar-width:thin] [scrollbar-color:theme(colors.foreground/0.3)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-foreground/50"
             >
-              <div className="max-w-[70%] pr-8">
+              <div
+                className={`${
+                  activeSubRoute === "capabilities"
+                    ? "max-w-[85%]"
+                    : "max-w-[70%]"
+                } pr-8`}
+              >
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.div
                     key={activeSubRoute}

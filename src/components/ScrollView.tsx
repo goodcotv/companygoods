@@ -17,11 +17,12 @@ import {
   STAGE_FRAME_BOTTOM,
   STAGE_LOGO_TOP_PADDING,
 } from "@/lib/stage";
+import { textUi } from "@/lib/typography";
+import { isVideoMediaUrl, isVimeoUrl } from "@/lib/vimeo";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { BrandHeader } from "./BrandHeader";
 import { MediaViewport } from "./MediaViewport";
 import { MobileBrandBar } from "./MobileBrandBar";
-import { isVideoMediaUrl, isVimeoUrl } from "@/lib/vimeo";
 
 type ScrollViewProps = {
   projects: Project[];
@@ -152,14 +153,17 @@ function ProjectCredits({
 
   return (
     <div className={`animate-fade-up ${className}`.trim()}>
-      <h2 className="font-display text-[1.85rem] font-medium leading-[1.15] tracking-[-0.02em]">
-        <Link
-          href={`/work/${project.id}`}
-          className="pointer-events-auto transition-opacity hover:opacity-70"
-        >
-          {project.title} — {project.client}
-        </Link>
-      </h2>
+      <Link
+        href={`/work/${project.id}`}
+        className="pointer-events-auto block w-fit max-w-full transition-opacity hover:opacity-70"
+      >
+        <h2 className="font-heading text-[15pt] leading-[1.05] md:text-[19pt]">
+          {project.title}
+        </h2>
+        {project.client ? (
+          <p className={`mt-0.5 ${textUi}`}>{project.client}</p>
+        ) : null}
+      </Link>
       {customLines && customLines.length > 0 ? (
         <div className="mt-3 space-y-1 font-sans text-[12px] leading-relaxed tracking-[0.06em] uppercase [&_a]:pointer-events-auto">
           {customLines.map((spans, index) => (
@@ -318,16 +322,18 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
         }`}
         aria-hidden={!isIntro}
       >
-        <MediaViewport
-          title="Intro Video"
-          className="h-full w-full"
-          src={introVideoUrl}
-          type="video"
-          active={isIntro}
-          cornersLayoutId="page-corners"
-          corners={!isMobile && isIntro && cameraReady}
-          radius={isMobile ? 24 : 16}
-        />
+        {isIntro || !isMobile ? (
+          <MediaViewport
+            title="Intro Video"
+            className="h-full w-full"
+            src={introVideoUrl}
+            type="video"
+            active={isIntro}
+            cornersLayoutId="page-corners"
+            corners={!isMobile && isIntro && cameraReady}
+            radius={isMobile ? 24 : 16}
+          />
+        ) : null}
       </div>
 
       {projects.map((project, i) => {
@@ -337,14 +343,19 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
         // Keep prev/next mounted so the next clip is already buffering.
         // Vimeo iframes need a longer runway than MP4s — warm those +2 as well.
         // activeIndex is -1 on the intro, so i === 0 is the first project.
-        const nearby =
-          on ||
-          i === activeIndex + 1 ||
-          (!isIntro && i === activeIndex - 1) ||
-          (i === activeIndex + 2 && isVimeoUrl(mediaSrc));
+        // On touch devices iOS will pause the visible clip if another embed
+        // autoplays, so only the active slide stays mounted.
+        const nearby = isMobile
+          ? on
+          : on ||
+            i === activeIndex + 1 ||
+            (!isIntro && i === activeIndex - 1) ||
+            (i === activeIndex + 2 && isVimeoUrl(mediaSrc));
 
-        if (nearby) mountedIdsRef.current.add(project.id);
-        if (!nearby && !mountedIdsRef.current.has(project.id)) return null;
+        if (!isMobile && nearby) mountedIdsRef.current.add(project.id);
+        if (isMobile ? !on : !nearby && !mountedIdsRef.current.has(project.id)) {
+          return null;
+        }
 
         return (
           <Link
@@ -400,7 +411,7 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
                 <ProjectCredits
                   key={active.id}
                   project={active}
-                  className="text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.55)] [&_h2]:text-[clamp(1.35rem,5.5vw,1.85rem)]"
+                  className="text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.55)]"
                 />
               </div>
             ) : null}

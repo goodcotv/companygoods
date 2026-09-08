@@ -9,6 +9,12 @@ import {
   releaseWarmVimeo,
   setWarmVimeoVisible,
 } from "@/lib/preload-video";
+import {
+  applyMutedInline,
+  claimMediaSlot,
+  registerMediaSlot,
+  restoreMediaSlots,
+} from "@/lib/media-playback";
 import { parseVimeoUrl } from "@/lib/vimeo";
 
 type WarmHoverVideoProps = {
@@ -50,14 +56,21 @@ export function WarmHoverVideo({
     const video = adoptWarmVideo(src, startTime);
     videoRef.current = video;
     const objectFit = fit === "contain" ? "contain" : "cover";
+    applyMutedInline(video);
     video.style.cssText = `display:block;width:100%;height:100%;object-fit:${objectFit};background:#000`;
     host.appendChild(video);
 
-    video.muted = true;
-    video.defaultMuted = true;
-    video.playsInline = true;
-    video.setAttribute("muted", "");
-    video.setAttribute("playsinline", "");
+    const slot = {
+      pause: () => {
+        video.pause();
+      },
+      resume: () => {
+        if (!playingRef.current || !video.paused) return;
+        void video.play().catch(() => {});
+      },
+      shouldPlay: () => playingRef.current,
+    };
+    const unregister = registerMediaSlot(slot);
 
     const start = async () => {
       try {
@@ -67,6 +80,7 @@ export function WarmHoverVideo({
         if (!playingRef.current) {
           return;
         }
+        claimMediaSlot(slot);
         await video.play();
         if (!playingRef.current) {
           video.pause();
@@ -86,7 +100,9 @@ export function WarmHoverVideo({
     return () => {
       released = true;
       videoRef.current = null;
+      unregister();
       releaseWarmVideo(src, startTime, video);
+      restoreMediaSlots();
     };
   }, [src, startTime, fit, isVimeo]);
 
@@ -117,10 +133,28 @@ export function WarmHoverVideo({
     const alreadyReady = iframe.dataset.hoverReady === "true";
     setWarmVimeoVisible(iframe, fit, alreadyReady && playingRef.current);
 
+    const slot = {
+      pause: () => {
+        setWarmVimeoVisible(iframe, fit, false);
+      },
+      resume: () => {
+        if (!playingRef.current) return;
+        if (iframe.dataset.hoverReady !== "true") return;
+        setWarmVimeoVisible(iframe, fit, true);
+      },
+      shouldPlay: () =>
+        playingRef.current && iframe.dataset.hoverReady === "true",
+    };
+    const unregister = registerMediaSlot(slot);
+    if (alreadyReady && playingRef.current) {
+      claimMediaSlot(slot);
+    }
+
     void preloadVideoUrl(src, startTime).then(() => {
       if (released) return;
       iframe.dataset.hoverReady = "true";
       if (playingRef.current) {
+        claimMediaSlot(slot);
         setWarmVimeoVisible(iframe, fit, true);
       }
       onReadyRef.current?.(true);
@@ -129,7 +163,9 @@ export function WarmHoverVideo({
     return () => {
       released = true;
       iframeRef.current = null;
+      unregister();
       releaseWarmVimeo(src, startTime, iframe, fit);
+      restoreMediaSlots();
     };
   }, [src, startTime, fit, isVimeo]);
 

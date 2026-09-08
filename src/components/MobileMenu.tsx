@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { VimeoBackground } from "./VimeoBackground";
 import { MobileBrandBar } from "./MobileBrandBar";
+import { applyMutedInline, restoreMediaSlots } from "@/lib/media-playback";
 import { isVideoMediaUrl, isVimeoUrl } from "@/lib/vimeo";
 import type { Section } from "./BottomChrome";
 
@@ -56,6 +57,7 @@ export function MobileMenu({
     return () => {
       html.style.overflow = prevHtml;
       body.style.overflow = prevBody;
+      restoreMediaSlots();
     };
   }, [open]);
 
@@ -90,6 +92,9 @@ export function MobileMenu({
                 loop
                 muted
                 playsInline
+                ref={(node) => {
+                  if (node) applyMutedInline(node);
+                }}
                 className="h-full w-full object-cover"
               />
             ) : (

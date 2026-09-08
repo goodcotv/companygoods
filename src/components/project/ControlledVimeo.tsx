@@ -3,12 +3,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Player from "@vimeo/player";
 import { useVideoTheater } from "@/hooks/useVideoTheater";
+import {
+  claimMediaSlot,
+  registerMediaSlot,
+  restoreMediaSlots,
+} from "@/lib/media-playback";
 import { buildVimeoEmbedSrc, type VimeoVideo } from "@/lib/vimeo";
 
 type ControlledVimeoProps = {
   video: VimeoVideo;
   className?: string;
   title?: string;
+  /** Hero / first paint — allowed to autoplay before intersection fires. */
+  priority?: boolean;
 };
 
 function MuteIcon({ muted }: { muted: boolean }) {
@@ -46,6 +53,7 @@ export function ControlledVimeo({
   video,
   className = "",
   title = "Video",
+  priority = false,
 }: ControlledVimeoProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -77,11 +85,14 @@ export function ControlledVimeo({
         "controlled",
         undefined,
         window.location.origin,
+        priority,
       ),
     );
     setIframeLoaded(false);
     setPlayerReady(false);
-  }, [video.hash, video.id]);
+  }, [priority, video.hash, video.id]);
+
+  const isInViewRef = useRef(priority);
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -106,7 +117,9 @@ export function ControlledVimeo({
     const onPause = () => {
       isPlayingRef.current = false;
       setIsPlaying(false);
-      setShowPlayOverlay(true);
+      if (userPausedRef.current) {
+        setShowPlayOverlay(true);
+      }
     };
 
     const onTimeUpdate = (data: { seconds: number; duration: number }) => {
@@ -134,7 +147,10 @@ export function ControlledVimeo({
         if (!alive) return;
         if (dur > 0) durationRef.current = dur;
         setIsMuted(muted);
-        if (!userPausedRef.current) {
+        if (
+          !userPausedRef.current &&
+          (isTheaterOpenRef.current || isInViewRef.current)
+        ) {
           void player.play().catch(() => {
             setIsPlaying(false);
             setShowPlayOverlay(true);
@@ -166,6 +182,35 @@ export function ControlledVimeo({
       void player.play();
     }
   }, [isPlaying, playerReady]);
+
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player || !playerReady) return;
+
+    const slot = {
+      pause: () => {
+        void player.pause().catch(() => {});
+      },
+      resume: () => {
+        if (userPausedRef.current) return;
+        if (!isTheaterOpenRef.current && !isInViewRef.current) return;
+        void player.play().catch(() => {});
+      },
+      shouldPlay: () =>
+        !userPausedRef.current &&
+        (isTheaterOpenRef.current || isInViewRef.current),
+    };
+
+    const unregister = registerMediaSlot(slot);
+    const onPlay = () => claimMediaSlot(slot);
+    player.on("play", onPlay);
+
+    return () => {
+      player.off("play", onPlay);
+      unregister();
+      restoreMediaSlots();
+    };
+  }, [playerReady]);
 
   const toggleMute = useCallback(() => {
     const player = playerRef.current;
@@ -205,6 +250,7 @@ export function ControlledVimeo({
 
     const observer = new IntersectionObserver(
       ([entry]) => {
+        isInViewRef.current = entry.isIntersecting;
         if (isTheaterOpenRef.current) return;
 
         if (entry.isIntersecting) {
@@ -215,7 +261,7 @@ export function ControlledVimeo({
         }
         void player.pause().catch(() => {});
       },
-      { threshold: 0.35 },
+      { threshold: 0.55 },
     );
 
     observer.observe(container);
@@ -230,6 +276,11 @@ export function ControlledVimeo({
       void player.pause().catch(() => {});
       setIsPlaying(false);
       setShowPlayOverlay(true);
+      return;
+    }
+
+    if (!isTheaterOpen && !isInViewRef.current) {
+      void player.pause().catch(() => {});
       return;
     }
 

@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ControlledVimeo } from "@/components/project/ControlledVimeo";
 import { useVideoTheater } from "@/hooks/useVideoTheater";
+import {
+  applyPlaysInline,
+  claimMediaSlot,
+  registerMediaSlot,
+  restoreMediaSlots,
+} from "@/lib/media-playback";
 import { parseVimeoUrl } from "@/lib/vimeo";
 
 type ControlledVideoProps = {
@@ -51,7 +57,13 @@ export function ControlledVideo({
 }: ControlledVideoProps) {
   const vimeo = parseVimeoUrl(src);
   if (vimeo) {
-    return <ControlledVimeo video={vimeo} className={className} />;
+    return (
+      <ControlledVimeo
+        video={vimeo}
+        className={className}
+        priority={priority}
+      />
+    );
   }
 
   return (
@@ -83,6 +95,7 @@ function ControlledFileVideo({
   const [isTheaterOpen, setIsTheaterOpen] = useState(false);
 
   isTheaterOpenRef.current = isTheaterOpen;
+  const isInViewRef = useRef(priority);
 
   const closeTheater = useCallback(() => setIsTheaterOpen(false), []);
   useVideoTheater(isTheaterOpen, closeTheater);
@@ -124,18 +137,38 @@ function ControlledFileVideo({
     const video = videoRef.current;
     if (!video) return;
 
+    applyPlaysInline(video);
+
+    const slot = {
+      pause: () => {
+        video.pause();
+      },
+      resume: () => {
+        if (userPausedRef.current) return;
+        if (!isTheaterOpenRef.current && !isInViewRef.current) return;
+        if (video.paused) void video.play().catch(() => {});
+      },
+      shouldPlay: () =>
+        !userPausedRef.current &&
+        (isTheaterOpenRef.current || isInViewRef.current),
+    };
+    const unregister = registerMediaSlot(slot);
+
     const onTimeUpdate = () => {
       if (isSeekingRef.current) return;
       const total = video.duration;
       setProgress(total ? (video.currentTime / total) * 100 : 0);
     };
     const onPlay = () => {
+      claimMediaSlot(slot);
       setIsPlaying(true);
       setShowPlayOverlay(false);
     };
     const onPause = () => {
       setIsPlaying(false);
-      setShowPlayOverlay(true);
+      if (userPausedRef.current) {
+        setShowPlayOverlay(true);
+      }
     };
 
     video.addEventListener("timeupdate", onTimeUpdate);
@@ -151,6 +184,8 @@ function ControlledFileVideo({
       video.removeEventListener("timeupdate", onTimeUpdate);
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
+      unregister();
+      restoreMediaSlots();
     };
   }, [src]);
 
@@ -164,6 +199,7 @@ function ControlledFileVideo({
 
     const observer = new IntersectionObserver(
       ([entry]) => {
+        isInViewRef.current = entry.isIntersecting;
         // Ignore stale callbacks while theater is open / mid-transition.
         if (isTheaterOpenRef.current) return;
 
@@ -177,7 +213,7 @@ function ControlledFileVideo({
           video.pause();
         }
       },
-      { threshold: 0.35 },
+      { threshold: 0.55 },
     );
 
     observer.observe(container);
@@ -194,6 +230,11 @@ function ControlledFileVideo({
       if (!video.paused) video.pause();
       setIsPlaying(false);
       setShowPlayOverlay(true);
+      return;
+    }
+
+    if (!isTheaterOpen && !isInViewRef.current) {
+      if (!video.paused) video.pause();
       return;
     }
 
@@ -275,7 +316,7 @@ function ControlledFileVideo({
                 ? "mx-auto h-auto max-h-[calc(100dvh-4.5rem)] w-auto max-w-[100vw] object-contain"
                 : "absolute inset-0 h-full w-full object-cover"
             }
-            autoPlay
+            autoPlay={priority}
             muted={isMuted}
             playsInline
             preload={priority ? "auto" : "metadata"}
