@@ -139,9 +139,11 @@ function applyInfoScrollFades(el: HTMLElement, maxFade: number) {
 function InfoBody({
   activeSubRoute,
   settings,
+  hideImages = false,
 }: {
   activeSubRoute: InfoSubRoute;
   settings?: PostSiteSettings;
+  hideImages?: boolean;
 }) {
   if (activeSubRoute === "about") {
     const paragraphs = settings?.aboutParagraphs?.filter(Boolean) ?? [];
@@ -177,7 +179,7 @@ function InfoBody({
             >
               {capability.text}
             </p>
-            {capability.imageUrl && (
+            {!hideImages && capability.imageUrl && (
               <div className="flex-shrink-0">
                 <img
                   src={capability.imageUrl}
@@ -372,6 +374,7 @@ export function InfoShell({ settings }: InfoShellProps) {
                 <InfoBody
                   activeSubRoute={activeSubRoute}
                   settings={settings}
+                  hideImages
                 />
               </motion.div>
             </AnimatePresence>
