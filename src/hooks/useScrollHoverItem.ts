@@ -6,11 +6,6 @@ import { useLayoutEffect, useRef, type RefObject } from "react";
 const ACTIVATION_INSET_PX = 48;
 const TOP_REST_PX = 1;
 const BOTTOM_REST_PX = 8;
-/**
- * Wait until the list stops moving before swapping / resuming the playing clip.
- * Starting play() mid-swipe makes iOS fight the scroll and feel stuck.
- */
-const SCROLL_SETTLE_MS = 140;
 
 type UseScrollHoverItemOptions<T extends HTMLElement> = {
   enabled: boolean;
@@ -22,11 +17,9 @@ type UseScrollHoverItemOptions<T extends HTMLElement> = {
 
 /**
  * On touch layouts, drive list "hover" from scroll position instead of tap.
- * The item whose top has crossed a line near the top of the list becomes active;
- * tapping the name then goes straight to the detail page.
- *
- * Activation waits until scroll settles so the current clip keeps playing
- * through the swipe and only swaps when the next item is locked in.
+ * Rolodex-style: whichever row sits at the top line is active, updated
+ * continuously as you scroll. The backdrop keeps that clip playing until
+ * the next row takes the top slot.
  */
 export function useScrollHoverItem<T extends HTMLElement>({
   enabled,
@@ -48,13 +41,11 @@ export function useScrollHoverItem<T extends HTMLElement>({
     if (!root) return;
 
     let frame = 0;
-    let settle = 0;
-    let pendingId: string | null = null;
     let committedId: string | null = null;
 
-    const closestId = () => {
+    const pick = () => {
       const ids = itemIdsRef.current;
-      if (ids.length === 0) return null;
+      if (ids.length === 0) return;
 
       let nextId = ids[0];
 
@@ -80,62 +71,29 @@ export function useScrollHoverItem<T extends HTMLElement>({
         }
       }
 
-      return nextId;
+      if (nextId === committedId) return;
+      committedId = nextId;
+      onActivateRef.current(nextId);
     };
 
-    const commit = (id: string | null) => {
-      if (id == null || id === committedId) return;
-      committedId = id;
-      onActivateRef.current(id);
-    };
-
-    const scheduleCommit = () => {
-      window.clearTimeout(settle);
-      settle = window.setTimeout(() => {
-        commit(pendingId);
-      }, SCROLL_SETTLE_MS);
-    };
-
-    const pickPending = () => {
-      pendingId = closestId();
-    };
-
-    const onScroll = () => {
+    const onScrollOrResize = () => {
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
-        pickPending();
-        scheduleCommit();
+        pick();
       });
     };
 
-    const onScrollEnd = () => {
-      window.clearTimeout(settle);
-      pickPending();
-      commit(pendingId);
-    };
-
-    const onResize = () => {
-      pickPending();
-      commit(pendingId);
-    };
-
-    // First paint: activate immediately so the list isn't blank.
-    pickPending();
-    commit(pendingId);
-
-    root.addEventListener("scroll", onScroll, { passive: true });
-    root.addEventListener("scrollend", onScrollEnd);
-    window.addEventListener("resize", onResize);
-    const resizeObserver = new ResizeObserver(onResize);
+    pick();
+    root.addEventListener("scroll", onScrollOrResize, { passive: true });
+    window.addEventListener("resize", onScrollOrResize);
+    const resizeObserver = new ResizeObserver(onScrollOrResize);
     resizeObserver.observe(root);
 
     return () => {
       if (frame) cancelAnimationFrame(frame);
-      window.clearTimeout(settle);
-      root.removeEventListener("scroll", onScroll);
-      root.removeEventListener("scrollend", onScrollEnd);
-      window.removeEventListener("resize", onResize);
+      root.removeEventListener("scroll", onScrollOrResize);
+      window.removeEventListener("resize", onScrollOrResize);
       resizeObserver.disconnect();
     };
   }, [enabled, itemIdsKey, itemRefs, scrollRef]);

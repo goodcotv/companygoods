@@ -15,7 +15,6 @@ type HoverStillBackdropProps = {
   stillProject?: HoverStillProject | null;
   startTime?: number;
   className?: string;
-  /** When false, keep the still up and pause the warm player (e.g. mid-scroll). */
   playing?: boolean;
   onVideoReady?: () => void;
 };
@@ -41,18 +40,13 @@ export function HoverStillBackdrop({
     setVimeoStillUrl(undefined);
   }, [videoUrl, stillFromProject, startTime]);
 
-  // Fetch Vimeo thumbnail eagerly as a fallback
   useEffect(() => {
     if (!videoUrl || !isVimeoUrl(videoUrl)) return;
-    
-    // If we already have a still, preload the Vimeo thumbnail as backup but don't show it
-    // If we don't have a still, fetch and show the Vimeo thumbnail
+
     let cancelled = false;
     void resolveVimeoThumbnail(videoUrl).then((url) => {
       if (cancelled || !url) return;
       preloadHoverStill(url);
-      
-      // Only set as the visible thumbnail if we don't have another still
       if (!stillFromProject) {
         setVimeoStillUrl(url);
       }
@@ -62,20 +56,17 @@ export function HoverStillBackdrop({
     };
   }, [stillFromProject, videoUrl]);
 
-  // Delay hiding the thumbnail until video is actually playing
   useEffect(() => {
     if (!playing || !videoReady) {
       setVideoPlaying(false);
       return;
     }
 
-    // For Vimeo, trust the ready state immediately
     if (isVimeo) {
       setVideoPlaying(true);
       return;
     }
 
-    // For regular videos, add a small delay to ensure video is rendering
     const timer = setTimeout(() => {
       setVideoPlaying(true);
     }, 100);
