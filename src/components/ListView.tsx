@@ -74,6 +74,7 @@ export function ListView({ projects }: ListViewProps) {
     return DISCIPLINES.includes(upperParam) ? upperParam : null;
   });
   const [activeId, setActiveId] = useState(projects[0]?.id);
+  const [playingId, setPlayingId] = useState(projects[0]?.id);
   const [descVisible, setDescVisible] = useState(true);
   const [specialtyExpanded, setSpecialtyExpanded] = useState(
     () => discipline !== null,
@@ -127,6 +128,8 @@ export function ListView({ projects }: ListViewProps) {
   }, [projects, category, discipline]);
 
   const active = filtered.find((p) => p.id === activeId) ?? filtered[0] ?? null;
+  const playing =
+    filtered.find((p) => p.id === playingId) ?? active;
 
   const preloadItems = useMemo(
     () =>
@@ -159,12 +162,17 @@ export function ListView({ projects }: ListViewProps) {
     setActiveId((prev) => (prev === id ? prev : id));
   }, []);
 
+  const settleFromScroll = useCallback((id: string) => {
+    setPlayingId((prev) => (prev === id ? prev : id));
+  }, []);
+
   useScrollHoverItem({
     enabled: isMobile,
     scrollRef,
     itemRefs,
     itemIds: listItemIds,
     onActivate: activateFromScroll,
+    onSettleActivate: settleFromScroll,
   });
 
   const effectiveVisibleIds = useMemo(() => {
@@ -174,8 +182,8 @@ export function ListView({ projects }: ListViewProps) {
   }, [waitForVideos, filtered, visibleProjectIds, allProjectIds]);
 
   const priorityVideoUrl =
-    active?.image && isVideoMediaUrl(active.image) ? active.image : undefined;
-  const previewStart = active?.videoPreviewStartSeconds ?? 0;
+    playing?.image && isVideoMediaUrl(playing.image) ? playing.image : undefined;
+  const previewStart = playing?.videoPreviewStartSeconds ?? 0;
 
   const { readyIds: readyProjectIds } = useSequentialMediaPreload(
     preloadItems,
@@ -273,7 +281,10 @@ export function ListView({ projects }: ListViewProps) {
   // new list - not keep a video from a tighter filter that is still present.
   useEffect(() => {
     const first = filtered[0];
-    if (first) setActiveId(first.id);
+    if (first) {
+      setActiveId(first.id);
+      setPlayingId(first.id);
+    }
     scrollRef.current?.scrollTo(0, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when filters change
   }, [category, discipline]);
@@ -284,26 +295,30 @@ export function ListView({ projects }: ListViewProps) {
     }
   }, [priorityVideoUrl, previewStart]);
 
-  const activeMediaUrl = active?.image;
+  const activeMediaUrl = playing?.image;
   const activeIsVideo = isVideoMediaUrl(activeMediaUrl);
+  const topStillProject = active
+    ? {
+        videoUrl: isVideoMediaUrl(active.image) ? active.image : undefined,
+        posterImageUrl: active.posterImageUrl,
+        imageUrl:
+          active.imageUrl ||
+          (isVideoMediaUrl(active.image) ? undefined : active.image),
+        muxVideoUrl: isVideoMediaUrl(active.image) ? active.image : undefined,
+        videoPreviewStartSeconds: active.videoPreviewStartSeconds ?? 0,
+      }
+    : null;
 
   const backgroundMedia =
-    active && activeMediaUrl ? (
+    playing && activeMediaUrl ? (
       <>
         <div className="absolute inset-0" style={{ zIndex: 0 }}>
           <HoverStillBackdrop
-            key={active.id}
+            key={playing.id}
             videoUrl={activeIsVideo ? activeMediaUrl : undefined}
-            stillProject={{
-              videoUrl: activeIsVideo ? activeMediaUrl : undefined,
-              posterImageUrl: active.posterImageUrl,
-              imageUrl:
-                active.imageUrl ||
-                (activeIsVideo ? undefined : activeMediaUrl),
-              muxVideoUrl: activeIsVideo ? activeMediaUrl : undefined,
-              videoPreviewStartSeconds: previewStart,
-            }}
+            stillProject={topStillProject}
             startTime={previewStart}
+            preferStill={Boolean(active && playing && active.id !== playing.id)}
             onVideoReady={markActivePreloaded}
           />
         </div>
@@ -343,6 +358,7 @@ export function ListView({ projects }: ListViewProps) {
   function selectProject(id: string) {
     if (id === activeId) return;
     setActiveId(id);
+    setPlayingId(id);
     setDescVisible(false);
     window.setTimeout(() => {
       setDescVisible(true);

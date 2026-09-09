@@ -96,6 +96,11 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
   const [selected, setSelected] = useState<PostWorker | null>(
     () => workersForCategory(workers, parseCategory(searchParams.get("role")))[0] ?? null,
   );
+  const [playingSelectedId, setPlayingSelectedId] = useState<string | null>(
+    () =>
+      workersForCategory(workers, parseCategory(searchParams.get("role")))[0]
+        ?._id ?? null,
+  );
   const [bioVisible, setBioVisible] = useState(true);
   const [titleVisible, setTitleVisible] = useState(true);
   const scrollRef = useRef<HTMLUListElement>(null);
@@ -125,12 +130,17 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
   );
 
   const discipline = categoryToDiscipline[category];
+  const playingSelected =
+    roster.find((person) => person._id === playingSelectedId) ?? selected;
   const featured = selected?.featuredByDiscipline?.[discipline] ?? null;
-  const mediaUrl = featured?.videoUrl || featured?.imageUrl;
+  const playingFeatured =
+    playingSelected?.featuredByDiscipline?.[discipline] ?? featured;
+  const mediaUrl =
+    playingFeatured?.videoUrl || playingFeatured?.imageUrl;
   const isVideo = isVideoMediaUrl(mediaUrl);
   const previewStart =
-    featured?.videoPreviewStartSeconds ??
-    parseTimeToSeconds(featured?.videoPreviewStart) ??
+    playingFeatured?.videoPreviewStartSeconds ??
+    parseTimeToSeconds(playingFeatured?.videoPreviewStart) ??
     0;
 
   const preloadItems = useMemo(
@@ -170,12 +180,17 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
     });
   }, [roster]);
 
+  const settleFromScroll = useCallback((id: string) => {
+    setPlayingSelectedId((prev) => (prev === id ? prev : id));
+  }, []);
+
   useScrollHoverItem({
     enabled: isMobile,
     scrollRef,
     itemRefs,
     itemIds: listItemIds,
     onActivate: activateFromScroll,
+    onSettleActivate: settleFromScroll,
   });
 
   const effectiveVisibleIds = useMemo(() => {
@@ -368,6 +383,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
   function showPerson(person: PostWorker) {
     if (person._id === selected?._id) return;
     setSelected(person);
+    setPlayingSelectedId(person._id);
     setBioVisible(false);
     setTitleVisible(false);
     window.setTimeout(() => {
@@ -383,6 +399,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
     setCategory(next);
     if (!first) {
       setSelected(null);
+      setPlayingSelectedId(null);
       return;
     }
 
@@ -390,6 +407,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
     setTitleVisible(false);
     window.setTimeout(() => {
       setSelected(first);
+      setPlayingSelectedId(first._id);
       setBioVisible(true);
       setTitleVisible(true);
     }, 180);
@@ -441,10 +459,15 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
       <>
         <div className="talent-media" aria-hidden="true">
           <HoverStillBackdrop
-            key={`${selected._id}-${discipline}`}
+            key={`${playingSelected?._id ?? "none"}-${discipline}`}
             videoUrl={isVideo ? mediaUrl : undefined}
             stillProject={featured}
             startTime={previewStart}
+            preferStill={Boolean(
+              selected &&
+                playingSelected &&
+                selected._id !== playingSelected._id,
+            )}
             onVideoReady={markActivePreloaded}
           />
         </div>

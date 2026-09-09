@@ -16,6 +16,12 @@ type HoverStillBackdropProps = {
   startTime?: number;
   className?: string;
   playing?: boolean;
+  /**
+   * Force the still on top (e.g. top-of-list changed mid-scroll). Lets the
+   * previous clip keep decoding underneath without a fresh play() that would
+   * cancel iOS scroll momentum.
+   */
+  preferStill?: boolean;
   onVideoReady?: () => void;
 };
 
@@ -25,6 +31,7 @@ export function HoverStillBackdrop({
   startTime = 0,
   className = "absolute inset-0",
   playing = true,
+  preferStill = false,
   onVideoReady,
 }: HoverStillBackdropProps) {
   const stillFromProject = getProjectHoverStillUrl(stillProject);
@@ -33,12 +40,13 @@ export function HoverStillBackdrop({
   const [vimeoStillUrl, setVimeoStillUrl] = useState<string | undefined>();
   const resolvedStill = stillFromProject || vimeoStillUrl;
   const isVimeo = Boolean(videoUrl && isVimeoUrl(videoUrl));
+  const showVideo = videoPlaying && !preferStill;
 
   useLayoutEffect(() => {
     setVideoReady(false);
     setVideoPlaying(false);
     setVimeoStillUrl(undefined);
-  }, [videoUrl, stillFromProject, startTime]);
+  }, [videoUrl, startTime]);
 
   useEffect(() => {
     if (!videoUrl || !isVimeoUrl(videoUrl)) return;
@@ -57,8 +65,8 @@ export function HoverStillBackdrop({
   }, [stillFromProject, videoUrl]);
 
   useEffect(() => {
-    if (!playing || !videoReady) {
-      setVideoPlaying(false);
+    if (!playing || !videoReady || preferStill) {
+      if (!videoReady || !playing) setVideoPlaying(false);
       return;
     }
 
@@ -72,7 +80,7 @@ export function HoverStillBackdrop({
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [videoReady, isVimeo, playing]);
+  }, [videoReady, isVimeo, playing, preferStill]);
 
   if (!videoUrl && !resolvedStill) return null;
 
@@ -85,14 +93,14 @@ export function HoverStillBackdrop({
           draggable={false}
           decoding="async"
           className={`absolute inset-0 z-10 h-full w-full object-cover transition-opacity duration-300 ${
-            videoPlaying ? "opacity-0" : "opacity-100"
+            showVideo ? "opacity-0" : "opacity-100"
           }`}
         />
       ) : null}
       {videoUrl ? (
         <div
           className={`absolute inset-0 transition-opacity duration-300 ${
-            videoPlaying && !isVimeo ? "z-20 opacity-100" : "z-0 opacity-0"
+            showVideo && !isVimeo ? "z-20 opacity-100" : "z-0 opacity-0"
           }`}
         >
           <WarmHoverVideo

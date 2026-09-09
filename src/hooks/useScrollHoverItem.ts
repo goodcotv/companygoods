@@ -6,20 +6,27 @@ import { useLayoutEffect, useRef, type RefObject } from "react";
 const ACTIVATION_INSET_PX = 48;
 const TOP_REST_PX = 1;
 const BOTTOM_REST_PX = 8;
+/** Let momentum finish before swapping the playing clip (avoids iOS killing scroll). */
+const SCROLL_SETTLE_MS = 120;
 
 type UseScrollHoverItemOptions<T extends HTMLElement> = {
   enabled: boolean;
   scrollRef: RefObject<HTMLElement | null>;
   itemRefs: RefObject<Map<string, T>>;
   itemIds: readonly string[];
+  /** Fires as soon as a row hits the top line (list highlight / rolodex index). */
   onActivate: (id: string) => void;
+  /**
+   * Fires after scroll settles with the top row — use this to start the video
+   * so play() doesn't cancel momentum scrolling.
+   */
+  onSettleActivate?: (id: string) => void;
 };
 
 /**
  * On touch layouts, drive list "hover" from scroll position instead of tap.
- * Rolodex-style: whichever row sits at the top line is active, updated
- * continuously as you scroll. The backdrop keeps that clip playing until
- * the next row takes the top slot.
+ * Rolodex-style: the top-line row updates immediately while you scroll; the
+ * playing video waits until the swipe settles so scroll stays fluid.
  */
 export function useScrollHoverItem<T extends HTMLElement>({
   enabled,
@@ -27,9 +34,12 @@ export function useScrollHoverItem<T extends HTMLElement>({
   itemRefs,
   itemIds,
   onActivate,
+  onSettleActivate,
 }: UseScrollHoverItemOptions<T>) {
   const onActivateRef = useRef(onActivate);
   onActivateRef.current = onActivate;
+  const onSettleActivateRef = useRef(onSettleActivate);
+  onSettleActivateRef.current = onSettleActivate;
 
   const itemIdsRef = useRef(itemIds);
   itemIdsRef.current = itemIds;
@@ -41,11 +51,13 @@ export function useScrollHoverItem<T extends HTMLElement>({
     if (!root) return;
 
     let frame = 0;
-    let committedId: string | null = null;
+    let settle = 0;
+    let activeId: string | null = null;
+    let playingId: string | null = null;
 
-    const pick = () => {
+    const closestId = () => {
       const ids = itemIdsRef.current;
-      if (ids.length === 0) return;
+      if (ids.length === 0) return null;
 
       let nextId = ids[0];
 
@@ -71,29 +83,66 @@ export function useScrollHoverItem<T extends HTMLElement>({
         }
       }
 
-      if (nextId === committedId) return;
-      committedId = nextId;
-      onActivateRef.current(nextId);
+      return nextId;
     };
 
-    const onScrollOrResize = () => {
+    const commitActive = (id: string | null) => {
+      if (id == null || id === activeId) return;
+      activeId = id;
+      onActivateRef.current(id);
+    };
+
+    const commitPlaying = (id: string | null) => {
+      if (id == null || id === playingId) return;
+      playingId = id;
+      onSettleActivateRef.current?.(id);
+    };
+
+    const schedulePlaying = () => {
+      window.clearTimeout(settle);
+      settle = window.setTimeout(() => {
+        commitPlaying(activeId);
+      }, SCROLL_SETTLE_MS);
+    };
+
+    const onScroll = () => {
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
-        pick();
+        commitActive(closestId());
+        schedulePlaying();
       });
     };
 
-    pick();
-    root.addEventListener("scroll", onScrollOrResize, { passive: true });
-    window.addEventListener("resize", onScrollOrResize);
-    const resizeObserver = new ResizeObserver(onScrollOrResize);
+    const onScrollEnd = () => {
+      window.clearTimeout(settle);
+      const id = closestId();
+      commitActive(id);
+      commitPlaying(id);
+    };
+
+    const onResize = () => {
+      const id = closestId();
+      commitActive(id);
+      commitPlaying(id);
+    };
+
+    const initial = closestId();
+    commitActive(initial);
+    commitPlaying(initial);
+
+    root.addEventListener("scroll", onScroll, { passive: true });
+    root.addEventListener("scrollend", onScrollEnd);
+    window.addEventListener("resize", onResize);
+    const resizeObserver = new ResizeObserver(onResize);
     resizeObserver.observe(root);
 
     return () => {
       if (frame) cancelAnimationFrame(frame);
-      root.removeEventListener("scroll", onScrollOrResize);
-      window.removeEventListener("resize", onScrollOrResize);
+      window.clearTimeout(settle);
+      root.removeEventListener("scroll", onScroll);
+      root.removeEventListener("scrollend", onScrollEnd);
+      window.removeEventListener("resize", onResize);
       resizeObserver.disconnect();
     };
   }, [enabled, itemIdsKey, itemRefs, scrollRef]);

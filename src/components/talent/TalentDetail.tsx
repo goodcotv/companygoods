@@ -46,6 +46,9 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
   const [activeProjectId, setActiveProjectId] = useState<string | null>(
     projects[0]?._id ?? null,
   );
+  const [playingProjectId, setPlayingProjectId] = useState<string | null>(
+    projects[0]?._id ?? null,
+  );
   const scrollRef = useRef<HTMLUListElement>(null);
   const itemRefs = useRef(new Map<string, HTMLLIElement>());
   const [visibleProjectIds, setVisibleProjectIds] = useState(
@@ -66,11 +69,15 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
 
   const activeProject =
     projects.find((project) => project._id === activeProjectId) ?? projects[0];
-  const mediaVideoUrl = activeProject?.videoUrl;
-  const mediaImageUrl = activeProject?.imageUrl || talent.imageUrl;
+  const playingProject =
+    projects.find((project) => project._id === playingProjectId) ??
+    activeProject;
+  const mediaVideoUrl = playingProject?.videoUrl;
+  const mediaImageUrl = playingProject?.imageUrl || talent.imageUrl;
+  const topStillProject = activeProject;
   const previewStart =
-    activeProject?.videoPreviewStartSeconds ??
-    parseTimeToSeconds(activeProject?.videoPreviewStart) ??
+    playingProject?.videoPreviewStartSeconds ??
+    parseTimeToSeconds(playingProject?.videoPreviewStart) ??
     0;
 
   const preloadItems = useMemo(
@@ -105,12 +112,17 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
     setActiveProjectId((prev) => (prev === id ? prev : id));
   }, []);
 
+  const settleFromScroll = useCallback((id: string) => {
+    setPlayingProjectId((prev) => (prev === id ? prev : id));
+  }, []);
+
   useScrollHoverItem({
     enabled: isMobile,
     scrollRef,
     itemRefs,
     itemIds: listItemIds,
     onActivate: activateFromScroll,
+    onSettleActivate: settleFromScroll,
   });
 
   const effectiveVisibleIds = useMemo(() => {
@@ -268,10 +280,15 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
       <div className="talent-media">
         {mediaVideoUrl ? (
           <HoverStillBackdrop
-            key={activeProject?._id ?? "video"}
+            key={playingProject?._id ?? "video"}
             videoUrl={mediaVideoUrl}
-            stillProject={activeProject}
+            stillProject={topStillProject}
             startTime={previewStart}
+            preferStill={Boolean(
+              activeProject &&
+                playingProject &&
+                activeProject._id !== playingProject._id,
+            )}
             onVideoReady={markActivePreloaded}
           />
         ) : mediaImageUrl ? (
@@ -381,10 +398,16 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
                     : "text-white/35 hover:text-foreground"
               }`}
               onMouseEnter={() => {
-                if (!isMobile) setActiveProjectId(project._id);
+                if (!isMobile) {
+                  setActiveProjectId(project._id);
+                  setPlayingProjectId(project._id);
+                }
               }}
               onFocus={() => {
-                if (!isMobile) setActiveProjectId(project._id);
+                if (!isMobile) {
+                  setActiveProjectId(project._id);
+                  setPlayingProjectId(project._id);
+                }
               }}
             >
               <span className="block font-heading text-[15pt] leading-[1.05] md:text-[19pt]">
