@@ -71,12 +71,92 @@ function captionToText(caption?: PortableTextBlock[]): string {
   return portableTextToPlainText(caption);
 }
 
-function ProjectImage({ src, unoptimized, ...props }: ImageProps) {
+/**
+ * Safari pauses large GIFs inside next/image and overflow:hidden, and often
+ * never resumes them after scroll. Native <img> + a src reset on re-entry
+ * is what actually keeps the loop playing.
+ */
+function AnimatedGif({
+  src,
+  alt = "",
+  fill = false,
+  className = "",
+  priority = false,
+}: {
+  src: string;
+  alt?: string;
+  fill?: boolean;
+  className?: string;
+  priority?: boolean;
+}) {
+  const ref = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    const img = ref.current;
+    if (!img) return;
+
+    let wasVisible = false;
+    let hasLeft = false;
+
+    const restart = () => {
+      const current = img.getAttribute("src");
+      if (!current) return;
+      img.src = "";
+      img.src = current;
+    };
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const visible =
+          entry.isIntersecting && entry.intersectionRatio > 0.05;
+        if (visible && hasLeft && !wasVisible) restart();
+        if (!visible) hasLeft = true;
+        wasVisible = visible;
+      },
+      { threshold: [0, 0.05, 0.25] },
+    );
+
+    observer.observe(img);
+    return () => observer.disconnect();
+  }, [src]);
+
+  return (
+    <img
+      ref={ref}
+      src={src}
+      alt={alt}
+      className={
+        fill ? `absolute inset-0 h-full w-full ${className}`.trim() : className
+      }
+      loading={priority ? "eager" : "lazy"}
+      decoding="async"
+      draggable={false}
+    />
+  );
+}
+
+function ProjectImage({ src, unoptimized, fill, alt, className, priority, ...props }: ImageProps) {
   const url = typeof src === "string" ? src : undefined;
+  if (url && isGifUrl(url)) {
+    return (
+      <AnimatedGif
+        src={url}
+        alt={typeof alt === "string" ? alt : ""}
+        fill={Boolean(fill)}
+        className={typeof className === "string" ? className : undefined}
+        priority={Boolean(priority)}
+      />
+    );
+  }
+
   return (
     <Image
       src={src}
-      unoptimized={unoptimized ?? isGifUrl(url)}
+      unoptimized={unoptimized}
+      fill={fill}
+      alt={alt}
+      className={className}
+      priority={priority}
       {...props}
     />
   );
@@ -184,7 +264,7 @@ function HeroSection({
   return (
     <section
       data-project-section
-      className="project-section-bleed relative w-full overflow-hidden bg-black"
+      className="project-section-bleed relative w-full overflow-clip bg-black"
     >
       {hasVideo ? (
         <ControlledVideo
@@ -325,7 +405,7 @@ function MediaSectionShell({
       className="project-section-bleed relative box-border w-full shrink-0 bg-black"
       data-project-section
     >
-      <div className="relative h-full min-h-0 w-full overflow-hidden">
+      <div className="relative h-full min-h-0 w-full overflow-clip">
         {children}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/10" />
         {caption && (

@@ -65,6 +65,13 @@ body {
   overflow-anchor: none;
 }
 
+/* Keep GIF decode on the regular painter — compositing layers freeze loops on iOS. */
+.project-page img[src$=".gif"],
+.project-page img[src*=".gif?"] {
+  transform: none;
+  will-change: auto;
+}
+
 @layer base {
   a {
     color: inherit;

@@ -15,6 +15,8 @@ type HoverStillBackdropProps = {
   stillProject?: HoverStillProject | null;
   startTime?: number;
   className?: string;
+  /** When false, keep the still up and pause the warm player (e.g. mid-scroll). */
+  playing?: boolean;
   onVideoReady?: () => void;
 };
 
@@ -23,6 +25,7 @@ export function HoverStillBackdrop({
   stillProject,
   startTime = 0,
   className = "absolute inset-0",
+  playing = true,
   onVideoReady,
 }: HoverStillBackdropProps) {
   const stillFromProject = getProjectHoverStillUrl(stillProject);
@@ -61,24 +64,24 @@ export function HoverStillBackdrop({
 
   // Delay hiding the thumbnail until video is actually playing
   useEffect(() => {
-    if (!videoReady) {
+    if (!playing || !videoReady) {
       setVideoPlaying(false);
       return;
     }
-    
+
     // For Vimeo, trust the ready state immediately
     if (isVimeo) {
       setVideoPlaying(true);
       return;
     }
-    
+
     // For regular videos, add a small delay to ensure video is rendering
     const timer = setTimeout(() => {
       setVideoPlaying(true);
     }, 100);
-    
+
     return () => clearTimeout(timer);
-  }, [videoReady, isVimeo]);
+  }, [videoReady, isVimeo, playing]);
 
   if (!videoUrl && !resolvedStill) return null;
 
@@ -104,7 +107,7 @@ export function HoverStillBackdrop({
           <WarmHoverVideo
             src={videoUrl}
             startTime={startTime}
-            playing
+            playing={playing}
             className="h-full w-full"
             onPreviewReady={(ready) => {
               if (!ready) return;
