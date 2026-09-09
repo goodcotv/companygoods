@@ -39,6 +39,32 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/*
+ * Project pages: lock full-bleed section height to the innerHeight captured
+ * on load / orientation change. Using dvh here resizes every section as the
+ * iOS toolbar shows and hides — that's the jumpy scroll while a video plays.
+ */
+.project-page {
+  overflow-anchor: none;
+}
+
+.project-page [data-project-section] {
+  overflow-anchor: none;
+}
+
+.project-page [data-project-section].project-section-bleed {
+  height: var(--project-section-height, 100svh);
+}
+
+.project-page [data-project-section].project-section-contained {
+  min-height: var(--project-section-height, 100svh);
+}
+
+.project-page video,
+.project-page iframe {
+  overflow-anchor: none;
+}
+
 @layer base {
   a {
     color: inherit;

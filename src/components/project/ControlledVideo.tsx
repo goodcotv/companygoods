@@ -6,6 +6,7 @@ import { useVideoTheater } from "@/hooks/useVideoTheater";
 import {
   applyPlaysInline,
   claimMediaSlot,
+  observeProjectMediaInView,
   registerMediaSlot,
   restoreMediaSlots,
 } from "@/lib/media-playback";
@@ -84,6 +85,8 @@ function ControlledFileVideo({
 }: ControlledVideoProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const progressFillRef = useRef<HTMLDivElement>(null);
+  const progressInputRef = useRef<HTMLInputElement>(null);
   const userPausedRef = useRef(false);
   const isSeekingRef = useRef(false);
   const isTheaterOpenRef = useRef(false);
@@ -91,11 +94,20 @@ function ControlledFileVideo({
   const [isPlaying, setIsPlaying] = useState(false);
   const [showPlayOverlay, setShowPlayOverlay] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
-  const [progress, setProgress] = useState(0);
   const [isTheaterOpen, setIsTheaterOpen] = useState(false);
 
   isTheaterOpenRef.current = isTheaterOpen;
   const isInViewRef = useRef(priority);
+
+  const paintProgress = useCallback((value: number) => {
+    const clamped = Math.min(100, Math.max(0, value));
+    if (progressFillRef.current) {
+      progressFillRef.current.style.width = `${clamped}%`;
+    }
+    if (progressInputRef.current) {
+      progressInputRef.current.value = String(clamped);
+    }
+  }, []);
 
   const closeTheater = useCallback(() => setIsTheaterOpen(false), []);
   useVideoTheater(isTheaterOpen, closeTheater);
@@ -128,9 +140,9 @@ function ControlledFileVideo({
       if (!video || !total || !Number.isFinite(total)) return;
       const value = Number((e.target as HTMLInputElement).value);
       video.currentTime = (value / 100) * total;
-      setProgress(value);
+      paintProgress(value);
     },
-    [],
+    [paintProgress],
   );
 
   useEffect(() => {
@@ -138,6 +150,7 @@ function ControlledFileVideo({
     if (!video) return;
 
     applyPlaysInline(video);
+    paintProgress(0);
 
     const slot = {
       pause: () => {
@@ -157,7 +170,7 @@ function ControlledFileVideo({
     const onTimeUpdate = () => {
       if (isSeekingRef.current) return;
       const total = video.duration;
-      setProgress(total ? (video.currentTime / total) * 100 : 0);
+      paintProgress(total ? (video.currentTime / total) * 100 : 0);
     };
     const onPlay = () => {
       claimMediaSlot(slot);
@@ -187,9 +200,10 @@ function ControlledFileVideo({
       unregister();
       restoreMediaSlots();
     };
-  }, [src]);
+  }, [paintProgress, src]);
 
-  // Pause when scrolled out of view (inline only); resume if user didn't pause
+  // Pause when scrolled out of view (inline only); resume if user didn't pause.
+  // Wait until scroll settles so iOS doesn't jump the page to keep the clip in view.
   useEffect(() => {
     if (isTheaterOpen) return;
 
@@ -197,27 +211,18 @@ function ControlledFileVideo({
     const container = containerRef.current;
     if (!video || !container) return;
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        isInViewRef.current = entry.isIntersecting;
-        // Ignore stale callbacks while theater is open / mid-transition.
-        if (isTheaterOpenRef.current) return;
-
-        if (entry.isIntersecting) {
-          if (!userPausedRef.current && video.paused) {
-            void video.play().catch(() => setIsPlaying(false));
-          }
-          return;
+    return observeProjectMediaInView(container, isInViewRef, () => {
+      if (isTheaterOpenRef.current) return;
+      if (isInViewRef.current) {
+        if (!userPausedRef.current && video.paused) {
+          void video.play().catch(() => setIsPlaying(false));
         }
-        if (!video.paused) {
-          video.pause();
-        }
-      },
-      { threshold: 0.55 },
-    );
-
-    observer.observe(container);
-    return () => observer.disconnect();
+        return;
+      }
+      if (!video.paused) {
+        video.pause();
+      }
+    });
   }, [src, isTheaterOpen]);
 
   // Keep the same <video> instance across theater open/close so playback
@@ -263,16 +268,14 @@ function ControlledFileVideo({
         const video = videoRef.current;
         if (video) {
           const total = video.duration;
-          setProgress(total ? (video.currentTime / total) * 100 : 0);
+          paintProgress(total ? (video.currentTime / total) * 100 : 0);
         }
       }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [isPlaying]);
-
-  const clampedProgress = Math.min(100, Math.max(0, progress));
+  }, [isPlaying, paintProgress]);
 
   // Always return a fragment so the video shell stays at the same React tree
   // position when theater toggles (avoids remounting <video>).
@@ -351,14 +354,19 @@ function ControlledFileVideo({
               className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-white/40"
               aria-hidden
             >
-              <div className="h-full bg-white" style={{ width: `${clampedProgress}%` }} />
+              <div
+                ref={progressFillRef}
+                className="h-full bg-white"
+                style={{ width: "0%" }}
+              />
             </div>
             <input
+              ref={progressInputRef}
               type="range"
               min={0}
               max={100}
               step={0.1}
-              value={clampedProgress}
+              defaultValue={0}
               onChange={handleSeek}
               onInput={handleSeek}
               onPointerDown={() => {

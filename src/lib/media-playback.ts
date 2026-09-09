@@ -50,3 +50,69 @@ export function restoreMediaSlots() {
     if (slot.shouldPlay()) slot.resume();
   }
 }
+
+const PROJECT_PLAY_RATIO = 0.6;
+const PROJECT_PAUSE_RATIO = 0.35;
+const PROJECT_SCROLL_SETTLE_MS = 160;
+
+/**
+ * Drive in-view playback on project pages without toggling mid-scroll.
+ * iOS will yank the page to keep a playing <video> "on screen" if play/pause
+ * flips while the finger is down — wait until scroll settles, and ignore
+ * intersection chatter between the play/pause thresholds.
+ */
+export function observeProjectMediaInView(
+  element: Element,
+  isInViewRef: { current: boolean },
+  onStableChange: () => void,
+): () => void {
+  let settle = 0;
+  let scrolling = false;
+
+  const apply = () => {
+    onStableChange();
+  };
+
+  const scheduleApply = () => {
+    window.clearTimeout(settle);
+    settle = window.setTimeout(() => {
+      scrolling = false;
+      apply();
+    }, PROJECT_SCROLL_SETTLE_MS);
+  };
+
+  const observer = new IntersectionObserver(
+    ([entry]) => {
+      const ratio = entry.intersectionRatio;
+      let next = isInViewRef.current;
+      if (ratio >= PROJECT_PLAY_RATIO) next = true;
+      else if (ratio <= PROJECT_PAUSE_RATIO) next = false;
+      else return;
+
+      if (next === isInViewRef.current) return;
+      isInViewRef.current = next;
+
+      if (scrolling) {
+        scheduleApply();
+        return;
+      }
+      apply();
+    },
+    { threshold: [0, PROJECT_PAUSE_RATIO, PROJECT_PLAY_RATIO, 1] },
+  );
+
+  observer.observe(element);
+
+  const onScroll = () => {
+    scrolling = true;
+    scheduleApply();
+  };
+
+  window.addEventListener("scroll", onScroll, { passive: true });
+
+  return () => {
+    observer.disconnect();
+    window.removeEventListener("scroll", onScroll);
+    window.clearTimeout(settle);
+  };
+}

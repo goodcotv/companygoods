@@ -5,6 +5,7 @@ import Player from "@vimeo/player";
 import { useVideoTheater } from "@/hooks/useVideoTheater";
 import {
   claimMediaSlot,
+  observeProjectMediaInView,
   registerMediaSlot,
   restoreMediaSlots,
 } from "@/lib/media-playback";
@@ -248,24 +249,16 @@ export function ControlledVimeo({
     const container = containerRef.current;
     if (!player || !playerReady || !container) return;
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        isInViewRef.current = entry.isIntersecting;
-        if (isTheaterOpenRef.current) return;
-
-        if (entry.isIntersecting) {
-          if (!userPausedRef.current && !isPlayingRef.current) {
-            void player.play().catch(() => {});
-          }
-          return;
+    return observeProjectMediaInView(container, isInViewRef, () => {
+      if (isTheaterOpenRef.current) return;
+      if (isInViewRef.current) {
+        if (!userPausedRef.current && !isPlayingRef.current) {
+          void player.play().catch(() => {});
         }
-        void player.pause().catch(() => {});
-      },
-      { threshold: 0.55 },
-    );
-
-    observer.observe(container);
-    return () => observer.disconnect();
+        return;
+      }
+      void player.pause().catch(() => {});
+    });
   }, [playerReady, isTheaterOpen, video.id]);
 
   useEffect(() => {

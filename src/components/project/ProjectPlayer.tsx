@@ -184,7 +184,7 @@ function HeroSection({
   return (
     <section
       data-project-section
-      className="relative h-dvh w-full overflow-hidden bg-black"
+      className="project-section-bleed relative w-full overflow-hidden bg-black"
     >
       {hasVideo ? (
         <ControlledVideo
@@ -211,7 +211,7 @@ function HeroSection({
       {hasCopy && (
         <div
           data-project-player-chrome
-          className="pointer-events-auto absolute bottom-[4.75rem] left-4 right-20 z-20 flex max-h-[35dvh] max-w-lg flex-col md:bottom-20 md:left-8 md:right-auto"
+          className="pointer-events-auto absolute bottom-[4.75rem] left-4 right-20 z-20 flex max-h-[35%] max-w-lg flex-col md:bottom-20 md:left-8 md:right-auto"
         >
           <div className="relative flex min-h-0 flex-col px-5 py-4">
             <div className="flex shrink-0 flex-wrap items-start gap-x-3 gap-y-2">
@@ -309,7 +309,7 @@ function MediaSectionShell({
   if (contained) {
     return (
       <section
-        className="relative box-border flex min-h-dvh w-full shrink-0 items-center justify-center bg-black px-6 py-12 md:px-[8vw] md:py-16"
+        className="project-section-contained relative box-border flex w-full shrink-0 items-center justify-center bg-black px-6 py-12 md:px-[8vw] md:py-16"
         data-project-section
       >
         <div className="relative w-full max-w-[1600px]">{children}</div>
@@ -322,7 +322,7 @@ function MediaSectionShell({
 
   return (
     <section
-      className="relative box-border h-dvh w-full shrink-0 bg-black"
+      className="project-section-bleed relative box-border w-full shrink-0 bg-black"
       data-project-section
     >
       <div className="relative h-full min-h-0 w-full overflow-hidden">
@@ -451,10 +451,29 @@ export function ProjectPlayer({ project }: ProjectPlayerProps) {
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [project.slug]);
 
+  // Pin section height to innerHeight. Do not update on resize — iOS fires
+  // that when the toolbar hides, which is what made playing videos jump.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const apply = () => {
+      root.style.setProperty(
+        "--project-section-height",
+        `${window.innerHeight}px`,
+      );
+    };
+
+    apply();
+    window.addEventListener("orientationchange", apply);
+    return () => {
+      window.removeEventListener("orientationchange", apply);
+      root.style.removeProperty("--project-section-height");
+    };
+  }, []);
+
   const mediaSections = project.mediaSections ?? [];
 
   return (
-    <div className="relative min-h-dvh w-full overflow-x-hidden bg-black">
+    <div className="project-page relative min-h-svh w-full overflow-x-hidden bg-black">
       <ProjectFrame />
 
       <button
