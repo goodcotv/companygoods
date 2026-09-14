@@ -407,46 +407,40 @@ export function InfoShell({ settings }: InfoShellProps) {
     >
       <BrandHeader variant="display" muted />
 
-      <div className="relative mt-5 min-h-0 flex-1">
-        <div className="relative flex h-full flex-col">
-          {/* In-flow so body copy always starts below the subnav */}
-          <div className="flex shrink-0 justify-end px-5 pt-5">
-            <InfoSubNav
-              activeSubRoute={activeSubRoute}
-              onNavigate={handleSubNav}
-            />
-          </div>
+      <div className="mt-5 flex shrink-0 justify-end">
+        <InfoSubNav
+          activeSubRoute={activeSubRoute}
+          onNavigate={handleSubNav}
+        />
+      </div>
 
-          {/* Scrollable content area */}
-          <div className="relative min-h-0 flex-1">
-            <div
-              ref={scrollRef}
-              {...(canScroll ? { "data-scrollable-list": true } : {})}
-              className="info-scroll-fade h-full overflow-y-auto px-5 pb-5 pt-6 [scrollbar-width:thin] [scrollbar-color:theme(colors.foreground/0.3)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-foreground/50"
-            >
-              <div
-                className={`${
-                  activeSubRoute === "capabilities"
-                    ? "max-w-[85%]"
-                    : "max-w-[70%]"
-                } pr-8`}
+      <div className="relative mt-4 min-h-0 flex-1">
+        <div
+          ref={scrollRef}
+          {...(canScroll ? { "data-scrollable-list": true } : {})}
+          className="info-scroll-fade h-full overflow-y-auto px-5 py-5 [scrollbar-width:thin] [scrollbar-color:theme(colors.foreground/0.3)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-foreground/50"
+        >
+          <div
+            className={`${
+              activeSubRoute === "capabilities"
+                ? "max-w-[85%]"
+                : "max-w-[70%]"
+            } pr-8`}
+          >
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={activeSubRoute}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeInOut" }}
               >
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    key={activeSubRoute}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.25, ease: "easeInOut" }}
-                  >
-                    <InfoBody
-                      activeSubRoute={activeSubRoute}
-                      settings={settings}
-                    />
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-            </div>
+                <InfoBody
+                  activeSubRoute={activeSubRoute}
+                  settings={settings}
+                />
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
 
