@@ -384,7 +384,7 @@ function MediaSectionShell({
   children: React.ReactNode;
 }) {
   const contained = section.withMargins === true;
-  const caption = captionToText(section.caption);
+  const caption = captionToText(section.postCaption);
 
   if (contained) {
     return (

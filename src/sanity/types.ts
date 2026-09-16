@@ -83,7 +83,8 @@ export interface ScrollSubtitleSpan {
 
 type MediaSectionBase = {
   withMargins?: boolean;
-  caption?: PortableTextBlock[];
+  /** Company Goods overlay copy. Web1 `caption` is not used on web2. */
+  postCaption?: PortableTextBlock[];
   captionPosition?: "bottom-left" | "bottom-center" | "bottom-right" | "center";
 };
 
@@ -137,7 +138,7 @@ export interface Project {
   /** Custom Latest Projects scroll lines (Portable Text with optional links). */
   postScrollSubtitles?: PortableTextBlock[];
   postCredits?: PostCredit[];
-  /** Full-viewport media blocks below the hero (main project media, not post-only). */
+  /** Full-viewport media blocks below the hero (shared media; captions are per-site). */
   mediaSections?: MediaSection[];
 }
 

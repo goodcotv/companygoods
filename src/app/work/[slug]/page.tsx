@@ -39,7 +39,7 @@ const getProject = cache(async (slug: string) => {
         "videoUrl": ${resolvedDetailVideoUrlGroq},
         columnCount,
         "imageUrls": images[].asset->url,
-        caption,
+        postCaption,
         captionPosition
       }
     }`,
