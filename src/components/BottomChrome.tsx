@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { textNav } from "@/lib/typography";
+import { textMobileMenuToggle, textNav } from "@/lib/typography";
 
 export type ViewMode = "scroll" | "list";
 export type Section = "work" | "talent" | "info";
@@ -20,6 +20,9 @@ type BottomChromeProps = {
    * the fullscreen section menu.
    */
   onMenuOpen?: () => void;
+  /** When the overlay is open, the same control reads HOME (web1). */
+  menuOpen?: boolean;
+  onMenuHome?: () => void;
   className?: string;
 };
 
@@ -32,6 +35,8 @@ export function BottomChrome({
   onNavigate,
   activeSection,
   onMenuOpen,
+  menuOpen = false,
+  onMenuHome,
   className = "",
 }: BottomChromeProps) {
   const muted = variant === "over-image" ? "text-white/55" : "text-muted";
@@ -96,11 +101,12 @@ export function BottomChrome({
       {showMenuButton ? (
         <button
           type="button"
-          onClick={onMenuOpen}
-          className="pointer-events-auto font-display text-[13pt] font-medium uppercase leading-none text-foreground transition-opacity hover:opacity-70"
+          onClick={menuOpen ? (onMenuHome ?? onMenuOpen) : onMenuOpen}
+          className={`pointer-events-auto text-foreground transition-opacity hover:opacity-70 ${textMobileMenuToggle}`}
           aria-haspopup="dialog"
+          aria-expanded={menuOpen}
         >
-          MENU
+          {menuOpen ? "HOME" : "MENU"}
         </button>
       ) : (
         <nav

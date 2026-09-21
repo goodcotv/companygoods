@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { preloadVideoUrl } from "@/lib/preload-video";
 import {
   preloadProjectHoverStill,
@@ -77,6 +78,7 @@ export function useSequentialMediaPreload(
   itemsRef.current = items;
   visibleIdsRef.current = visibleIds;
 
+  const isMobile = useMobileBrowseLayout();
   const queueKey = items
     .map(
       (item) =>
@@ -126,24 +128,42 @@ export function useSequentialMediaPreload(
           !readyIdsRef.current.has(item.id),
       );
 
+      const first = pending[0];
+      // First thumbnail first. Clip warms are large and starve the poster
+      // request, which is why the top title used to pop in late.
+      if (first) preloadProjectHoverStill(asStillProject(first), "high");
+      for (const item of pending.slice(1)) {
+        preloadProjectHoverStill(asStillProject(item));
+      }
+
+      if (first) {
+        await waitForProjectHoverStill(asStillProject(first), "high");
+        if (cancelled) return;
+        readyIdsRef.current.add(first.id);
+        setReadyIds(new Set(readyIdsRef.current));
+      }
+
       const priorityItem = priorityUrl
         ? itemsRef.current.find((item) => item.videoUrl === priorityUrl)
         : undefined;
       if (priorityItem) preloadProjectHoverStill(asStillProject(priorityItem));
-      if (priorityUrl) {
-        kickWarm(priorityUrl, priorityItem?.startTime ?? priorityStartTime);
-      }
+      // Mobile scroll hitch comes from decoding warmed clips, not stills.
+      // Keep the network free for posters until a title actually settles.
+      if (!isMobile) {
+        if (priorityUrl) {
+          kickWarm(priorityUrl, priorityItem?.startTime ?? priorityStartTime);
+        }
 
-      for (const item of pending) {
-        preloadProjectHoverStill(asStillProject(item));
-        if (item.videoUrl) {
-          kickWarm(item.videoUrl, item.startTime ?? 0);
+        for (const item of pending) {
+          if (item.videoUrl) {
+            kickWarm(item.videoUrl, item.startTime ?? 0);
+          }
         }
       }
 
-      let lastRevealAt = 0;
+      let lastRevealAt = first ? performance.now() : 0;
 
-      for (let i = 0; i < pending.length; i++) {
+      for (let i = first ? 1 : 0; i < pending.length; i++) {
         if (cancelled) return;
 
         for (
@@ -174,7 +194,7 @@ export function useSequentialMediaPreload(
     return () => {
       cancelled = true;
     };
-  }, [enabled, priorityUrl, priorityStartTime, queueKey, visibilityKey]);
+  }, [enabled, isMobile, priorityUrl, priorityStartTime, queueKey, visibilityKey]);
 
   return { readyIds };
 }

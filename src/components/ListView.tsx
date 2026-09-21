@@ -24,6 +24,10 @@ import {
   STAGE_LOGO_TOP_PADDING,
 } from "@/lib/stage";
 import { isListOverflowing } from "@/lib/cursor-hover";
+import {
+  preloadNeighborProjectStills,
+  type HoverStillProject,
+} from "@/lib/hover-still";
 import { markVideoUrlPreloaded, hideWarmMediaOverlays } from "@/lib/preload-video";
 import { isVideoMediaUrl } from "@/lib/vimeo";
 import { useCoarsePointerDevice } from "@/hooks/useCoarsePointerDevice";
@@ -38,6 +42,18 @@ import { MobileBrandBar } from "./MobileBrandBar";
 
 const ITEM_MIN_HEIGHT =
   "min-h-[calc(15pt*1.05+0.125rem+11pt)] md:min-h-[calc(19pt*1.05+0.125rem+13pt)]";
+const STILL_PRELOAD_MARGIN_PX = 400;
+
+function stillProjectFromListItem(project: Project): HoverStillProject {
+  const isVideo = isVideoMediaUrl(project.image);
+  return {
+    videoUrl: isVideo ? project.image : undefined,
+    posterImageUrl: project.posterImageUrl,
+    imageUrl: project.imageUrl || (isVideo ? undefined : project.image),
+    muxVideoUrl: isVideo ? project.image : undefined,
+    videoPreviewStartSeconds: project.videoPreviewStartSeconds ?? 0,
+  };
+}
 
 type ListViewProps = {
   projects: Project[];
@@ -47,7 +63,8 @@ export function ListView({ projects }: ListViewProps) {
   const searchParams = useSearchParams();
   const isMobile = useMobileBrowseLayout();
   const isCoarsePointer = useCoarsePointerDevice();
-  const waitForVideos = !isCoarsePointer;
+  const waitForVideos = true;
+  const gateTitles = !isCoarsePointer;
 
   useLayoutEffect(() => {
     return () => hideWarmMediaOverlays();
@@ -158,9 +175,19 @@ export function ListView({ projects }: ListViewProps) {
     [filtered],
   );
 
-  const activateFromScroll = useCallback((id: string) => {
-    setActiveId((prev) => (prev === id ? prev : id));
-  }, []);
+  const activateFromScroll = useCallback(
+    (id: string) => {
+      const index = filtered.findIndex((project) => project.id === id);
+      if (index >= 0) {
+        preloadNeighborProjectStills(
+          filtered.map((project) => stillProjectFromListItem(project)),
+          index,
+        );
+      }
+      setActiveId((prev) => (prev === id ? prev : id));
+    },
+    [filtered],
+  );
 
   const settleFromScroll = useCallback((id: string) => {
     setPlayingId((prev) => (prev === id ? prev : id));
@@ -200,9 +227,10 @@ export function ListView({ projects }: ListViewProps) {
     const rootRect = root.getBoundingClientRect();
     const next = new Set<string>();
 
+    const margin = isMobile ? STILL_PRELOAD_MARGIN_PX : 120;
     itemRefs.current.forEach((element) => {
       const rect = element.getBoundingClientRect();
-      if (rect.top < rootRect.bottom + 120 && rect.bottom > rootRect.top - 120) {
+      if (rect.top < rootRect.bottom + margin && rect.bottom > rootRect.top - margin) {
         const id = element.getAttribute("data-project-id");
         if (id) next.add(id);
       }
@@ -232,7 +260,7 @@ export function ListView({ projects }: ListViewProps) {
       }
       return merged;
     });
-  }, [filtered, waitForVideos]);
+  }, [filtered, isMobile, waitForVideos]);
 
   useLayoutEffect(() => {
     if (!waitForVideos || !scrollRef.current) return;
@@ -242,7 +270,7 @@ export function ListView({ projects }: ListViewProps) {
     const root = scrollRef.current;
     const observer = new IntersectionObserver(() => syncVisibleItems(), {
       root,
-      rootMargin: "120px 0px",
+      rootMargin: `${isMobile ? STILL_PRELOAD_MARGIN_PX : 120}px 0px`,
       threshold: 0,
     });
 
@@ -297,24 +325,13 @@ export function ListView({ projects }: ListViewProps) {
 
   const activeMediaUrl = playing?.image;
   const activeIsVideo = isVideoMediaUrl(activeMediaUrl);
-  const topStillProject = active
-    ? {
-        videoUrl: isVideoMediaUrl(active.image) ? active.image : undefined,
-        posterImageUrl: active.posterImageUrl,
-        imageUrl:
-          active.imageUrl ||
-          (isVideoMediaUrl(active.image) ? undefined : active.image),
-        muxVideoUrl: isVideoMediaUrl(active.image) ? active.image : undefined,
-        videoPreviewStartSeconds: active.videoPreviewStartSeconds ?? 0,
-      }
-    : null;
+  const topStillProject = active ? stillProjectFromListItem(active) : null;
 
   const backgroundMedia =
     playing && activeMediaUrl ? (
       <>
         <div className="absolute inset-0" style={{ zIndex: 0 }}>
           <HoverStillBackdrop
-            key={playing.id}
             videoUrl={activeIsVideo ? activeMediaUrl : undefined}
             stillProject={topStillProject}
             startTime={previewStart}
@@ -329,7 +346,7 @@ export function ListView({ projects }: ListViewProps) {
     ) : null;
 
   const loadingProjectId =
-    waitForVideos && readyProjectIds
+    gateTitles && readyProjectIds
       ? filtered.find(
           (project) =>
             effectiveVisibleIds.has(project.id) &&
@@ -497,14 +514,14 @@ export function ListView({ projects }: ListViewProps) {
     >
       {filtered.map((project) => {
         const isReady =
-          !waitForVideos ||
+          !gateTitles ||
           !readyProjectIds ||
           readyProjectIds.has(project.id);
         const isVisible =
-          !waitForVideos || effectiveVisibleIds.has(project.id);
+          !gateTitles || effectiveVisibleIds.has(project.id);
         const isLoading = project.id === loadingProjectId;
 
-        if (waitForVideos && !isReady && !isVisible) {
+        if (gateTitles && !isReady && !isVisible) {
           return (
             <li
               key={project.id}

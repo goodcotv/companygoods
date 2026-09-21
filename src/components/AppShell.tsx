@@ -170,8 +170,6 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
     };
   }, [isMobile]);
 
-  const introVideoUrl = homepageData?.settings?.introVideoUrl;
-
   const sections = (
     // sync, not popLayout: sections are already absolute, and popLayout
     // races the shared page-corners / logo layoutId against the incoming
@@ -202,6 +200,8 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
         section === "work" && !isMobile ? handleWorkViewChange : undefined
       }
       onMenuOpen={isMobile ? () => setMenuOpen(true) : undefined}
+      menuOpen={isMobile ? menuOpen : undefined}
+      onMenuHome={isMobile ? handleGoHome : undefined}
       className={
         isMobile ? "pointer-events-auto w-full" : "pointer-events-auto"
       }
@@ -214,7 +214,7 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
       <div className="fixed inset-0 z-0 bg-transparent text-foreground">
         {/* Full-bleed stage — chrome floats over so media reaches the bottom */}
         <div className="absolute inset-0 z-0 overflow-hidden">{sections}</div>
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[10060] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
           {chrome}
         </div>
       </div>
@@ -248,7 +248,6 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
         onNavigate={handleNavigate}
         onGoHome={handleGoHome}
         activeSection={section}
-        mediaUrl={introVideoUrl}
       />
     </GoHomeProvider>
   );

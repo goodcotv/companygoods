@@ -17,6 +17,7 @@ import type {
 } from "@/sanity/types";
 import { isGifUrl } from "@/sanity/lib/image";
 import { isImageRowSection } from "@/sanity/types";
+import { textBack } from "@/lib/typography";
 
 type ProjectPlayerProps = {
   project: Project;
@@ -560,7 +561,7 @@ export function ProjectPlayer({ project }: ProjectPlayerProps) {
         type="button"
         data-project-player-chrome
         onClick={() => router.back()}
-        className="pointer-events-auto fixed left-4 top-4 z-30 font-display text-[13pt] font-medium uppercase leading-none text-white transition-opacity hover:opacity-70 md:left-8 md:top-8 md:text-[13pt]"
+        className={`pointer-events-auto fixed left-4 top-4 z-30 text-white transition-opacity hover:opacity-70 md:left-8 md:top-8 ${textBack}`}
       >
         Back
       </button>

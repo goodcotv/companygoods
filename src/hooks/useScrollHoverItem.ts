@@ -7,7 +7,7 @@ const ACTIVATION_INSET_PX = 48;
 const TOP_REST_PX = 1;
 const BOTTOM_REST_PX = 8;
 /** Let momentum finish before swapping the playing clip (avoids iOS killing scroll). */
-const SCROLL_SETTLE_MS = 120;
+const SCROLL_SETTLE_MS = 280;
 
 type UseScrollHoverItemOptions<T extends HTMLElement> = {
   enabled: boolean;

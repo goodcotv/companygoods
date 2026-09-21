@@ -21,6 +21,7 @@ import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { useScrollHoverItem } from "@/hooks/useScrollHoverItem";
 import { useSequentialMediaPreload } from "@/hooks/useSequentialMediaPreload";
 import { isListOverflowing } from "@/lib/cursor-hover";
+import { preloadNeighborProjectStills } from "@/lib/hover-still";
 import { markVideoUrlPreloaded, hideWarmMediaOverlays } from "@/lib/preload-video";
 import { STAGE_LOGO_TOP_PADDING, STAGE_NAV_CLEARANCE } from "@/lib/stage";
 import { textNav, textUi } from "@/lib/typography";
@@ -32,6 +33,7 @@ import { HoverStillBackdrop } from "@/components/HoverStillBackdrop";
 
 const ITEM_MIN_HEIGHT =
   "min-h-[calc(15pt*1.05+0.125rem+11pt)] md:min-h-[calc(19pt*1.05+0.125rem+13pt)]";
+const STILL_PRELOAD_MARGIN_PX = 400;
 
 type TalentDetailProps = {
   talent: TalentDetailData;
@@ -42,7 +44,8 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
   const router = useRouter();
   const isMobile = useMobileBrowseLayout();
   const isCoarsePointer = useCoarsePointerDevice();
-  const waitForVideos = !isCoarsePointer;
+  const waitForVideos = true;
+  const gateTitles = !isCoarsePointer;
   const [activeProjectId, setActiveProjectId] = useState<string | null>(
     projects[0]?._id ?? null,
   );
@@ -108,9 +111,14 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
     [projects],
   );
 
-  const activateFromScroll = useCallback((id: string) => {
-    setActiveProjectId((prev) => (prev === id ? prev : id));
-  }, []);
+  const activateFromScroll = useCallback(
+    (id: string) => {
+      const index = projects.findIndex((project) => project._id === id);
+      if (index >= 0) preloadNeighborProjectStills(projects, index);
+      setActiveProjectId((prev) => (prev === id ? prev : id));
+    },
+    [projects],
+  );
 
   const settleFromScroll = useCallback((id: string) => {
     setPlayingProjectId((prev) => (prev === id ? prev : id));
@@ -150,9 +158,10 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
     const rootRect = root.getBoundingClientRect();
     const next = new Set<string>();
 
+    const margin = isMobile ? STILL_PRELOAD_MARGIN_PX : 120;
     itemRefs.current.forEach((element) => {
       const rect = element.getBoundingClientRect();
-      if (rect.top < rootRect.bottom + 120 && rect.bottom > rootRect.top - 120) {
+      if (rect.top < rootRect.bottom + margin && rect.bottom > rootRect.top - margin) {
         const id = element.getAttribute("data-project-id");
         if (id) next.add(id);
       }
@@ -180,7 +189,7 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
       }
       return merged;
     });
-  }, [projects, waitForVideos]);
+  }, [isMobile, projects, waitForVideos]);
 
   useLayoutEffect(() => {
     if (!waitForVideos || !scrollRef.current) return;
@@ -190,7 +199,7 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
     const root = scrollRef.current;
     const observer = new IntersectionObserver(() => syncVisibleItems(), {
       root,
-      rootMargin: "120px 0px",
+      rootMargin: `${isMobile ? STILL_PRELOAD_MARGIN_PX : 120}px 0px`,
       threshold: 0,
     });
 
@@ -227,7 +236,7 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
   }, [priorityVideoUrl, previewStart]);
 
   const loadingProjectId =
-    waitForVideos && readyProjectIds
+    gateTitles && readyProjectIds
       ? projects.find(
           (project) =>
             effectiveVisibleIds.has(project._id) &&
@@ -280,7 +289,6 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
       <div className="talent-media">
         {mediaVideoUrl ? (
           <HoverStillBackdrop
-            key={playingProject?._id ?? "video"}
             videoUrl={mediaVideoUrl}
             stillProject={topStillProject}
             startTime={previewStart}
@@ -323,14 +331,14 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
     >
       {projects.map((project) => {
         const isReady =
-          !waitForVideos ||
+          !gateTitles ||
           !readyProjectIds ||
           readyProjectIds.has(project._id);
         const isVisible =
-          !waitForVideos || effectiveVisibleIds.has(project._id);
+          !gateTitles || effectiveVisibleIds.has(project._id);
         const isLoading = project._id === loadingProjectId;
 
-        if (waitForVideos && !isReady && !isVisible) {
+        if (gateTitles && !isReady && !isVisible) {
           return (
             <li
               key={project._id}

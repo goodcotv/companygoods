@@ -20,6 +20,7 @@ import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { useScrollHoverItem } from "@/hooks/useScrollHoverItem";
 import { useSequentialMediaPreload } from "@/hooks/useSequentialMediaPreload";
 import { isListOverflowing } from "@/lib/cursor-hover";
+import { preloadNeighborProjectStills } from "@/lib/hover-still";
 import { markVideoUrlPreloaded, hideWarmMediaOverlays } from "@/lib/preload-video";
 import {
   STAGE_LOGO_NAV_GAP_CLASS,
@@ -33,6 +34,7 @@ import { textNav } from "@/lib/typography";
 import { HoverStillBackdrop } from "@/components/HoverStillBackdrop";
 
 const ITEM_MIN_HEIGHT = "min-h-[calc(21pt*1)]";
+const STILL_PRELOAD_MARGIN_PX = 400;
 
 const categoryToDiscipline: Record<TalentCategory, PostDiscipline> = {
   editors: "edit",
@@ -85,7 +87,8 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
   const searchParams = useSearchParams();
   const isMobile = useMobileBrowseLayout();
   const isCoarsePointer = useCoarsePointerDevice();
-  const waitForVideos = !isCoarsePointer;
+  const waitForVideos = true;
+  const gateTitles = !isCoarsePointer;
   const [category, setCategory] = useState<TalentCategory>(() =>
     parseCategory(searchParams.get("role")),
   );
@@ -173,12 +176,24 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
     [roster],
   );
 
-  const activateFromScroll = useCallback((id: string) => {
-    setSelected((prev) => {
-      if (prev?._id === id) return prev;
-      return roster.find((person) => person._id === id) ?? prev;
-    });
-  }, [roster]);
+  const activateFromScroll = useCallback(
+    (id: string) => {
+      const index = roster.findIndex((person) => person._id === id);
+      if (index >= 0) {
+        preloadNeighborProjectStills(
+          roster.map(
+            (person) => person.featuredByDiscipline?.[discipline] ?? {},
+          ),
+          index,
+        );
+      }
+      setSelected((prev) => {
+        if (prev?._id === id) return prev;
+        return roster.find((person) => person._id === id) ?? prev;
+      });
+    },
+    [discipline, roster],
+  );
 
   const settleFromScroll = useCallback((id: string) => {
     setPlayingSelectedId((prev) => (prev === id ? prev : id));
@@ -216,9 +231,10 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
     const rootRect = root.getBoundingClientRect();
     const next = new Set<string>();
 
+    const margin = isMobile ? STILL_PRELOAD_MARGIN_PX : 120;
     itemRefs.current.forEach((element) => {
       const rect = element.getBoundingClientRect();
-      if (rect.top < rootRect.bottom + 120 && rect.bottom > rootRect.top - 120) {
+      if (rect.top < rootRect.bottom + margin && rect.bottom > rootRect.top - margin) {
         const id = element.getAttribute("data-talent-id");
         if (id) next.add(id);
       }
@@ -248,7 +264,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
       }
       return merged;
     });
-  }, [roster, waitForVideos]);
+  }, [isMobile, roster, waitForVideos]);
 
   useLayoutEffect(() => {
     if (!waitForVideos || !scrollRef.current) return;
@@ -258,7 +274,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
     const root = scrollRef.current;
     const observer = new IntersectionObserver(() => syncVisibleItems(), {
       root,
-      rootMargin: "120px 0px",
+      rootMargin: `${isMobile ? STILL_PRELOAD_MARGIN_PX : 120}px 0px`,
       threshold: 0,
     });
 
@@ -295,7 +311,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
   }, [priorityVideoUrl, previewStart]);
 
   const loadingId =
-    waitForVideos && readyIds
+    gateTitles && readyIds
       ? roster.find(
           (person) =>
             effectiveVisibleIds.has(person._id) && !readyIds.has(person._id),
@@ -459,7 +475,6 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
       <>
         <div className="talent-media" aria-hidden="true">
           <HoverStillBackdrop
-            key={`${playingSelected?._id ?? "none"}-${discipline}`}
             videoUrl={isVideo ? mediaUrl : undefined}
             stillProject={featured}
             startTime={previewStart}
@@ -521,12 +536,12 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
     >
       {roster.map((person) => {
         const isReady =
-          !waitForVideos || !readyIds || readyIds.has(person._id);
+          !gateTitles || !readyIds || readyIds.has(person._id);
         const isVisible =
-          !waitForVideos || effectiveVisibleIds.has(person._id);
+          !gateTitles || effectiveVisibleIds.has(person._id);
         const isLoading = person._id === loadingId;
 
-        if (waitForVideos && !isReady && !isVisible) {
+        if (gateTitles && !isReady && !isVisible) {
           return (
             <li
               key={person._id}

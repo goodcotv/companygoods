@@ -9,6 +9,8 @@ import {
 import { motion } from "framer-motion";
 import type { Project, ScrollSubtitleSpan } from "@/data/projects";
 import {
+  getProjectHoverStillUrl,
+  preloadNeighborProjectStills,
   preloadProjectHoverStill,
   type HoverStillProject,
 } from "@/lib/hover-still";
@@ -33,6 +35,8 @@ type ScrollViewProps = {
 const INTRO_INDEX = -1;
 /** Ignore further wheel/touch input while a step is in progress. */
 const STEP_LOCK_MS = 650;
+/** Wait until the swipe settles before play() so iOS doesn't hitch the page. */
+const MOBILE_VIDEO_SETTLE_MS = 280;
 const WHEEL_THRESHOLD = 12;
 const TOUCH_THRESHOLD = 36;
 /** Sidebar + gap reserved beside the camera (`15rem` in the old cq formula). */
@@ -86,6 +90,38 @@ function stillProjectFromMedia(
     imageUrl: extras?.imageUrl || (isVideo ? undefined : src),
     videoPreviewStartSeconds: extras?.videoPreviewStartSeconds,
   };
+}
+
+function SlideStill({
+  still,
+  radius,
+}: {
+  still?: string;
+  radius: number;
+}) {
+  if (!still) {
+    return (
+      <div
+        className="h-full w-full bg-black"
+        style={{ borderRadius: radius }}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="relative h-full w-full overflow-hidden bg-black"
+      style={{ borderRadius: radius }}
+    >
+      <img
+        src={still}
+        alt=""
+        draggable={false}
+        decoding="async"
+        className="h-full w-full scale-[1.01] object-cover"
+      />
+    </div>
+  );
 }
 
 function LatestLabel({ className = "" }: { className?: string }) {
@@ -179,6 +215,7 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
   const isMobile = useMobileBrowseLayout();
   const { stageRef, cameraWidth } = useScrollCameraWidth();
   const [activeIndex, setActiveIndex] = useState(INTRO_INDEX);
+  const [playingIndex, setPlayingIndex] = useState(INTRO_INDEX);
   const indexRef = useRef(INTRO_INDEX);
   const lockedRef = useRef(false);
   const touchStartY = useRef<number | null>(null);
@@ -194,6 +231,18 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
   useEffect(() => {
     indexRef.current = activeIndex;
   }, [activeIndex]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setPlayingIndex(activeIndex);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setPlayingIndex(activeIndex);
+    }, MOBILE_VIDEO_SETTLE_MS);
+    return () => window.clearTimeout(timeout);
+  }, [activeIndex, isMobile]);
 
   // After the 250ms enter fade — hiding on the first paint cuts the
   // outgoing list/talent video while this view is still opacity 0.
@@ -215,9 +264,22 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
       );
     }
     if (introVideoUrl) {
-      preloadProjectHoverStill(stillProjectFromMedia(introVideoUrl));
+      preloadProjectHoverStill(stillProjectFromMedia(introVideoUrl), "high");
     }
   }, [projects, introVideoUrl]);
+
+  useEffect(() => {
+    preloadNeighborProjectStills(
+      projects.map((project) =>
+        stillProjectFromMedia(project.image, {
+          posterImageUrl: project.posterImageUrl,
+          imageUrl: project.imageUrl,
+          videoPreviewStartSeconds: project.videoPreviewStartSeconds,
+        }),
+      ),
+      Math.max(0, activeIndex),
+    );
+  }, [projects, activeIndex]);
 
   useEffect(() => {
     const html = document.documentElement;
@@ -322,17 +384,26 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
         }`}
         aria-hidden={!isIntro}
       >
-        {isIntro || !isMobile ? (
-          <MediaViewport
-            title="Intro Video"
-            className="h-full w-full"
-            src={introVideoUrl}
-            type="video"
-            active={isIntro}
-            cornersLayoutId="page-corners"
-            corners={!isMobile && isIntro && cameraReady}
-            radius={isMobile ? 24 : 16}
-          />
+        {isIntro || !isMobile || activeIndex <= 0 ? (
+          isMobile && playingIndex !== INTRO_INDEX ? (
+            <SlideStill
+              still={getProjectHoverStillUrl(
+                stillProjectFromMedia(introVideoUrl),
+              )}
+              radius={24}
+            />
+          ) : (
+            <MediaViewport
+              title="Intro Video"
+              className="h-full w-full"
+              src={introVideoUrl}
+              type="video"
+              active={isMobile ? playingIndex === INTRO_INDEX : isIntro}
+              cornersLayoutId="page-corners"
+              corners={!isMobile && isIntro && cameraReady}
+              radius={isMobile ? 24 : 16}
+            />
+          )
         ) : null}
       </div>
 
@@ -340,22 +411,34 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
         const mediaSrc = project.image;
         const mediaType = isVideoMediaUrl(mediaSrc) ? "video" : "image";
         const on = !isIntro && i === activeIndex;
+        const playing = !isIntro && i === playingIndex;
         // Keep prev/next mounted so the next clip is already buffering.
         // Vimeo iframes need a longer runway than MP4s — warm those +2 as well.
         // activeIndex is -1 on the intro, so i === 0 is the first project.
-        // On touch devices iOS will pause the visible clip if another embed
-        // autoplays, so only the active slide stays mounted.
+        // On touch devices, keep the neighbors mounted as stills but only the
+        // settled slide plays — play() mid-swipe is what made iOS hitch.
         const nearby = isMobile
-          ? on
+          ? on ||
+            i === activeIndex + 1 ||
+            i === activeIndex - 1 ||
+            (isIntro && i === 0)
           : on ||
             i === activeIndex + 1 ||
             (!isIntro && i === activeIndex - 1) ||
             (i === activeIndex + 2 && isVimeoUrl(mediaSrc));
 
         if (!isMobile && nearby) mountedIdsRef.current.add(project.id);
-        if (isMobile ? !on : !nearby && !mountedIdsRef.current.has(project.id)) {
+        if (isMobile ? !nearby : !nearby && !mountedIdsRef.current.has(project.id)) {
           return null;
         }
+
+        const still = getProjectHoverStillUrl(
+          stillProjectFromMedia(mediaSrc, {
+            posterImageUrl: project.posterImageUrl,
+            imageUrl: project.imageUrl,
+            videoPreviewStartSeconds: project.videoPreviewStartSeconds,
+          }),
+        );
 
         return (
           <Link
@@ -368,18 +451,22 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
             aria-hidden={!on}
             tabIndex={on ? 0 : -1}
           >
-            <MediaViewport
-              title={project.title}
-              className="h-full w-full"
-              src={mediaSrc}
-              type={mediaType}
-              poster={project.posterImageUrl || project.imageUrl}
-              startTime={project.videoPreviewStartSeconds ?? 0}
-              active={on}
-              cornersLayoutId="page-corners"
-              corners={!isMobile && on && cameraReady}
-              radius={isMobile ? 24 : 16}
-            />
+            {isMobile && !playing ? (
+              <SlideStill still={still} radius={24} />
+            ) : (
+              <MediaViewport
+                title={project.title}
+                className="h-full w-full"
+                src={mediaSrc}
+                type={mediaType}
+                poster={project.posterImageUrl || project.imageUrl}
+                startTime={project.videoPreviewStartSeconds ?? 0}
+                active={isMobile ? playing : on}
+                cornersLayoutId="page-corners"
+                corners={!isMobile && on && cameraReady}
+                radius={isMobile ? 24 : 16}
+              />
+            )}
             {/* Catch clicks above video/iframe so navigation always works */}
             <span className="absolute inset-0 z-10" aria-hidden />
           </Link>

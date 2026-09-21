@@ -4,9 +4,12 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { WarmHoverVideo } from "@/components/WarmHoverVideo";
 import {
   getProjectHoverStillUrl,
+  isHoverStillReady,
+  markHoverStillReady,
   peekVimeoThumbnail,
   preloadHoverStill,
   resolveVimeoThumbnail,
+  waitForHoverStill,
   type HoverStillProject,
 } from "@/lib/hover-still";
 import { isVimeoUrl } from "@/lib/vimeo";
@@ -41,9 +44,15 @@ export function HoverStillBackdrop({
   const [vimeoStillUrl, setVimeoStillUrl] = useState<string | undefined>(() =>
     videoUrl && isVimeoUrl(videoUrl) ? peekVimeoThumbnail(videoUrl) : undefined,
   );
-  const resolvedStill = stillFromProject || vimeoStillUrl;
+  const incomingStill = stillFromProject || vimeoStillUrl;
+  const [mountedStill, setMountedStill] = useState<string | undefined>(
+    incomingStill,
+  );
   const isVimeo = Boolean(videoUrl && isVimeoUrl(videoUrl));
   const showVideo = videoPlaying && !preferStill;
+  const displayStill = mountedStill || incomingStill;
+  // Don't start a new clip while the finger is still moving.
+  const mountVideo = Boolean(videoUrl) && !preferStill;
 
   useLayoutEffect(() => {
     setVideoReady(false);
@@ -54,6 +63,25 @@ export function HoverStillBackdrop({
         : undefined,
     );
   }, [videoUrl, startTime]);
+
+  useLayoutEffect(() => {
+    if (!incomingStill) return;
+    if (incomingStill === mountedStill) return;
+
+    if (isHoverStillReady(incomingStill)) {
+      setMountedStill(incomingStill);
+      return;
+    }
+
+    let cancelled = false;
+    void waitForHoverStill(incomingStill, "high").then(() => {
+      if (cancelled || !isHoverStillReady(incomingStill)) return;
+      setMountedStill(incomingStill);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [incomingStill, mountedStill]);
 
   useEffect(() => {
     if (!videoUrl || !isVimeoUrl(videoUrl)) return;
@@ -73,7 +101,7 @@ export function HoverStillBackdrop({
 
   useEffect(() => {
     if (!playing || !videoReady || preferStill) {
-      if (!videoReady || !playing) setVideoPlaying(false);
+      if (!videoReady || !playing || preferStill) setVideoPlaying(false);
       return;
     }
 
@@ -84,29 +112,30 @@ export function HoverStillBackdrop({
     return () => clearTimeout(timer);
   }, [videoReady, playing, preferStill]);
 
-  if (!videoUrl && !resolvedStill) return null;
+  if (!videoUrl && !displayStill) return null;
 
   return (
     <div className={className} aria-hidden>
-      {resolvedStill ? (
+      {displayStill ? (
         <img
-          src={resolvedStill}
+          src={displayStill}
           alt=""
           draggable={false}
           decoding="async"
           className={`absolute inset-0 z-10 h-full w-full object-cover transition-opacity duration-300 ${
             showVideo ? "opacity-0" : "opacity-100"
           }`}
+          onLoad={() => markHoverStillReady(displayStill)}
         />
       ) : null}
-      {videoUrl ? (
+      {mountVideo ? (
         <div
           className={`absolute inset-0 transition-opacity duration-300 ${
             showVideo && !isVimeo ? "z-20 opacity-100" : "z-0 opacity-0"
           }`}
         >
           <WarmHoverVideo
-            src={videoUrl}
+            src={videoUrl!}
             startTime={startTime}
             playing={playing}
             className="h-full w-full"
