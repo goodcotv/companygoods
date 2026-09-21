@@ -13,8 +13,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BrandHeader } from "@/components/BrandHeader";
 import { BottomChrome } from "@/components/BottomChrome";
-import { AnimatedCornerBrackets } from "@/components/AnimatedCornerBrackets";
 import { MobileBrandBar } from "@/components/MobileBrandBar";
+import { TalentListSlot } from "@/components/talent/TalentListSlot";
 import { markGoHomeNavigation } from "@/components/GoHomeContext";
 import { useCoarsePointerDevice } from "@/hooks/useCoarsePointerDevice";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
@@ -487,15 +487,7 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
             </div>
 
             {projects.length > 0 ? (
-              <div
-                className={[
-                  "talent-list-slot",
-                  canScroll ? "is-scrollable" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              >
-                <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
+              <TalentListSlot canScroll={listScrollable}>
                 <div
                   className={[
                     "talent-list-frame scroll-indicator-wrapper",
@@ -535,7 +527,7 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
                     </svg>
                   </div>
                 </div>
-              </div>
+              </TalentListSlot>
             ) : null}
           </div>
         </div>
@@ -586,15 +578,7 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
         </div>
 
         {projects.length > 0 && (
-          <div
-            className={[
-              "talent-list-slot",
-              canScroll ? "is-scrollable" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-          >
-            <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
+          <TalentListSlot canScroll={listScrollable}>
             <div
               className={[
                 "talent-list-frame scroll-indicator-wrapper",
@@ -634,7 +618,7 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
                 </svg>
               </div>
             </div>
-          </div>
+          </TalentListSlot>
         )}
       </div>
 

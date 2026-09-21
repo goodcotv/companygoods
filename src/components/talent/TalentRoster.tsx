@@ -660,7 +660,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
             {categoryNav}
 
             {/* Hug-wrap brackets around the roster — matches the mobile mock */}
-            <TalentListSlot canScroll={canScroll}>
+            <TalentListSlot canScroll={listScrollable}>
               <div
                 className={[
                   "talent-list-frame scroll-indicator-wrapper",
@@ -738,7 +738,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
 
         <div className="talent-body">
           <div className="talent-left">
-            <TalentListSlot canScroll={canScroll}>
+            <TalentListSlot canScroll={listScrollable}>
               <div
                 className={[
                   "talent-list-frame scroll-indicator-wrapper",

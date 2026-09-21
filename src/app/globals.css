@@ -297,6 +297,11 @@ body {
   height: 100%;
 }
 
+.talent-list-slot.is-scrollable .talent-list-frame {
+  min-height: 0;
+  height: 100%;
+}
+
 .talent-list-frame {
   position: relative;
   display: flex;
@@ -316,16 +321,17 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
-  overflow: visible;
+  overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
   flex: 1;
   min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 .talent-list.is-scrollable {
   overflow-y: scroll;
-  -webkit-overflow-scrolling: touch;
-  touch-action: pan-y;
 }
 
 .talent-list--mobile .talent-list__name {
@@ -341,10 +347,12 @@ body {
   flex-direction: column;
   gap: 14px;
   overflow-x: hidden;
-  overflow-y: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
   flex: 1;
   min-height: 0;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 @media (min-width: 768px) {

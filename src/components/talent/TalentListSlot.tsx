@@ -20,6 +20,8 @@ export function TalentListSlot({ canScroll, children }: TalentListSlotProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const allowAnim = useRef(false);
   const [height, setHeight] = useState<number>();
+  const [fitsParent, setFitsParent] = useState(!canScroll);
+  const scrolling = canScroll || !fitsParent;
 
   useLayoutEffect(() => {
     const slot = slotRef.current;
@@ -28,11 +30,12 @@ export function TalentListSlot({ canScroll, children }: TalentListSlotProps) {
 
     const measure = () => {
       const max = slot.parentElement?.clientHeight;
-      const next = canScroll
-        ? max
-        : content
-          ? Math.min(content.offsetHeight, max ?? content.offsetHeight)
-          : undefined;
+      const intrinsic = content?.scrollHeight ?? content?.offsetHeight;
+      const overflows =
+        max != null && intrinsic != null && intrinsic > max + 2;
+      setFitsParent(!overflows);
+
+      const next = canScroll || overflows ? max : intrinsic;
       if (next == null) return;
 
       setHeight((prev) => {
@@ -53,7 +56,7 @@ export function TalentListSlot({ canScroll, children }: TalentListSlotProps) {
   return (
     <motion.div
       ref={slotRef}
-      className={["talent-list-slot", canScroll ? "is-scrollable" : ""]
+      className={["talent-list-slot", scrolling ? "is-scrollable" : ""]
         .filter(Boolean)
         .join(" ")}
       initial={false}
@@ -73,7 +76,7 @@ export function TalentListSlot({ canScroll, children }: TalentListSlotProps) {
       <div
         ref={contentRef}
         className={
-          canScroll
+          scrolling
             ? "flex h-full min-h-0 w-fit max-w-full flex-col"
             : "w-fit max-w-full"
         }
