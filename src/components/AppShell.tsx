@@ -6,6 +6,7 @@ import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { BottomChrome } from "./BottomChrome";
 import { consumeGoHomeNavigation, GoHomeProvider, peekGoHomeNavigation } from "./GoHomeContext";
 import { HomePage } from "./HomePage";
+import { LogoHomeTransition } from "./LogoHomeTransition";
 import TalentRoster from "./talent/TalentRoster";
 import { InfoShell } from "./info/InfoShell";
 import { InfoCredits } from "./info/InfoCredits";
@@ -46,6 +47,16 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuCloseTimerRef = useRef<number>(0);
   const menuNavTimerRef = useRef<number>(0);
+  const [homeToken, setHomeToken] = useState(0);
+  const [onHomeIntro, setOnHomeIntro] = useState(
+    () =>
+      Boolean(peekGoHomeNavigation()) ||
+      (searchParams.get("section") == null &&
+        searchParams.get("view") !== "list"),
+  );
+  const [homeSlide, setHomeSlide] = useState<{
+    showBackdrop: boolean;
+  } | null>(null);
 
   // Open menu when returning from a talent/project page via MENU
   useEffect(() => {
@@ -178,26 +189,29 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
     window.history.replaceState(null, "", url);
   }
 
-  /** Logo / home — Work section, Scroll view, clear filters. */
+  /** Logo / home — Work scroll intro: mark slides down over the bg clip. */
   function handleGoHome(): boolean {
-    const alreadyHome = section === "work" && workView === "scroll";
+    const alreadyIntro =
+      section === "work" && workView === "scroll" && onHomeIntro;
+
     const goHome = () => {
       setSection("work");
       setWorkView("scroll");
+      setHomeToken((token) => token + 1);
       window.history.pushState(null, "", "/");
     };
 
-    if (!menuOpen) {
+    if (!isMobile) {
       goHome();
       return false;
     }
-    if (alreadyHome) {
-      setMenuOpen(false);
-      return false;
-    }
-    runAfterVeil(goHome);
-    closeMenuAfterCover();
-    return true;
+
+    if (alreadyIntro && !menuOpen) return false;
+
+    goHome();
+    setHomeSlide({ showBackdrop: !alreadyIntro });
+    if (menuOpen) setMenuOpen(false);
+    return false;
   }
 
   // Handle browser back/forward
@@ -236,7 +250,14 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
 
   const activeSection =
     section === "work" ? (
-      <HomePage key="work" data={homepageData} externalView={workView} />
+      <HomePage
+        key="work"
+        data={homepageData}
+        externalView={workView}
+        homeToken={homeToken}
+        hideBrand={Boolean(homeSlide)}
+        onIntroChange={setOnHomeIntro}
+      />
     ) : section === "talent" ? (
       <TalentRoster key="talent" workers={talentWorkers} />
     ) : (
@@ -256,7 +277,14 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
     // page stays black (talent → info, list → scroll).
     <AnimatePresence initial={false}>
       {section === "work" && (
-        <HomePage key="work" data={homepageData} externalView={workView} />
+        <HomePage
+          key="work"
+          data={homepageData}
+          externalView={workView}
+          homeToken={homeToken}
+          hideBrand={Boolean(homeSlide)}
+          onIntroChange={setOnHomeIntro}
+        />
       )}
 
       {section === "talent" && (
@@ -296,8 +324,8 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
           className="pointer-events-none absolute inset-x-0 bottom-0 z-50 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2"
           initial={false}
           animate={{
-            opacity: menuOpen ? 0 : 1,
-            transition: menuOpen
+            opacity: menuOpen || homeSlide ? 0 : 1,
+            transition: menuOpen || homeSlide
               ? { duration: 0.15, ease: "easeOut" }
               : {
                   duration: MOBILE_MENU_OVERLAY_FADE_S,
@@ -339,6 +367,14 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
         onGoHome={handleGoHome}
         activeSection={section}
       />
+
+      {isMobile && homeSlide ? (
+        <LogoHomeTransition
+          videoUrl={homepageData.settings?.introVideoUrl}
+          showBackdrop={homeSlide.showBackdrop}
+          onComplete={() => setHomeSlide(null)}
+        />
+      ) : null}
     </GoHomeProvider>
   );
 }

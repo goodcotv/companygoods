@@ -107,9 +107,20 @@ interface HomePageProps {
   data: HomepageData;
   /** Controlled by AppShell / BottomChrome when present. */
   externalView?: ViewMode;
+  /** Bump to force scroll landing back to the intro clip. */
+  homeToken?: number;
+  /** Hide the landing mark while the logo-down overlay owns it. */
+  hideBrand?: boolean;
+  onIntroChange?: (isIntro: boolean) => void;
 }
 
-export function HomePage({ data, externalView }: HomePageProps) {
+export function HomePage({
+  data,
+  externalView,
+  homeToken,
+  hideBrand = false,
+  onIntroChange,
+}: HomePageProps) {
   const searchParams = useSearchParams();
   const [internalView, setInternalView] = useState<ViewMode>(() =>
     parseView(searchParams.get("view")),
@@ -139,6 +150,10 @@ export function HomePage({ data, externalView }: HomePageProps) {
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [view]);
 
+  useEffect(() => {
+    if (view !== "scroll") onIntroChange?.(false);
+  }, [view, onIntroChange]);
+
   return (
     <motion.div
       className="absolute inset-0"
@@ -162,6 +177,9 @@ export function HomePage({ data, externalView }: HomePageProps) {
             key="scroll"
             projects={projects}
             introVideoUrl={introVideoUrl}
+            homeToken={homeToken}
+            hideBrand={hideBrand}
+            onIntroChange={onIntroChange}
           />
         ) : (
           <ListView key="list" projects={projects} />
