@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { Analytics } from "@vercel/analytics/next";
 import { SharedLayout } from "@/components/SharedLayout";
 import { SiteCursor } from "@/components/SiteCursor";
 import {
@@ -94,6 +95,7 @@ export default function RootLayout({
           <SiteCursor />
           <SharedLayout>{children}</SharedLayout>
         </div>
+        <Analytics />
       </body>
     </html>
   );
