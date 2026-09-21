@@ -644,16 +644,10 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
 
   if (isMobile) {
     return (
-      <motion.div
-        className="absolute inset-0 flex flex-col overflow-hidden bg-transparent text-foreground"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.25, ease: "easeInOut" }}
-      >
+      <div className="absolute inset-0 flex flex-col overflow-hidden bg-transparent text-foreground">
         {backgroundMedia}
 
-        <div className="relative z-10 flex h-full min-h-0 flex-col pb-[calc(3.25rem+env(safe-area-inset-bottom,0px))]">
+        <div className="mobile-stage-ui relative z-10 flex h-full min-h-0 flex-col pb-[calc(3.25rem+env(safe-area-inset-bottom,0px))]">
           <MobileBrandBar />
 
           <div className="flex min-h-0 flex-1 flex-col px-3 pb-2">
@@ -707,7 +701,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
             </TalentListSlot>
           </div>
         </div>
-      </motion.div>
+      </div>
     );
   }
 

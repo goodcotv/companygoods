@@ -646,16 +646,10 @@ export function ListView({ projects }: ListViewProps) {
 
   if (isMobile) {
     return (
-      <motion.div
-        className="absolute inset-0 overflow-hidden bg-transparent text-foreground"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.25, ease: "easeInOut" }}
-      >
+      <div className="absolute inset-0 overflow-hidden bg-transparent text-foreground">
         {backgroundMedia}
 
-        <div className="relative z-10 flex h-full min-h-0 flex-col pb-[calc(3.25rem+env(safe-area-inset-bottom,0px))]">
+        <div className="mobile-stage-ui relative z-10 flex h-full min-h-0 flex-col pb-[calc(3.25rem+env(safe-area-inset-bottom,0px))]">
           <MobileBrandBar />
           <div className="shrink-0 px-5">{categoryNav}</div>
 
@@ -702,7 +696,7 @@ export function ListView({ projects }: ListViewProps) {
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
     );
   }
 

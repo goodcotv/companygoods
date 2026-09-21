@@ -477,24 +477,22 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
 
   if (isMobile) {
     return (
-      <motion.div
+      <div
         data-scroll-cursor
         className="absolute inset-0 flex flex-col bg-background text-foreground"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.25, ease: "easeInOut" }}
       >
-        <MobileBrandBar />
+        <div className="mobile-stage-ui">
+          <MobileBrandBar />
+        </div>
 
         <div className="relative mt-4 min-h-0 flex-1 px-3 pb-[calc(3.25rem+env(safe-area-inset-bottom,0px))]">
           <div className="relative h-full w-full overflow-hidden rounded-[24px]">
             {mediaLayers}
-            <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-4 pt-4">
+            <div className="mobile-stage-ui pointer-events-none absolute inset-x-0 top-0 z-20 px-4 pt-4">
               <LatestLabel className="text-[14px] text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.55)]" />
             </div>
             {!isIntro && active ? (
-              <div className="pointer-events-none absolute inset-y-0 left-0 z-20 flex max-w-[min(100%,22rem)] items-center px-4">
+              <div className="mobile-stage-ui pointer-events-none absolute inset-y-0 left-0 z-20 flex max-w-[min(100%,22rem)] items-center px-4">
                 <ProjectCredits
                   key={active.id}
                   project={active}
@@ -504,7 +502,7 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
             ) : null}
           </div>
         </div>
-      </motion.div>
+      </div>
     );
   }
 

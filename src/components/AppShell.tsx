@@ -13,13 +13,12 @@ import {
   MobileMenu,
   MOBILE_MENU_COVER_MS,
   MOBILE_MENU_OVERLAY_FADE_S,
+  MOBILE_MENU_REVEAL_EASE,
   MOBILE_MENU_VEIL_IN_MS,
 } from "./MobileMenu";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { STAGE_NAV_PADDING } from "@/lib/stage";
 import type { HomepageData, PostWorker } from "@/sanity/types";
-
-const MOBILE_REVEAL_EASE = [0.22, 1, 0.36, 1] as const;
 
 export type Section = "work" | "talent" | "info";
 
@@ -245,9 +244,16 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
 
   const sections = isMobile ? (
     // Isolate shared layout per section so camera/logo don't morph under the
-    // menu overlay. The overlay itself is the visible fade.
+    // menu overlay. Keep media at full opacity — zeroing it blacks out
+    // Vimeo / iOS video. Lists fade via .mobile-stage-ui instead.
     <LayoutGroup id={sectionKey}>
-      <div className="absolute inset-0">{activeSection}</div>
+      <div
+        className={`absolute inset-0 mobile-stage ${
+          menuOpen ? "is-covered" : "is-revealed"
+        }`}
+      >
+        {activeSection}
+      </div>
     </LayoutGroup>
   ) : (
     // sync, not popLayout: sections are already absolute, and popLayout
@@ -301,7 +307,7 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
               ? { duration: 0.15, ease: "easeOut" }
               : {
                   duration: MOBILE_MENU_OVERLAY_FADE_S,
-                  ease: MOBILE_REVEAL_EASE,
+                  ease: MOBILE_MENU_REVEAL_EASE,
                 },
           }}
         >

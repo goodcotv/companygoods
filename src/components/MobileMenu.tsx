@@ -13,28 +13,16 @@ const MENU_ITEMS: { label: string; section: Section }[] = [
 ];
 
 /** Overlay dissolve — hold this long so the destination can layout underneath. */
-export const MOBILE_MENU_OVERLAY_FADE_S = 0.5;
+export const MOBILE_MENU_OVERLAY_FADE_S = 0.55;
 export const MOBILE_MENU_VEIL_IN_MS = 280;
 export const MOBILE_MENU_COVER_MS = 500;
-const ITEMS_FADE_S = 0.8;
-const ITEMS_FADE_DELAY_S = 0.18;
-const ITEMS_STAGGER_S = 0.09;
+/** Soft reveal — the snap ease made Work / Talent / Info pop in. */
+export const MOBILE_MENU_REVEAL_EASE = [0.4, 0, 0.2, 1] as const;
+const ITEMS_FADE_S = 0.42;
+const ITEMS_FADE_DELAY_S = 0.12;
 const ITEMS_HIDE_S = 0.2;
 const VEIL_IN_S = MOBILE_MENU_VEIL_IN_MS / 1000;
 const MENU_EASE = [0.22, 1, 0.36, 1] as const;
-/** Soft fade-in — ease-out snaps to visible and reads as a pop. */
-const ITEM_FADE_EASE = [0.45, 0.05, 0.55, 0.95] as const;
-
-function itemFadeTransition(visible: boolean, index: number) {
-  if (visible) {
-    return {
-      duration: ITEMS_FADE_S,
-      delay: ITEMS_FADE_DELAY_S + index * ITEMS_STAGGER_S,
-      ease: ITEM_FADE_EASE,
-    };
-  }
-  return { duration: ITEMS_HIDE_S, delay: 0, ease: "easeOut" as const };
-}
 
 type MobileMenuProps = {
   open: boolean;
@@ -107,7 +95,10 @@ export function MobileMenu({
           initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: MOBILE_MENU_OVERLAY_FADE_S, ease: MENU_EASE }}
+          transition={{
+            duration: MOBILE_MENU_OVERLAY_FADE_S,
+            ease: MOBILE_MENU_REVEAL_EASE,
+          }}
         >
           {/*
             Fade a constant-radius blur over the live page. On navigate, go
@@ -134,26 +125,34 @@ export function MobileMenu({
             }}
           />
 
-          <div
+          <motion.div
             className={`relative z-10 flex min-h-0 flex-1 flex-col ${
               dissolving ? "pointer-events-none" : ""
             }`}
+            initial={{ opacity: 0 }}
+            animate={{
+              opacity: showChrome ? 1 : 0,
+              transition: showChrome
+                ? {
+                    duration: ITEMS_FADE_S,
+                    delay: ITEMS_FADE_DELAY_S,
+                    ease: "easeOut",
+                  }
+                : { duration: ITEMS_HIDE_S, ease: "easeOut" },
+            }}
+            exit={{
+              opacity: 0,
+              transition: { duration: 0.2, ease: "easeOut" },
+            }}
           >
             {/* Opt out of shared logo layout — page mark underneath already owns it */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: showChrome ? 1 : 0 }}
-              exit={{ opacity: 0 }}
-              transition={itemFadeTransition(showChrome, 0)}
-            >
-              <MobileBrandBar onClick={handleGoHome} layoutId={false} />
-            </motion.div>
+            <MobileBrandBar onClick={handleGoHome} layoutId={false} />
 
             <nav
               className="flex min-h-0 flex-1 flex-col items-center justify-center gap-[clamp(0.75rem,2.5vh,1.25rem)] px-4 pb-[max(4rem,env(safe-area-inset-bottom))]"
               aria-label="Primary"
             >
-              {MENU_ITEMS.map((item, index) => {
+              {MENU_ITEMS.map((item) => {
                 const isActive = activeSection === item.section;
                 return (
                   <button
@@ -165,19 +164,12 @@ export function MobileMenu({
                     }`}
                     aria-current={isActive ? "page" : undefined}
                   >
-                    <motion.span
-                      className="block"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: showChrome ? 1 : 0 }}
-                      transition={itemFadeTransition(showChrome, index + 1)}
-                    >
-                      {item.label}
-                    </motion.span>
+                    {item.label}
                   </button>
                 );
               })}
             </nav>
-          </div>
+          </motion.div>
 
           <motion.button
             type="button"
@@ -187,9 +179,20 @@ export function MobileMenu({
             }`}
             aria-label="Return home"
             initial={{ opacity: 0 }}
-            animate={{ opacity: showChrome ? 1 : 0 }}
-            exit={{ opacity: 0 }}
-            transition={itemFadeTransition(showChrome, MENU_ITEMS.length + 1)}
+            animate={{
+              opacity: showChrome ? 1 : 0,
+              transition: showChrome
+                ? {
+                    duration: ITEMS_FADE_S,
+                    delay: ITEMS_FADE_DELAY_S,
+                    ease: "easeOut",
+                  }
+                : { duration: ITEMS_HIDE_S, ease: "easeOut" },
+            }}
+            exit={{
+              opacity: 0,
+              transition: { duration: 0.2, ease: "easeOut" },
+            }}
           >
             HOME
           </motion.button>

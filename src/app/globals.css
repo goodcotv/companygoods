@@ -138,6 +138,16 @@ body {
   animation: fade-in 0.45s ease both;
 }
 
+/* Menu redirect: fade lists / chrome, never the background video. */
+.mobile-stage-ui {
+  opacity: 1;
+  transition: opacity 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.mobile-stage.is-covered .mobile-stage-ui {
+  opacity: 0;
+  transition-duration: 0.15s;
+}
+
 /* Talent page — locked viewport; camera frame hug-wraps the roster */
 .talent-page {
   position: fixed;
