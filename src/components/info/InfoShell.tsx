@@ -367,52 +367,52 @@ export function InfoShell({ settings }: InfoShellProps) {
 
   if (isMobile) {
     return (
-      <motion.div
-        className="mobile-stage-ui absolute inset-0 flex flex-col overflow-hidden bg-background pb-[calc(3.25rem+env(safe-area-inset-bottom,0px))] text-foreground"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.25, ease: "easeInOut" }}
-      >
-        <MobileBrandBar />
-        <div className="shrink-0 px-3">
-          <InfoSubNav
-            activeSubRoute={activeSubRoute}
-            onNavigate={handleSubNav}
-            className="mt-4"
-          />
-        </div>
-
-        <div className="relative mx-2 mt-5 min-h-0 flex-1">
-          <div
-            ref={mobileScrollRef}
-            className="info-scroll-fade h-full overflow-y-scroll overscroll-contain px-4 py-5 [touch-action:pan-y] [-webkit-overflow-scrolling:touch]"
-          >
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={activeSubRoute}
-                className="h-full"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25, ease: "easeInOut" }}
-              >
-                <InfoBody
-                  activeSubRoute={activeSubRoute}
-                  settings={settings}
-                  hideImages
-                />
-              </motion.div>
-            </AnimatePresence>
+      <div className="absolute inset-0 flex flex-col overflow-hidden bg-background pb-[calc(3.25rem+env(safe-area-inset-bottom,0px))] text-foreground">
+        {/*
+          Keep the black page at full opacity (same as Work/Talent video).
+          Fading this wrapper plus the menu overlay is the double flash.
+        */}
+        <div className="mobile-stage-ui flex min-h-0 flex-1 flex-col">
+          <MobileBrandBar />
+          <div className="shrink-0 px-3">
+            <InfoSubNav
+              activeSubRoute={activeSubRoute}
+              onNavigate={handleSubNav}
+              className="mt-4"
+            />
           </div>
 
-          <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
-        </div>
+          <div className="relative mx-2 mt-5 min-h-0 flex-1">
+            <div
+              ref={mobileScrollRef}
+              className="info-scroll-fade h-full overflow-y-scroll overscroll-contain px-4 py-5 [touch-action:pan-y] [-webkit-overflow-scrolling:touch]"
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={activeSubRoute}
+                  className="h-full"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25, ease: "easeInOut" }}
+                >
+                  <InfoBody
+                    activeSubRoute={activeSubRoute}
+                    settings={settings}
+                    hideImages
+                  />
+                </motion.div>
+              </AnimatePresence>
+            </div>
 
-        <footer className="shrink-0 px-3 pt-4 pb-2">
-          <InfoCredits />
-        </footer>
-      </motion.div>
+            <AnimatedCornerBrackets inset={0} layoutId="page-corners" />
+          </div>
+
+          <footer className="shrink-0 px-3 pt-4 pb-2">
+            <InfoCredits />
+          </footer>
+        </div>
+      </div>
     );
   }
 
