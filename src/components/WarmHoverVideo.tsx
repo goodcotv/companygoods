@@ -8,6 +8,7 @@ import {
   releaseWarmVideo,
   releaseWarmVimeo,
   setWarmVimeoVisible,
+  waitForWarmVimeoFrame,
 } from "@/lib/preload-video";
 import {
   applyMutedInline,
@@ -128,10 +129,10 @@ export function WarmHoverVideo({
     if (!isVimeo) return;
 
     let released = false;
+    let revealStarted = false;
     const iframe = adoptWarmVimeo(src, startTime);
     iframeRef.current = iframe;
     const alreadyReady = iframe.dataset.hoverReady === "true";
-    setWarmVimeoVisible(iframe, fit, alreadyReady && playingRef.current);
 
     const slot = {
       pause: () => {
@@ -146,18 +147,30 @@ export function WarmHoverVideo({
         playingRef.current && iframe.dataset.hoverReady === "true",
     };
     const unregister = registerMediaSlot(slot);
-    if (alreadyReady && playingRef.current) {
+
+    const revealWhenFramed = async () => {
+      if (revealStarted || released || !playingRef.current) return;
+      revealStarted = true;
+      iframe.dataset.hoverReady = "true";
       claimMediaSlot(slot);
+      // Listen before play() so we don't miss the first `playing` event.
+      const framed = waitForWarmVimeoFrame(iframe);
+      setWarmVimeoVisible(iframe, fit, true);
+      await framed;
+      if (released) return;
+      onReadyRef.current?.(true);
+    };
+
+    if (alreadyReady && playingRef.current) {
+      void revealWhenFramed();
+    } else {
+      setWarmVimeoVisible(iframe, fit, false);
     }
 
     void preloadVideoUrl(src, startTime).then(() => {
       if (released) return;
       iframe.dataset.hoverReady = "true";
-      if (playingRef.current) {
-        claimMediaSlot(slot);
-        setWarmVimeoVisible(iframe, fit, true);
-      }
-      onReadyRef.current?.(true);
+      void revealWhenFramed();
     });
 
     return () => {

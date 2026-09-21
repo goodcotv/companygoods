@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { WarmHoverVideo } from "@/components/WarmHoverVideo";
 import {
   getProjectHoverStillUrl,
+  peekVimeoThumbnail,
   preloadHoverStill,
   resolveVimeoThumbnail,
   type HoverStillProject,
@@ -37,7 +38,9 @@ export function HoverStillBackdrop({
   const stillFromProject = getProjectHoverStillUrl(stillProject);
   const [videoReady, setVideoReady] = useState(false);
   const [videoPlaying, setVideoPlaying] = useState(false);
-  const [vimeoStillUrl, setVimeoStillUrl] = useState<string | undefined>();
+  const [vimeoStillUrl, setVimeoStillUrl] = useState<string | undefined>(() =>
+    videoUrl && isVimeoUrl(videoUrl) ? peekVimeoThumbnail(videoUrl) : undefined,
+  );
   const resolvedStill = stillFromProject || vimeoStillUrl;
   const isVimeo = Boolean(videoUrl && isVimeoUrl(videoUrl));
   const showVideo = videoPlaying && !preferStill;
@@ -45,7 +48,11 @@ export function HoverStillBackdrop({
   useLayoutEffect(() => {
     setVideoReady(false);
     setVideoPlaying(false);
-    setVimeoStillUrl(undefined);
+    setVimeoStillUrl(
+      videoUrl && isVimeoUrl(videoUrl)
+        ? peekVimeoThumbnail(videoUrl)
+        : undefined,
+    );
   }, [videoUrl, startTime]);
 
   useEffect(() => {
@@ -70,17 +77,12 @@ export function HoverStillBackdrop({
       return;
     }
 
-    if (isVimeo) {
-      setVideoPlaying(true);
-      return;
-    }
-
     const timer = setTimeout(() => {
       setVideoPlaying(true);
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [videoReady, isVimeo, playing, preferStill]);
+  }, [videoReady, playing, preferStill]);
 
   if (!videoUrl && !resolvedStill) return null;
 

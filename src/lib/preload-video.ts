@@ -240,7 +240,68 @@ function ensureWarmVimeo(url: string, startTime = 0): HTMLIFrameElement {
 function subscribeVimeo(iframe: HTMLIFrameElement) {
   postVimeo(iframe, { method: "addEventListener", value: "ready" });
   postVimeo(iframe, { method: "addEventListener", value: "play" });
+  postVimeo(iframe, { method: "addEventListener", value: "playing" });
   postVimeo(iframe, { method: "addEventListener", value: "timeupdate" });
+}
+
+const VIMEO_FRAME_TIMEOUT_MS = 2000;
+const VIMEO_PAINT_DELAY_MS = 140;
+const VIMEO_STALE_EVENT_MS = 80;
+
+/**
+ * play() on a paused Vimeo embed paints black until the next decoded frame.
+ * Wait until playback is actually running, then a short paint delay, before
+ * fading the hover still off.
+ */
+export function waitForWarmVimeoFrame(
+  iframe: HTMLIFrameElement,
+): Promise<void> {
+  return new Promise((resolve) => {
+    let done = false;
+    let paintDelay = 0;
+    const startedAt = performance.now();
+
+    const finish = () => {
+      if (done) return;
+      done = true;
+      window.clearTimeout(timeout);
+      window.clearTimeout(paintDelay);
+      window.removeEventListener("message", onMessage);
+      resolve();
+    };
+
+    const finishAfterPaint = () => {
+      if (done || paintDelay) return;
+      paintDelay = window.setTimeout(finish, VIMEO_PAINT_DELAY_MS);
+    };
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== VIMEO_ORIGIN) return;
+      if (event.source !== iframe.contentWindow) return;
+      const data = parseVimeoEvent(event.data);
+      if (!data) return;
+
+      // `play` fires when play is requested — still a black frame.
+      if (data.event === "playing") {
+        finishAfterPaint();
+        return;
+      }
+
+      if (
+        data.event === "timeupdate" &&
+        data.data &&
+        typeof data.data === "object" &&
+        performance.now() - startedAt > VIMEO_STALE_EVENT_MS
+      ) {
+        const seconds = (data.data as { seconds?: number }).seconds ?? 0;
+        if (seconds > 0.05) finishAfterPaint();
+      }
+    };
+
+    const timeout = window.setTimeout(finish, VIMEO_FRAME_TIMEOUT_MS);
+    window.addEventListener("message", onMessage);
+    subscribeVimeo(iframe);
+  });
 }
 
 function prepareWarmVimeo(url: string, startTime: number): Promise<void> {

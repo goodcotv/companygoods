@@ -11,6 +11,7 @@ export type HoverStillProject = Pick<
 >;
 
 const vimeoThumbnailCache = new Map<string, Promise<string | undefined>>();
+const vimeoThumbnailValue = new Map<string, string | undefined>();
 const stillReadyCache = new Map<string, Promise<void>>();
 const STILL_TIMEOUT_MS = 2500;
 
@@ -108,11 +109,21 @@ export async function waitForProjectHoverStill(
   }
 }
 
+/** Sync peek so hover remounts can keep the poster up without a black frame. */
+export function peekVimeoThumbnail(videoUrl: string): string | undefined {
+  return vimeoThumbnailValue.get(videoUrl);
+}
+
 export function resolveVimeoThumbnail(
   videoUrl: string,
 ): Promise<string | undefined> {
   const cached = vimeoThumbnailCache.get(videoUrl);
-  if (cached) return cached;
+  if (cached) {
+    void cached.then((url) => {
+      if (url) vimeoThumbnailValue.set(videoUrl, url);
+    });
+    return cached;
+  }
 
   const promise = (async () => {
     if (!isVimeoUrl(videoUrl)) return undefined;
@@ -122,7 +133,9 @@ export function resolveVimeoThumbnail(
       if (!response.ok) return undefined;
       const data = (await response.json()) as { thumbnail_url?: string };
       if (!data.thumbnail_url) return undefined;
-      return enlargeVimeoThumbnailUrl(data.thumbnail_url);
+      const url = enlargeVimeoThumbnailUrl(data.thumbnail_url);
+      vimeoThumbnailValue.set(videoUrl, url);
+      return url;
     } catch {
       return undefined;
     }
