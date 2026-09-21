@@ -17,6 +17,7 @@
   --color-frame: var(--frame);
   --color-panel: var(--panel);
   --font-sans: var(--font-neue-haas), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-neue: var(--font-neue-haas), "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-heading: var(--font-mint-grotesk), "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-display: var(--font-tekio-grotesk), "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
@@ -27,6 +28,7 @@
 
 html {
   height: 100%;
+  overscroll-behavior: none;
 }
 
 body {
@@ -37,6 +39,7 @@ body {
   font-family: var(--font-neue-haas), "Helvetica Neue", Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
 }
 
 /*
@@ -320,7 +323,9 @@ body {
 }
 
 .talent-list.is-scrollable {
-  overflow-y: auto;
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 .talent-list--mobile .talent-list__name {
@@ -349,7 +354,9 @@ body {
 }
 
 .talent-detail-projects.is-scrollable {
-  overflow-y: auto;
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 /* Hide scrollbar for scrollable lists — chevron / [ scroll ] cursor is enough */
@@ -359,6 +366,14 @@ body {
 
 [data-scrollable-list] {
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+[data-scrollable-list] a,
+[data-scrollable-list] button {
+  touch-action: pan-y;
 }
 
 /* Invisible longest-name row: holds frame width steady across categories. */
@@ -486,8 +501,10 @@ body {
 
 .talent-bio__scroll {
   max-height: min(24rem, 70dvh);
-  overflow-y: auto;
+  overflow-y: scroll;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 .talent-bio p {
@@ -793,6 +810,28 @@ body {
     #000 calc(100% - 2.75rem),
     transparent 100%
   );
+}
+
+/*
+ * iOS drops momentum when -webkit-mask-image is on the scrolling element.
+ * Chevrons still cue overflow; keep the dissolve on fine-pointer only.
+ */
+@media (hover: none), (pointer: coarse) {
+  .scroll-indicator-wrapper.can-scroll-up > [data-scrollable-list],
+  .scroll-indicator-wrapper.can-scroll-up > .talent-list,
+  .scroll-indicator-wrapper.can-scroll-down > [data-scrollable-list],
+  .scroll-indicator-wrapper.can-scroll-down > .talent-list,
+  .scroll-indicator-wrapper.can-scroll-up.can-scroll-down > [data-scrollable-list],
+  .scroll-indicator-wrapper.can-scroll-up.can-scroll-down > .talent-list,
+  .talent-list-frame.scroll-indicator-wrapper.can-scroll-up > .talent-list,
+  .talent-list-frame.scroll-indicator-wrapper.can-scroll-down > .talent-list,
+  .talent-list-frame.scroll-indicator-wrapper.can-scroll-up.can-scroll-down > .talent-list,
+  .hover-desc.scroll-indicator-wrapper.can-scroll-up > [data-scrollable-list],
+  .hover-desc.scroll-indicator-wrapper.can-scroll-down > [data-scrollable-list],
+  .hover-desc.scroll-indicator-wrapper.can-scroll-up.can-scroll-down > [data-scrollable-list] {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
 }
 
 /* Scroll indicators for lists that overflow */

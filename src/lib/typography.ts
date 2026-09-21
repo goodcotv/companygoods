@@ -10,10 +10,9 @@ export const textUi =
 export const textMobileMenu =
   "font-heading text-[clamp(17pt,5vw,21pt)] uppercase leading-none";
 
-/** Corner chrome (MENU/HOME) — match Back: larger on mobile so it stays readable */
+/** Corner chrome (MENU/HOME) — Neue Haas Roman, same as web1 */
 export const textMobileMenuToggle =
-  "font-sans text-[13pt] font-normal uppercase leading-none md:text-[11pt]";
+  "font-neue text-[13pt] font-normal uppercase leading-none md:text-[11pt]";
 
-/** Project Back — larger on mobile so it stays readable over video */
-export const textBack =
-  "font-sans text-[13pt] font-normal uppercase leading-none md:text-[11pt]";
+/** Project Back — same type as MENU / web1 Back */
+export const textBack = textMobileMenuToggle;

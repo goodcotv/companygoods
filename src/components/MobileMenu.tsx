@@ -12,7 +12,8 @@ const MENU_ITEMS: { label: string; section: Section }[] = [
   { label: "INFO", section: "info" },
 ];
 
-const OVERLAY_FADE_S = 0.4;
+/** Overlay dissolve — incoming mobile sections delay their fade to match. */
+export const MOBILE_MENU_OVERLAY_FADE_S = 0.45;
 const ITEMS_FADE_S = 0.42;
 const ITEMS_FADE_DELAY_S = 0.12;
 
@@ -74,7 +75,7 @@ export function MobileMenu({
           initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: OVERLAY_FADE_S, ease: "easeOut" }}
+          transition={{ duration: MOBILE_MENU_OVERLAY_FADE_S, ease: "easeOut" }}
         >
           {/*
             Fade a constant-radius blur over the live page. Opacity is cheap
@@ -86,7 +87,7 @@ export function MobileMenu({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: OVERLAY_FADE_S, ease: "easeOut" }}
+            transition={{ duration: MOBILE_MENU_OVERLAY_FADE_S, ease: "easeOut" }}
           />
 
           {/* Opt out of shared logo layout — page mark underneath already owns it */}

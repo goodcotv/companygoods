@@ -226,7 +226,8 @@ function HeroSection({
     const scrollEl = descRef.current;
     if (!scrollEl) return;
 
-    function checkScroll() {
+    let frame = 0;
+    function checkScroll(resetIfFits = false) {
       if (!scrollEl) return;
 
       const { scrollTop } = scrollEl;
@@ -238,26 +239,35 @@ function HeroSection({
       setShowTopIndicator(nextCanScroll && scrollTop > threshold);
       setShowBottomIndicator(nextCanScroll && scrollTop < overflow - threshold);
 
-      if (!nextCanScroll && scrollTop !== 0) {
+      if (resetIfFits && !nextCanScroll && scrollTop !== 0) {
         scrollEl.scrollTop = 0;
       }
     }
 
-    checkScroll();
-    void document.fonts?.ready.then(checkScroll);
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        checkScroll(false);
+      });
+    };
 
-    scrollEl.addEventListener("scroll", checkScroll, { passive: true });
-    window.addEventListener("resize", checkScroll);
+    checkScroll(true);
+    void document.fonts?.ready.then(() => checkScroll(true));
+
+    scrollEl.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
 
     const resizeObserver =
       typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(checkScroll)
+        ? new ResizeObserver(onScroll)
         : null;
     resizeObserver?.observe(scrollEl);
 
     return () => {
-      scrollEl.removeEventListener("scroll", checkScroll);
-      window.removeEventListener("resize", checkScroll);
+      if (frame) cancelAnimationFrame(frame);
+      scrollEl.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
       resizeObserver?.disconnect();
     };
   }, [description]);
@@ -348,7 +358,7 @@ function HeroSection({
                 <div
                   ref={descRef}
                   {...(canScroll ? { "data-scrollable-list": true } : {})}
-                  className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
+                  className="min-h-0 flex-1 overflow-y-scroll overscroll-contain pr-1 [touch-action:pan-y]"
                 >
                   <p className="whitespace-pre-wrap font-display text-[11pt] font-medium leading-relaxed text-white/90 md:text-[13pt]">
                     {description}

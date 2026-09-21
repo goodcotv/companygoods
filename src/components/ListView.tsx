@@ -32,7 +32,7 @@ import { markVideoUrlPreloaded, hideWarmMediaOverlays } from "@/lib/preload-vide
 import { isVideoMediaUrl } from "@/lib/vimeo";
 import { useCoarsePointerDevice } from "@/hooks/useCoarsePointerDevice";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
-import { useScrollHoverItem } from "@/hooks/useScrollHoverItem";
+import { SCROLL_SETTLE_MS, useScrollHoverItem } from "@/hooks/useScrollHoverItem";
 import { useSequentialMediaPreload } from "@/hooks/useSequentialMediaPreload";
 import { textNav, textUi } from "@/lib/typography";
 import { BrandHeader } from "./BrandHeader";
@@ -268,11 +268,21 @@ export function ListView({ projects }: ListViewProps) {
     syncVisibleItems();
 
     const root = scrollRef.current;
-    const observer = new IntersectionObserver(() => syncVisibleItems(), {
-      root,
-      rootMargin: `${isMobile ? STILL_PRELOAD_MARGIN_PX : 120}px 0px`,
-      threshold: 0,
-    });
+    let ioSettle = 0;
+    const observer = new IntersectionObserver(
+      () => {
+        window.clearTimeout(ioSettle);
+        ioSettle = window.setTimeout(
+          syncVisibleItems,
+          isMobile ? SCROLL_SETTLE_MS : 0,
+        );
+      },
+      {
+        root,
+        rootMargin: `${isMobile ? STILL_PRELOAD_MARGIN_PX : 120}px 0px`,
+        threshold: 0,
+      },
+    );
 
     itemRefs.current.forEach((element) => observer.observe(element));
 
@@ -282,23 +292,17 @@ export function ListView({ projects }: ListViewProps) {
     const frame = requestAnimationFrame(() => syncVisibleItems());
 
     return () => {
+      window.clearTimeout(ioSettle);
       cancelAnimationFrame(frame);
       observer.disconnect();
       resizeObserver.disconnect();
     };
-  }, [filtered, syncVisibleItems, waitForVideos]);
+  }, [filtered, isMobile, syncVisibleItems, waitForVideos]);
 
   useEffect(() => {
     if (!waitForVideos) return;
     syncVisibleItems();
   }, [readyProjectIds, syncVisibleItems, waitForVideos]);
-
-  useEffect(() => {
-    const root = scrollRef.current;
-    if (!root || !waitForVideos) return;
-    root.addEventListener("scroll", syncVisibleItems, { passive: true });
-    return () => root.removeEventListener("scroll", syncVisibleItems);
-  }, [syncVisibleItems, waitForVideos]);
 
   useEffect(() => {
     if (!active) return;
@@ -387,7 +391,8 @@ export function ListView({ projects }: ListViewProps) {
     const scrollEl = scrollRef.current;
     if (!scrollEl) return;
 
-    function checkScroll() {
+    let frame = 0;
+    function checkScroll(resetIfFits = false) {
       if (!scrollEl) return;
 
       const { scrollTop } = scrollEl;
@@ -399,26 +404,35 @@ export function ListView({ projects }: ListViewProps) {
       setShowTopIndicator(nextCanScroll && scrollTop > threshold);
       setShowBottomIndicator(nextCanScroll && scrollTop < overflow - threshold);
 
-      if (!nextCanScroll && scrollTop !== 0) {
+      if (resetIfFits && !nextCanScroll && scrollTop !== 0) {
         scrollEl.scrollTop = 0;
       }
     }
 
-    checkScroll();
-    void document.fonts?.ready.then(checkScroll);
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        checkScroll(false);
+      });
+    };
 
-    scrollEl.addEventListener("scroll", checkScroll, { passive: true });
-    window.addEventListener("resize", checkScroll);
+    checkScroll(true);
+    void document.fonts?.ready.then(() => checkScroll(true));
+
+    scrollEl.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
 
     const resizeObserver =
       typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(checkScroll)
+        ? new ResizeObserver(onScroll)
         : null;
     resizeObserver?.observe(scrollEl);
 
     return () => {
-      scrollEl.removeEventListener("scroll", checkScroll);
-      window.removeEventListener("resize", checkScroll);
+      if (frame) cancelAnimationFrame(frame);
+      scrollEl.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
       resizeObserver?.disconnect();
     };
   }, [filtered, isMobile]);
@@ -427,7 +441,8 @@ export function ListView({ projects }: ListViewProps) {
     const scrollEl = descRef.current;
     if (!scrollEl) return;
 
-    function checkScroll() {
+    let frame = 0;
+    function checkScroll(resetIfFits = false) {
       if (!scrollEl) return;
 
       const { scrollTop } = scrollEl;
@@ -441,26 +456,35 @@ export function ListView({ projects }: ListViewProps) {
         nextCanScroll && scrollTop < overflow - threshold,
       );
 
-      if (!nextCanScroll && scrollTop !== 0) {
+      if (resetIfFits && !nextCanScroll && scrollTop !== 0) {
         scrollEl.scrollTop = 0;
       }
     }
 
-    checkScroll();
-    void document.fonts?.ready.then(checkScroll);
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        checkScroll(false);
+      });
+    };
 
-    scrollEl.addEventListener("scroll", checkScroll, { passive: true });
-    window.addEventListener("resize", checkScroll);
+    checkScroll(true);
+    void document.fonts?.ready.then(() => checkScroll(true));
+
+    scrollEl.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
 
     const resizeObserver =
       typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(checkScroll)
+        ? new ResizeObserver(onScroll)
         : null;
     resizeObserver?.observe(scrollEl);
 
     return () => {
-      scrollEl.removeEventListener("scroll", checkScroll);
-      window.removeEventListener("resize", checkScroll);
+      if (frame) cancelAnimationFrame(frame);
+      scrollEl.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
       resizeObserver?.disconnect();
     };
   }, [active?.id, active?.description]);
@@ -469,7 +493,7 @@ export function ListView({ projects }: ListViewProps) {
     <nav
       className={`flex items-center gap-x-1 ${textNav} ${
         isMobile
-          ? "mt-4 flex-nowrap overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          ? "mt-4 flex-nowrap overflow-x-auto whitespace-nowrap [scrollbar-width:none] [touch-action:pan-x] [&::-webkit-scrollbar]:hidden"
           : `flex-wrap gap-y-2 ${STAGE_LOGO_NAV_GAP_CLASS}`
       }`}
       style={isMobile ? undefined : { paddingLeft: 8 }}
@@ -504,7 +528,7 @@ export function ListView({ projects }: ListViewProps) {
       {...(canScroll ? { "data-scrollable-list": true } : {})}
       className={[
         "min-h-0 flex-1 overscroll-contain",
-        canScroll ? "overflow-y-auto" : "overflow-y-hidden",
+        canScroll ? "overflow-y-scroll" : "overflow-y-hidden",
         isMobile
           ? "flex flex-col gap-[14px] px-5 py-5 text-left"
           : "flex flex-col gap-[14px] py-5 pl-4 pr-4 md:gap-[18px]",
@@ -834,7 +858,7 @@ export function ListView({ projects }: ListViewProps) {
                 key={active.id}
                 ref={descRef}
                 {...(descCanScroll ? { "data-scrollable-list": true } : {})}
-                className="max-h-52 overflow-y-auto overscroll-contain font-sans text-[14px] leading-relaxed text-white/90"
+                className="max-h-52 overflow-y-scroll overscroll-contain font-sans text-[14px] leading-relaxed text-white/90 [touch-action:pan-y]"
               >
                 <p className="whitespace-pre-wrap">{active.description}</p>
               </div>

@@ -1,18 +1,23 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { BottomChrome } from "./BottomChrome";
 import { consumeGoHomeNavigation, GoHomeProvider, peekGoHomeNavigation } from "./GoHomeContext";
 import { HomePage } from "./HomePage";
 import TalentRoster from "./talent/TalentRoster";
 import { InfoShell } from "./info/InfoShell";
 import { InfoCredits } from "./info/InfoCredits";
-import { MobileMenu } from "./MobileMenu";
+import { MobileMenu, MOBILE_MENU_OVERLAY_FADE_S } from "./MobileMenu";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { STAGE_NAV_PADDING } from "@/lib/stage";
 import type { HomepageData, PostWorker } from "@/sanity/types";
+
+/** Destination UI starts fading as the menu overlay is mostly gone. */
+const MOBILE_MENU_REVEAL_DELAY_S = MOBILE_MENU_OVERLAY_FADE_S * 0.65;
+const MOBILE_MENU_REVEAL_DURATION_S = 0.55;
+const MOBILE_REVEAL_EASE = [0.22, 1, 0.36, 1] as const;
 
 export type Section = "work" | "talent" | "info";
 
@@ -37,6 +42,7 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
       : parseSection(searchParams.get("section")),
   );
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRevealKeyRef = useRef<string | null>(null);
 
   // Open menu when returning from a talent/project page via MENU
   useEffect(() => {
@@ -80,6 +86,8 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
     if (isMobile && nextSection === "work") {
       if (section === "work" && workView === "list") return;
 
+      if (menuOpen) menuRevealKeyRef.current = "work-list";
+
       const params = new URLSearchParams(window.location.search);
       params.delete("section");
       params.set("view", "list");
@@ -93,6 +101,8 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
     }
 
     if (nextSection === section) return;
+
+    if (isMobile && menuOpen) menuRevealKeyRef.current = nextSection;
 
     const params = new URLSearchParams(window.location.search);
 
@@ -132,6 +142,7 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
 
   /** Logo / home — Work section, Scroll view, clear filters. */
   function handleGoHome() {
+    if (isMobile && menuOpen) menuRevealKeyRef.current = "work-scroll";
     setSection("work");
     setWorkView("scroll");
     setMenuOpen(false);
@@ -170,7 +181,46 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
     };
   }, [isMobile]);
 
-  const sections = (
+  const sectionKey = section === "work" ? `work-${workView}` : section;
+  const revealFromMenu = menuRevealKeyRef.current === sectionKey;
+  const revealTransition = revealFromMenu
+    ? {
+        duration: MOBILE_MENU_REVEAL_DURATION_S,
+        delay: MOBILE_MENU_REVEAL_DELAY_S,
+        ease: MOBILE_REVEAL_EASE,
+      }
+    : { duration: 0.3, ease: MOBILE_REVEAL_EASE };
+
+  const activeSection =
+    section === "work" ? (
+      <HomePage key="work" data={homepageData} externalView={workView} />
+    ) : section === "talent" ? (
+      <TalentRoster key="talent" workers={talentWorkers} />
+    ) : (
+      <InfoShell key="info" settings={homepageData.settings} />
+    );
+
+  const sections = isMobile ? (
+    // Delayed fade so destination UI appears as the menu overlay lifts,
+    // instead of finishing its fade underneath and popping in fully formed.
+    <AnimatePresence initial={false}>
+      <motion.div
+        key={sectionKey}
+        className="absolute inset-0"
+        initial={{ opacity: 0 }}
+        animate={{
+          opacity: 1,
+          transition: revealTransition,
+        }}
+        exit={{
+          opacity: 0,
+          transition: { duration: 0.12, ease: "easeIn" },
+        }}
+      >
+        {activeSection}
+      </motion.div>
+    </AnimatePresence>
+  ) : (
     // sync, not popLayout: sections are already absolute, and popLayout
     // races the shared page-corners / logo layoutId against the incoming
     // frame. If that box is measured at 0×0, the morph collapses and the
@@ -215,7 +265,13 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
         {/* Full-bleed stage — chrome floats over so media reaches the bottom */}
         <div className="absolute inset-0 z-0 overflow-hidden">{sections}</div>
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[10060] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
-          {chrome}
+          <motion.div
+            key={revealFromMenu ? sectionKey : "chrome"}
+            initial={revealFromMenu ? { opacity: 0 } : false}
+            animate={{ opacity: 1, transition: revealTransition }}
+          >
+            {chrome}
+          </motion.div>
         </div>
       </div>
     );

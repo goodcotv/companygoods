@@ -127,13 +127,29 @@ function InfoSubNav({
 const INFO_EDGE_FADE_PX = 64;
 const INFO_EDGE_FADE_MOBILE_PX = 48;
 
-function applyInfoScrollFades(el: HTMLElement, maxFade: number) {
+function applyInfoScrollFades(el: HTMLElement, maxFade: number, discrete: boolean) {
   const fade = Math.min(maxFade, el.clientHeight / 3);
-  const top = Math.min(Math.max(el.scrollTop, 0), fade);
   const remaining = el.scrollHeight - el.clientHeight - el.scrollTop;
-  const bottom = Math.min(Math.max(remaining, 0), fade);
-  el.style.setProperty("--fade-top", `${top}px`);
-  el.style.setProperty("--fade-bottom", `${bottom}px`);
+  const top = discrete
+    ? el.scrollTop > 1
+      ? fade
+      : 0
+    : Math.min(Math.max(el.scrollTop, 0), fade);
+  const bottom = discrete
+    ? remaining > 1
+      ? fade
+      : 0
+    : Math.min(Math.max(remaining, 0), fade);
+  const nextTop = `${top}px`;
+  const nextBottom = `${bottom}px`;
+  if (
+    el.style.getPropertyValue("--fade-top") === nextTop &&
+    el.style.getPropertyValue("--fade-bottom") === nextBottom
+  ) {
+    return;
+  }
+  el.style.setProperty("--fade-top", nextTop);
+  el.style.setProperty("--fade-bottom", nextBottom);
 }
 
 function InfoBody({
@@ -292,32 +308,42 @@ export function InfoShell({ settings }: InfoShellProps) {
     if (!scrollEl) return;
 
     const maxFade = isMobile ? INFO_EDGE_FADE_MOBILE_PX : INFO_EDGE_FADE_PX;
+    let frame = 0;
 
-    function sync() {
+    function syncNow() {
       if (!scrollEl) return;
-      applyInfoScrollFades(scrollEl, maxFade);
+      applyInfoScrollFades(scrollEl, maxFade, isMobile);
       if (!isMobile) {
         const nextCanScroll = isListOverflowing(scrollEl);
         setCanScroll((prev) => (prev === nextCanScroll ? prev : nextCanScroll));
       }
     }
 
-    sync();
-    void document.fonts?.ready.then(sync);
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        syncNow();
+      });
+    };
 
-    scrollEl.addEventListener("scroll", sync, { passive: true });
-    window.addEventListener("resize", sync);
+    syncNow();
+    void document.fonts?.ready.then(syncNow);
+
+    scrollEl.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
 
     const resizeObserver =
       typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(sync)
+        ? new ResizeObserver(onScroll)
         : null;
     const inner = scrollEl.firstElementChild;
     if (inner instanceof HTMLElement) resizeObserver?.observe(inner);
 
     return () => {
-      scrollEl.removeEventListener("scroll", sync);
-      window.removeEventListener("resize", sync);
+      if (frame) cancelAnimationFrame(frame);
+      scrollEl.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
       resizeObserver?.disconnect();
     };
   }, [activeSubRoute, isMobile]);
@@ -360,7 +386,7 @@ export function InfoShell({ settings }: InfoShellProps) {
         <div className="relative mx-2 mt-5 min-h-0 flex-1">
           <div
             ref={mobileScrollRef}
-            className="info-scroll-fade h-full overflow-y-auto px-4 py-5"
+            className="info-scroll-fade h-full overflow-y-scroll overscroll-contain px-4 py-5 [touch-action:pan-y] [-webkit-overflow-scrolling:touch]"
           >
             <AnimatePresence mode="wait" initial={false}>
               <motion.div

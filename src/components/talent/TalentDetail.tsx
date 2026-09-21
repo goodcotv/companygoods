@@ -18,7 +18,7 @@ import { MobileBrandBar } from "@/components/MobileBrandBar";
 import { markGoHomeNavigation } from "@/components/GoHomeContext";
 import { useCoarsePointerDevice } from "@/hooks/useCoarsePointerDevice";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
-import { useScrollHoverItem } from "@/hooks/useScrollHoverItem";
+import { SCROLL_SETTLE_MS, useScrollHoverItem } from "@/hooks/useScrollHoverItem";
 import { useSequentialMediaPreload } from "@/hooks/useSequentialMediaPreload";
 import { isListOverflowing } from "@/lib/cursor-hover";
 import { preloadNeighborProjectStills } from "@/lib/hover-still";
@@ -197,11 +197,21 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
     syncVisibleItems();
 
     const root = scrollRef.current;
-    const observer = new IntersectionObserver(() => syncVisibleItems(), {
-      root,
-      rootMargin: `${isMobile ? STILL_PRELOAD_MARGIN_PX : 120}px 0px`,
-      threshold: 0,
-    });
+    let ioSettle = 0;
+    const observer = new IntersectionObserver(
+      () => {
+        window.clearTimeout(ioSettle);
+        ioSettle = window.setTimeout(
+          syncVisibleItems,
+          isMobile ? SCROLL_SETTLE_MS : 0,
+        );
+      },
+      {
+        root,
+        rootMargin: `${isMobile ? STILL_PRELOAD_MARGIN_PX : 120}px 0px`,
+        threshold: 0,
+      },
+    );
 
     itemRefs.current.forEach((element) => observer.observe(element));
 
@@ -211,23 +221,17 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
     const frame = requestAnimationFrame(() => syncVisibleItems());
 
     return () => {
+      window.clearTimeout(ioSettle);
       cancelAnimationFrame(frame);
       observer.disconnect();
       resizeObserver.disconnect();
     };
-  }, [projects, syncVisibleItems, waitForVideos]);
+  }, [projects, isMobile, syncVisibleItems, waitForVideos]);
 
   useEffect(() => {
     if (!waitForVideos) return;
     syncVisibleItems();
   }, [readyProjectIds, syncVisibleItems, waitForVideos]);
-
-  useEffect(() => {
-    const root = scrollRef.current;
-    if (!root || !waitForVideos) return;
-    root.addEventListener("scroll", syncVisibleItems, { passive: true });
-    return () => root.removeEventListener("scroll", syncVisibleItems);
-  }, [syncVisibleItems, waitForVideos]);
 
   const markActivePreloaded = useCallback(() => {
     if (priorityVideoUrl) {
@@ -248,7 +252,8 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
     const scrollEl = scrollRef.current;
     if (!scrollEl) return;
 
-    function checkScroll() {
+    let frame = 0;
+    function checkScroll(resetIfFits = false) {
       if (!scrollEl) return;
 
       const { scrollTop } = scrollEl;
@@ -260,26 +265,35 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
       setShowTopIndicator(nextCanScroll && scrollTop > threshold);
       setShowBottomIndicator(nextCanScroll && scrollTop < overflow - threshold);
 
-      if (!nextCanScroll && scrollTop !== 0) {
+      if (resetIfFits && !nextCanScroll && scrollTop !== 0) {
         scrollEl.scrollTop = 0;
       }
     }
 
-    checkScroll();
-    void document.fonts?.ready.then(checkScroll);
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        checkScroll(false);
+      });
+    };
 
-    scrollEl.addEventListener("scroll", checkScroll, { passive: true });
-    window.addEventListener("resize", checkScroll);
+    checkScroll(true);
+    void document.fonts?.ready.then(() => checkScroll(true));
+
+    scrollEl.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
 
     const resizeObserver =
       typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(checkScroll)
+        ? new ResizeObserver(onScroll)
         : null;
     resizeObserver?.observe(scrollEl);
 
     return () => {
-      scrollEl.removeEventListener("scroll", checkScroll);
-      window.removeEventListener("resize", checkScroll);
+      if (frame) cancelAnimationFrame(frame);
+      scrollEl.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
       resizeObserver?.disconnect();
     };
   }, [projects]);

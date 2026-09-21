@@ -51,8 +51,7 @@ export function HoverStillBackdrop({
   const isVimeo = Boolean(videoUrl && isVimeoUrl(videoUrl));
   const showVideo = videoPlaying && !preferStill;
   const displayStill = mountedStill || incomingStill;
-  // Don't start a new clip while the finger is still moving.
-  const mountVideo = Boolean(videoUrl) && !preferStill;
+  const mountVideo = Boolean(videoUrl);
 
   useLayoutEffect(() => {
     setVideoReady(false);
@@ -137,7 +136,7 @@ export function HoverStillBackdrop({
           <WarmHoverVideo
             src={videoUrl!}
             startTime={startTime}
-            playing={playing}
+            playing={playing && !preferStill}
             className="h-full w-full"
             onPreviewReady={(ready) => {
               if (!ready) return;
