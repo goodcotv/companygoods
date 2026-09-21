@@ -29,11 +29,6 @@ import { MobileBrandBar } from "./MobileBrandBar";
 type ScrollViewProps = {
   projects: Project[];
   introVideoUrl?: string;
-  /** Bump to force the intro / landing slide. */
-  homeToken?: number;
-  /** Hide the landing mark while the logo-down overlay owns it. */
-  hideBrand?: boolean;
-  onIntroChange?: (isIntro: boolean) => void;
 };
 
 /** Sentinel index for the site intro / main video (from Post Site Settings). */
@@ -216,13 +211,7 @@ function ProjectCredits({
   );
 }
 
-export function ScrollView({
-  projects,
-  introVideoUrl,
-  homeToken,
-  hideBrand = false,
-  onIntroChange,
-}: ScrollViewProps) {
+export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
   const isMobile = useMobileBrowseLayout();
   const { stageRef, cameraWidth } = useScrollCameraWidth();
   const [activeIndex, setActiveIndex] = useState(INTRO_INDEX);
@@ -231,23 +220,13 @@ export function ScrollView({
   const lockedRef = useRef(false);
   const touchStartY = useRef<number | null>(null);
   const cameraReady = cameraWidth > 0;
-  // Once a slide has been warmed, keep its player mounted so scroll-away
-  // only pauses — remounting is what restarts the clip from the beginning.
-  const mountedIdsRef = useRef<Set<string>>(new Set());
 
   const lastIndex = projects.length - 1;
   const isIntro = activeIndex === INTRO_INDEX;
   const active = isIntro ? null : (projects[activeIndex] ?? projects[0]);
-
-  useEffect(() => {
-    onIntroChange?.(isIntro);
-  }, [isIntro, onIntroChange]);
-
-  useEffect(() => {
-    if (homeToken == null) return;
-    indexRef.current = INTRO_INDEX;
-    setActiveIndex(INTRO_INDEX);
-  }, [homeToken]);
+  // Once a slide has been warmed, keep its player mounted so scroll-away
+  // only pauses — remounting is what restarts the clip from the beginning.
+  const mountedIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     indexRef.current = activeIndex;
@@ -506,60 +485,25 @@ export function ScrollView({
         exit={{ opacity: 0 }}
         transition={{ duration: 0.25, ease: "easeInOut" }}
       >
-        {isIntro ? (
-          <>
-            <div className="absolute inset-0">
-              {playingIndex !== INTRO_INDEX ? (
-                <SlideStill
-                  still={getProjectHoverStillUrl(
-                    stillProjectFromMedia(introVideoUrl),
-                  )}
-                  radius={0}
-                />
-              ) : (
-                <MediaViewport
-                  title="Intro Video"
-                  className="h-full w-full"
-                  src={introVideoUrl}
-                  type="video"
-                  active={playingIndex === INTRO_INDEX}
-                  corners={false}
-                  radius={0}
-                />
-              )}
+        <MobileBrandBar />
+
+        <div className="relative mt-4 min-h-0 flex-1 px-3 pb-[calc(3.25rem+env(safe-area-inset-bottom,0px))]">
+          <div className="relative h-full w-full overflow-hidden rounded-[24px]">
+            {mediaLayers}
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-4 pt-4">
+              <LatestLabel className="text-[14px] text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.55)]" />
             </div>
-            {!hideBrand ? (
-              <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center px-8">
-                <BrandHeader
-                  variant="work"
-                  widthClass="w-[88vw] max-w-[560px]"
+            {!isIntro && active ? (
+              <div className="pointer-events-none absolute inset-y-0 left-0 z-20 flex max-w-[min(100%,22rem)] items-center px-4">
+                <ProjectCredits
+                  key={active.id}
+                  project={active}
+                  className="text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.55)]"
                 />
               </div>
             ) : null}
-          </>
-        ) : (
-          <>
-            <MobileBrandBar />
-
-            <div className="relative mt-4 min-h-0 flex-1 px-3 pb-[calc(3.25rem+env(safe-area-inset-bottom,0px))]">
-              <div className="relative h-full w-full overflow-hidden rounded-[24px]">
-                {mediaLayers}
-                <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-4 pt-4">
-                  <LatestLabel className="text-[14px] text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.55)]" />
-                </div>
-                {active ? (
-                  <div className="pointer-events-none absolute inset-y-0 left-0 z-20 flex max-w-[min(100%,22rem)] items-center px-4">
-                    <ProjectCredits
-                      key={active.id}
-                      project={active}
-                      className="text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.55)]"
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </>
-        )}
+          </div>
+        </div>
       </motion.div>
     );
   }
