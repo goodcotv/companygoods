@@ -546,13 +546,15 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
     </nav>
   );
 
+  const listScrollable = canScroll || (isMobile && roster.length > 0);
+
   const nameList = (
     <ul
       ref={scrollRef}
-      {...(canScroll ? { "data-scrollable-list": true } : {})}
+      {...(listScrollable ? { "data-scrollable-list": true } : {})}
       className={[
         "talent-list",
-        canScroll ? "is-scrollable" : "",
+        listScrollable ? "is-scrollable" : "",
         isMobile ? "talent-list--mobile" : "",
       ]
         .filter(Boolean)
@@ -606,7 +608,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
           );
         }
 
-        const isActive = person._id === selected?._id;
+        const isActive = person._id === (selected?._id ?? (isMobile ? roster[0]?._id : undefined));
         return (
           <li
             key={person._id}
@@ -616,6 +618,7 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
           >
             <Link
               href={`/talent/${person.slug}?role=${category}`}
+              aria-current={isActive ? "true" : undefined}
               className={
                 isActive
                   ? "talent-list__name is-active"
@@ -633,6 +636,9 @@ export default function TalentRoster({ workers = [] }: TalentRosterProps) {
           </li>
         );
       })}
+      {isMobile && roster.length > 0 ? (
+        <li className="browse-list-end-spacer" aria-hidden />
+      ) : null}
     </ul>
   );
 

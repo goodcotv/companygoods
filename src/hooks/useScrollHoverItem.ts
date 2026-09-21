@@ -5,7 +5,6 @@ import { useLayoutEffect, useRef, type RefObject } from "react";
 /** An item becomes the hovered one when its top reaches this far into the list. */
 const ACTIVATION_INSET_PX = 48;
 const TOP_REST_PX = 1;
-const BOTTOM_REST_PX = 8;
 /** Wait until the fling/drag stops so we don't swap stills/clips mid-scroll. */
 export const SCROLL_SETTLE_MS = 160;
 
@@ -25,8 +24,8 @@ type UseScrollHoverItemOptions<T extends HTMLElement> = {
 
 /**
  * On touch layouts, drive list "hover" from scroll position instead of tap.
- * Highlight, still, and clip all wait until the swipe settles so iOS can
- * keep native momentum.
+ * Highlight follows the top row as you scroll; the clip waits until the
+ * swipe settles so iOS can keep native momentum.
  */
 export function useScrollHoverItem<T extends HTMLElement>({
   enabled,
@@ -47,15 +46,16 @@ export function useScrollHoverItem<T extends HTMLElement>({
 
   useLayoutEffect(() => {
     if (!enabled) return;
-    const root = scrollRef.current;
-    if (!root) return;
 
     let frame = 0;
+    let retryFrame = 0;
     let settle = 0;
+    let root: HTMLElement | null = null;
     let activeId: string | null = null;
     let playingId: string | null = null;
 
     const closestId = () => {
+      if (!root) return null;
       const ids = itemIdsRef.current;
       if (ids.length === 0) return null;
 
@@ -74,13 +74,6 @@ export function useScrollHoverItem<T extends HTMLElement>({
             break;
           }
         }
-
-        const atBottom =
-          root.scrollTop + root.clientHeight >=
-          root.scrollHeight - BOTTOM_REST_PX;
-        if (atBottom) {
-          nextId = ids[ids.length - 1];
-        }
       }
 
       return nextId;
@@ -98,6 +91,10 @@ export function useScrollHoverItem<T extends HTMLElement>({
       onSettleActivateRef.current?.(id);
     };
 
+    const pickActive = () => {
+      commitActive(closestId());
+    };
+
     const pickSettled = () => {
       const id = closestId();
       commitActive(id);
@@ -108,6 +105,7 @@ export function useScrollHoverItem<T extends HTMLElement>({
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
+        pickActive();
         window.clearTimeout(settle);
         settle = window.setTimeout(pickSettled, SCROLL_SETTLE_MS);
       });
@@ -117,21 +115,35 @@ export function useScrollHoverItem<T extends HTMLElement>({
       pickSettled();
     };
 
-    pickSettled();
+    let resizeObserver: ResizeObserver | null = null;
 
-    root.addEventListener("scroll", onScroll, { passive: true });
-    root.addEventListener("scrollend", pickSettled);
-    window.addEventListener("resize", onResize);
-    const resizeObserver = new ResizeObserver(onResize);
-    resizeObserver.observe(root);
+    const attach = () => {
+      root = scrollRef.current;
+      if (!root) {
+        retryFrame = requestAnimationFrame(attach);
+        return;
+      }
+
+      pickSettled();
+      root.addEventListener("scroll", onScroll, { passive: true });
+      root.addEventListener("scrollend", pickSettled);
+      window.addEventListener("resize", onResize);
+      resizeObserver = new ResizeObserver(onResize);
+      resizeObserver.observe(root);
+    };
+
+    attach();
 
     return () => {
       if (frame) cancelAnimationFrame(frame);
+      if (retryFrame) cancelAnimationFrame(retryFrame);
       window.clearTimeout(settle);
-      root.removeEventListener("scroll", onScroll);
-      root.removeEventListener("scrollend", pickSettled);
+      if (root) {
+        root.removeEventListener("scroll", onScroll);
+        root.removeEventListener("scrollend", pickSettled);
+      }
       window.removeEventListener("resize", onResize);
-      resizeObserver.disconnect();
+      resizeObserver?.disconnect();
     };
   }, [enabled, itemIdsKey, itemRefs, scrollRef]);
 }

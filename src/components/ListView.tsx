@@ -522,13 +522,15 @@ export function ListView({ projects }: ListViewProps) {
     </nav>
   );
 
+  const listScrollable = canScroll || (isMobile && filtered.length > 0);
+
   const projectList = (
     <ul
       ref={scrollRef}
-      {...(canScroll ? { "data-scrollable-list": true } : {})}
+      {...(listScrollable ? { "data-scrollable-list": true } : {})}
       className={[
         "min-h-0 flex-1 overscroll-contain",
-        canScroll ? "overflow-y-scroll" : "overflow-y-hidden",
+        listScrollable ? "overflow-y-scroll" : "overflow-y-hidden",
         isMobile
           ? "flex flex-col gap-[14px] px-5 py-5 text-left"
           : "flex flex-col gap-[14px] py-5 pl-4 pr-4 md:gap-[18px]",
@@ -586,7 +588,7 @@ export function ListView({ projects }: ListViewProps) {
           );
         }
 
-        const isActive = project.id === active?.id;
+        const isActive = project.id === (active?.id ?? (isMobile ? filtered[0]?.id : undefined));
         // Mobile mock: client hero + title subtitle (Grindr / CONFESSIONS)
         const primary = isMobile
           ? project.client || project.title
@@ -606,6 +608,7 @@ export function ListView({ projects }: ListViewProps) {
           >
             <Link
               href={`/work/${project.id}`}
+              aria-current={isActive ? "true" : undefined}
               onMouseEnter={() => {
                 if (!isMobile) selectProject(project.id);
               }}
@@ -634,6 +637,9 @@ export function ListView({ projects }: ListViewProps) {
       })}
       {filtered.length === 0 ? (
         <li className="text-sm text-muted">No projects match.</li>
+      ) : null}
+      {isMobile && filtered.length > 0 ? (
+        <li className="browse-list-end-spacer" aria-hidden />
       ) : null}
     </ul>
   );

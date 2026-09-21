@@ -376,6 +376,14 @@ body {
   touch-action: pan-y;
 }
 
+/* Extra room after the last title so later rows can still reach the
+   selection line instead of snapping to the final video. */
+.browse-list-end-spacer {
+  flex-shrink: 0;
+  pointer-events: none;
+  height: 55dvh;
+}
+
 /* Invisible longest-name row: holds frame width steady across categories. */
 .talent-list__sizer {
   display: block;

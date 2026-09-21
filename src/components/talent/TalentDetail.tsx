@@ -331,13 +331,15 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
     </>
   );
 
+  const listScrollable = canScroll || (isMobile && projects.length > 0);
+
   const projectList = (
     <ul
       ref={scrollRef}
-      {...(canScroll ? { "data-scrollable-list": true } : {})}
+      {...(listScrollable ? { "data-scrollable-list": true } : {})}
       className={[
         "talent-detail-projects",
-        canScroll ? "is-scrollable" : "",
+        listScrollable ? "is-scrollable" : "",
         isMobile ? "talent-detail-projects--mobile" : "",
       ]
         .filter(Boolean)
@@ -393,7 +395,7 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
           );
         }
 
-        const isActive = project._id === activeProject?._id;
+        const isActive = project._id === (activeProject?._id ?? (isMobile ? projects[0]?._id : undefined));
         const primary = isMobile
           ? project.client || project.title
           : project.title;
@@ -412,6 +414,7 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
           >
             <Link
               href={`/work/${project.slug}`}
+              aria-current={isActive ? "true" : undefined}
               className={`group block w-fit max-w-full text-left transition-colors ${
                 isActive
                   ? "text-foreground"
@@ -444,6 +447,9 @@ export function TalentDetail({ talent, projects }: TalentDetailProps) {
           </li>
         );
       })}
+      {isMobile && projects.length > 0 ? (
+        <li className="browse-list-end-spacer" aria-hidden />
+      ) : null}
     </ul>
   );
 
