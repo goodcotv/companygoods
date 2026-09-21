@@ -2,21 +2,23 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { BottomChrome } from "./BottomChrome";
 import { consumeGoHomeNavigation, GoHomeProvider, peekGoHomeNavigation } from "./GoHomeContext";
 import { HomePage } from "./HomePage";
 import TalentRoster from "./talent/TalentRoster";
 import { InfoShell } from "./info/InfoShell";
 import { InfoCredits } from "./info/InfoCredits";
-import { MobileMenu, MOBILE_MENU_OVERLAY_FADE_S } from "./MobileMenu";
+import {
+  MobileMenu,
+  MOBILE_MENU_COVER_MS,
+  MOBILE_MENU_OVERLAY_FADE_S,
+  MOBILE_MENU_VEIL_IN_MS,
+} from "./MobileMenu";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
 import { STAGE_NAV_PADDING } from "@/lib/stage";
 import type { HomepageData, PostWorker } from "@/sanity/types";
 
-/** Destination UI starts fading as the menu overlay is mostly gone. */
-const MOBILE_MENU_REVEAL_DELAY_S = MOBILE_MENU_OVERLAY_FADE_S * 0.65;
-const MOBILE_MENU_REVEAL_DURATION_S = 0.55;
 const MOBILE_REVEAL_EASE = [0.22, 1, 0.36, 1] as const;
 
 export type Section = "work" | "talent" | "info";
@@ -42,7 +44,8 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
       : parseSection(searchParams.get("section")),
   );
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRevealKeyRef = useRef<string | null>(null);
+  const menuCloseTimerRef = useRef<number>(0);
+  const menuNavTimerRef = useRef<number>(0);
 
   // Open menu when returning from a talent/project page via MENU
   useEffect(() => {
@@ -51,6 +54,13 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
       window.sessionStorage.removeItem("openMobileMenu");
       setMenuOpen(true);
     }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      window.clearTimeout(menuCloseTimerRef.current);
+      window.clearTimeout(menuNavTimerRef.current);
+    };
   }, []);
 
   // Track view state for Work section (scroll/list toggle)
@@ -80,13 +90,30 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
     }
   }, [router, searchParams]);
 
-  // Navigate to a section by updating URL and state
-  function handleNavigate(nextSection: Section) {
+  function closeMenuAfterCover() {
+    window.clearTimeout(menuCloseTimerRef.current);
+    menuCloseTimerRef.current = window.setTimeout(() => {
+      setMenuOpen(false);
+    }, MOBILE_MENU_COVER_MS);
+  }
+
+  function willChangeSection(nextSection: Section): boolean {
+    if (isMobile && nextSection === "work") {
+      return !(section === "work" && workView === "list");
+    }
+    return nextSection !== section;
+  }
+
+  function runAfterVeil(action: () => void) {
+    window.clearTimeout(menuNavTimerRef.current);
+    menuNavTimerRef.current = window.setTimeout(action, MOBILE_MENU_VEIL_IN_MS);
+  }
+
+  /** @returns whether the visible section/view actually changed. */
+  function handleNavigate(nextSection: Section): boolean {
     // Mobile: Menu > Work always opens list (logo / landing stays scroll).
     if (isMobile && nextSection === "work") {
-      if (section === "work" && workView === "list") return;
-
-      if (menuOpen) menuRevealKeyRef.current = "work-list";
+      if (section === "work" && workView === "list") return false;
 
       const params = new URLSearchParams(window.location.search);
       params.delete("section");
@@ -97,12 +124,10 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
       window.history.pushState(null, "", url);
       setSection("work");
       setWorkView("list");
-      return;
+      return true;
     }
 
-    if (nextSection === section) return;
-
-    if (isMobile && menuOpen) menuRevealKeyRef.current = nextSection;
+    if (nextSection === section) return false;
 
     const params = new URLSearchParams(window.location.search);
 
@@ -123,6 +148,19 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
     const url = params.toString() ? `/?${params.toString()}` : "/";
     window.history.pushState(null, "", url);
     setSection(nextSection);
+    return true;
+  }
+
+  function handleMenuNavigate(nextSection: Section): boolean {
+    if (!willChangeSection(nextSection)) {
+      setMenuOpen(false);
+      return false;
+    }
+    runAfterVeil(() => {
+      handleNavigate(nextSection);
+    });
+    closeMenuAfterCover();
+    return true;
   }
 
   // Handle view change for Work section
@@ -141,12 +179,25 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
   }
 
   /** Logo / home — Work section, Scroll view, clear filters. */
-  function handleGoHome() {
-    if (isMobile && menuOpen) menuRevealKeyRef.current = "work-scroll";
-    setSection("work");
-    setWorkView("scroll");
-    setMenuOpen(false);
-    window.history.pushState(null, "", "/");
+  function handleGoHome(): boolean {
+    const alreadyHome = section === "work" && workView === "scroll";
+    const goHome = () => {
+      setSection("work");
+      setWorkView("scroll");
+      window.history.pushState(null, "", "/");
+    };
+
+    if (!menuOpen) {
+      goHome();
+      return false;
+    }
+    if (alreadyHome) {
+      setMenuOpen(false);
+      return false;
+    }
+    runAfterVeil(goHome);
+    closeMenuAfterCover();
+    return true;
   }
 
   // Handle browser back/forward
@@ -182,14 +233,6 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
   }, [isMobile]);
 
   const sectionKey = section === "work" ? `work-${workView}` : section;
-  const revealFromMenu = menuRevealKeyRef.current === sectionKey;
-  const revealTransition = revealFromMenu
-    ? {
-        duration: MOBILE_MENU_REVEAL_DURATION_S,
-        delay: MOBILE_MENU_REVEAL_DELAY_S,
-        ease: MOBILE_REVEAL_EASE,
-      }
-    : { duration: 0.3, ease: MOBILE_REVEAL_EASE };
 
   const activeSection =
     section === "work" ? (
@@ -201,25 +244,11 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
     );
 
   const sections = isMobile ? (
-    // Delayed fade so destination UI appears as the menu overlay lifts,
-    // instead of finishing its fade underneath and popping in fully formed.
-    <AnimatePresence initial={false}>
-      <motion.div
-        key={sectionKey}
-        className="absolute inset-0"
-        initial={{ opacity: 0 }}
-        animate={{
-          opacity: 1,
-          transition: revealTransition,
-        }}
-        exit={{
-          opacity: 0,
-          transition: { duration: 0.12, ease: "easeIn" },
-        }}
-      >
-        {activeSection}
-      </motion.div>
-    </AnimatePresence>
+    // Isolate shared layout per section so camera/logo don't morph under the
+    // menu overlay. The overlay itself is the visible fade.
+    <LayoutGroup id={sectionKey}>
+      <div className="absolute inset-0">{activeSection}</div>
+    </LayoutGroup>
   ) : (
     // sync, not popLayout: sections are already absolute, and popLayout
     // races the shared page-corners / logo layoutId against the incoming
@@ -250,8 +279,7 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
         section === "work" && !isMobile ? handleWorkViewChange : undefined
       }
       onMenuOpen={isMobile ? () => setMenuOpen(true) : undefined}
-      menuOpen={isMobile ? menuOpen : undefined}
-      onMenuHome={isMobile ? handleGoHome : undefined}
+      menuOpen={false}
       className={
         isMobile ? "pointer-events-auto w-full" : "pointer-events-auto"
       }
@@ -264,15 +292,21 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
       <div className="fixed inset-0 z-0 bg-transparent text-foreground">
         {/* Full-bleed stage — chrome floats over so media reaches the bottom */}
         <div className="absolute inset-0 z-0 overflow-hidden">{sections}</div>
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[10060] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
-          <motion.div
-            key={revealFromMenu ? sectionKey : "chrome"}
-            initial={revealFromMenu ? { opacity: 0 } : false}
-            animate={{ opacity: 1, transition: revealTransition }}
-          >
-            {chrome}
-          </motion.div>
-        </div>
+        <motion.div
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-50 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2"
+          initial={false}
+          animate={{
+            opacity: menuOpen ? 0 : 1,
+            transition: menuOpen
+              ? { duration: 0.15, ease: "easeOut" }
+              : {
+                  duration: MOBILE_MENU_OVERLAY_FADE_S,
+                  ease: MOBILE_REVEAL_EASE,
+                },
+          }}
+        >
+          {chrome}
+        </motion.div>
       </div>
     );
   } else {
@@ -301,7 +335,7 @@ export function AppShell({ homepageData, talentWorkers }: AppShellProps) {
       <MobileMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
-        onNavigate={handleNavigate}
+        onNavigate={handleMenuNavigate}
         onGoHome={handleGoHome}
         activeSection={section}
       />
