@@ -22,6 +22,7 @@ import {
 import { textUi } from "@/lib/typography";
 import { isVideoMediaUrl, isVimeoUrl } from "@/lib/vimeo";
 import { useMobileBrowseLayout } from "@/hooks/useMobileBrowseLayout";
+import { AnimatedCornerBrackets } from "./AnimatedCornerBrackets";
 import { BrandHeader } from "./BrandHeader";
 import { MediaViewport } from "./MediaViewport";
 import { MobileBrandBar } from "./MobileBrandBar";
@@ -399,8 +400,7 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
               src={introVideoUrl}
               type="video"
               active={isMobile ? playingIndex === INTRO_INDEX : isIntro}
-              cornersLayoutId="page-corners"
-              corners={!isMobile && isIntro && cameraReady}
+              corners={false}
               radius={isMobile ? 24 : 16}
             />
           )
@@ -462,8 +462,7 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
                 poster={project.posterImageUrl || project.imageUrl}
                 startTime={project.videoPreviewStartSeconds ?? 0}
                 active={isMobile ? playing : on}
-                cornersLayoutId="page-corners"
-                corners={!isMobile && on && cameraReady}
+                corners={false}
                 radius={isMobile ? 24 : 16}
               />
             )}
@@ -547,6 +546,11 @@ export function ScrollView({ projects, introVideoUrl }: ScrollViewProps) {
           }}
         >
           {mediaLayers}
+          {/* One frame for every slide. Per-slide brackets remount on scroll
+              and the shared layoutId crossfades them in place. */}
+          {cameraReady ? (
+            <AnimatedCornerBrackets inset={10} layoutId="page-corners" />
+          ) : null}
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col items-start self-start overflow-hidden">
